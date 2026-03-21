@@ -11,6 +11,7 @@ internal object GoogleReaderReadStateReconciler {
         localReadIds: Set<String>,
         remoteUnreadIds: Set<String>,
         remoteReadIds: Set<String>,
+        excludedIds: Set<String> = emptySet(),
     ): ReadStateReconciliation {
         return ReadStateReconciliation(
             // Anything we still think is unread locally but no longer appears in the
