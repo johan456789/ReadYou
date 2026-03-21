@@ -26,6 +26,7 @@ import kotlinx.coroutines.supervisorScope
 import kotlinx.coroutines.sync.Semaphore
 import kotlinx.coroutines.sync.withPermit
 import me.ash.reader.R
+import me.ash.reader.domain.data.DiffMapHolder
 import me.ash.reader.domain.data.SyncLogger
 import me.ash.reader.domain.model.account.Account
 import me.ash.reader.domain.model.account.AccountType
@@ -311,6 +312,7 @@ constructor(
                 localAllItems.filter { !it.isUnread }.map { it.id.dollarLast() }.toSet()
 
             val localItemIds = localAllItems.map { it.id.dollarLast() }.toSet()
+            val excludedPendingReadStateIds = DiffMapHolder.pendingReadStateRemoteIds(accountId)
 
             //            launch {
             //                val toBeStarredRemote = localStarredIds - remoteStarredIds.await()
@@ -354,6 +356,7 @@ constructor(
                         localReadIds = localReadIds,
                         remoteUnreadIds = remoteUnreadIds.await(),
                         remoteReadIds = remoteReadIds.await(),
+                        excludedIds = excludedPendingReadStateIds,
                     )
                 val toBeReadLocal =
                     readStateReconciliation.markReadIds.map { accountId spacerDollar it }
@@ -373,6 +376,7 @@ constructor(
                         localReadIds = localReadIds,
                         remoteUnreadIds = remoteUnreadIds.await(),
                         remoteReadIds = remoteReadIds.await(),
+                        excludedIds = excludedPendingReadStateIds,
                     )
                 val toBeUnreadLocal =
                     readStateReconciliation.markUnreadIds.map { accountId spacerDollar it }
@@ -567,6 +571,7 @@ constructor(
                     .toSet()
 
             val localIds = (localReadIds + localUnreadIds).toSet()
+            val excludedPendingReadStateIds = DiffMapHolder.pendingReadStateRemoteIds(accountId)
 
             val remoteUnreadIds = async {
                 fetchItemIdsAndContinue {
@@ -615,8 +620,15 @@ constructor(
             }
 
             launch {
-                val remoteReadIds = remoteAllIds.await() - remoteUnreadIds.await()
-                val toBeReadIds = remoteReadIds.intersect(localUnreadIds)
+                val readStateReconciliation =
+                    GoogleReaderReadStateReconciler.reconcile(
+                        localUnreadIds = localUnreadIds,
+                        localReadIds = localReadIds,
+                        remoteUnreadIds = remoteUnreadIds.await(),
+                        remoteReadIds = remoteAllIds.await() - remoteUnreadIds.await(),
+                        excludedIds = excludedPendingReadStateIds,
+                    )
+                val toBeReadIds = readStateReconciliation.markReadIds
 
                 toBeReadIds
                     .map { it.dbId(accountId) }
@@ -631,7 +643,15 @@ constructor(
             }
 
             launch {
-                val toBeUnreadIds = localReadIds.intersect(remoteUnreadIds.await())
+                val readStateReconciliation =
+                    GoogleReaderReadStateReconciler.reconcile(
+                        localUnreadIds = localUnreadIds,
+                        localReadIds = localReadIds,
+                        remoteUnreadIds = remoteUnreadIds.await(),
+                        remoteReadIds = remoteAllIds.await() - remoteUnreadIds.await(),
+                        excludedIds = excludedPendingReadStateIds,
+                    )
+                val toBeUnreadIds = readStateReconciliation.markUnreadIds
                 toBeUnreadIds
                     .map { it.dbId(accountId) }
                     .chunked(1000)

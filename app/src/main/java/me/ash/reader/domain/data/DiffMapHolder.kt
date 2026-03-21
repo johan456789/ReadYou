@@ -27,7 +27,9 @@ import me.ash.reader.domain.service.AccountService
 import me.ash.reader.domain.service.RssService
 import me.ash.reader.infrastructure.di.ApplicationScope
 import me.ash.reader.infrastructure.di.IODispatcher
+import me.ash.reader.ui.ext.dollarLast
 import java.io.File
+import java.util.concurrent.ConcurrentHashMap
 import javax.inject.Inject
 
 private const val TAG = "DiffMapHolder"
@@ -40,6 +42,16 @@ class DiffMapHolder @Inject constructor(
     private val accountService: AccountService,
     private val rssService: RssService,
 ) {
+    companion object {
+        private val pendingReadStateArticleIdsByAccount = ConcurrentHashMap<Int, Set<String>>()
+
+        fun pendingReadStateRemoteIds(accountId: Int): Set<String> =
+            pendingReadStateArticleIdsByAccount[accountId]
+                ?.map { it.dollarLast() }
+                ?.toSet()
+                ?: emptySet()
+    }
+
     val diffMap = mutableStateMapOf<String, Diff>()
 
     private val pendingSyncDiffs = mutableStateMapOf<String, Diff>()
@@ -90,12 +102,16 @@ class DiffMapHolder @Inject constructor(
     }
 
     private fun cleanup(account: Account) {
+        val accountId = account.id
         dbJob?.cancel()
         remoteJob?.cancel()
         writeDiffsToCache()
         diffMap.clear()
         pendingSyncDiffs.clear()
         syncedDiffs.clear()
+        if (accountId != null) {
+            pendingReadStateArticleIdsByAccount.remove(accountId)
+        }
     }
 
     private fun commitOnChange() {
@@ -167,10 +183,12 @@ class DiffMapHolder @Inject constructor(
                 isUnread = isUnread, articleWithFeed = articleWithFeed
             )
             diffMap[articleId] = diff
+            publishPendingReadStateIds()
             return diff
         } else {
             if (isUnread == null || diff.isUnread != isUnread) {
                 val diff = diffMap.remove(articleId)
+                publishPendingReadStateIds()
                 return diff?.copy(isUnread = !diff.isUnread)
             }
         }
@@ -194,6 +212,7 @@ class DiffMapHolder @Inject constructor(
         val syncedDiff = syncedDiffs[diff.articleId]
         if (syncedDiff == null || syncedDiff.isUnread != diff.isUnread) {
             pendingSyncDiffs[diff.articleId] = diff
+            publishPendingReadStateIds()
         }
     }
 
@@ -252,6 +271,7 @@ class DiffMapHolder @Inject constructor(
 
         pendingSyncDiffs -= synced
         syncedDiffs += diffs.filter { synced.contains(it.key) }
+        publishPendingReadStateIds()
     }
 
     private fun commitDiffsFromCache() {
@@ -265,6 +285,7 @@ class DiffMapHolder @Inject constructor(
                 diffMapFromCache?.let {
                     diffMap.clear()
                     diffMap.putAll(it)
+                    publishPendingReadStateIds()
                 }
             }
         }.invokeOnCompletion {
@@ -278,6 +299,17 @@ class DiffMapHolder @Inject constructor(
                 cacheFile.delete()
             }
             diffMap.clear()
+            publishPendingReadStateIds()
+        }
+    }
+
+    private fun publishPendingReadStateIds() {
+        val accountId = currentAccount?.id ?: return
+        val pendingArticleIds = (diffMap.keys + pendingSyncDiffs.keys).toSet()
+        if (pendingArticleIds.isEmpty()) {
+            pendingReadStateArticleIdsByAccount.remove(accountId)
+        } else {
+            pendingReadStateArticleIdsByAccount[accountId] = pendingArticleIds
         }
     }
 }
