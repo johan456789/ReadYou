@@ -13,7 +13,9 @@ internal object GoogleReaderReadStateReconciler {
         remoteReadIds: Set<String>,
     ): ReadStateReconciliation {
         return ReadStateReconciliation(
-            markReadIds = remoteReadIds.intersect(localUnreadIds),
+            // Anything we still think is unread locally but no longer appears in the
+            // server unread snapshot should be marked read locally.
+            markReadIds = localUnreadIds - remoteUnreadIds,
             markUnreadIds = localReadIds.intersect(remoteUnreadIds),
         )
     }

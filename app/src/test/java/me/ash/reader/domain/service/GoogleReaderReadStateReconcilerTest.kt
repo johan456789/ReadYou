@@ -17,4 +17,18 @@ class GoogleReaderReadStateReconcilerTest {
         assertEquals(setOf("old-article"), reconciliation.markReadIds)
         assertEquals(emptySet<String>(), reconciliation.markUnreadIds)
     }
+
+    @Test
+    fun marksLocallyReadItemsAsUnreadWhenServerListsThemAsUnread() {
+        val reconciliation =
+            GoogleReaderReadStateReconciler.reconcile(
+                localUnreadIds = emptySet(),
+                localReadIds = setOf("server-unread"),
+                remoteUnreadIds = setOf("server-unread"),
+                remoteReadIds = emptySet(),
+            )
+
+        assertEquals(emptySet<String>(), reconciliation.markReadIds)
+        assertEquals(setOf("server-unread"), reconciliation.markUnreadIds)
+    }
 }

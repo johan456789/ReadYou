@@ -348,10 +348,15 @@ constructor(
             }
 
             launch {
+                val readStateReconciliation =
+                    GoogleReaderReadStateReconciler.reconcile(
+                        localUnreadIds = localUnreadIds,
+                        localReadIds = localReadIds,
+                        remoteUnreadIds = remoteUnreadIds.await(),
+                        remoteReadIds = remoteReadIds.await(),
+                    )
                 val toBeReadLocal =
-                    remoteReadIds.await().intersect(localUnreadIds).map {
-                        accountId spacerDollar it
-                    }
+                    readStateReconciliation.markReadIds.map { accountId spacerDollar it }
                 toBeReadLocal.chunked(1000).forEach {
                     articleDao.markAsReadByIdSet(
                         accountId = accountId,
@@ -362,10 +367,15 @@ constructor(
             }
 
             launch {
+                val readStateReconciliation =
+                    GoogleReaderReadStateReconciler.reconcile(
+                        localUnreadIds = localUnreadIds,
+                        localReadIds = localReadIds,
+                        remoteUnreadIds = remoteUnreadIds.await(),
+                        remoteReadIds = remoteReadIds.await(),
+                    )
                 val toBeUnreadLocal =
-                    localReadIds.intersect(remoteUnreadIds.await()).map {
-                        accountId spacerDollar it
-                    }
+                    readStateReconciliation.markUnreadIds.map { accountId spacerDollar it }
                 toBeUnreadLocal.chunked(1000).forEach {
                     articleDao.markAsReadByIdSet(
                         accountId = accountId,
