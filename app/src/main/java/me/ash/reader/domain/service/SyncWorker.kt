@@ -6,6 +6,7 @@ import androidx.work.*
 import dagger.assisted.Assisted
 import dagger.assisted.AssistedInject
 import java.util.concurrent.TimeUnit
+import me.ash.reader.domain.data.DiffMapHolder
 import me.ash.reader.domain.model.account.Account
 import me.ash.reader.infrastructure.rss.ReaderCacheHelper
 
@@ -16,6 +17,7 @@ constructor(
     @Assisted context: Context,
     @Assisted workerParams: WorkerParameters,
     private val rssService: RssService,
+    private val diffMapHolder: DiffMapHolder,
     private val readerCacheHelper: ReaderCacheHelper,
     private val workManager: WorkManager,
 ) : CoroutineWorker(context, workerParams) {
@@ -26,10 +28,16 @@ constructor(
         require(accountId != -1)
         val feedId = data.getString("feedId")
         val groupId = data.getString("groupId")
+        val excludedReadStateIds = diffMapHolder.prepareReadStateForSync(accountId)
 
         return rssService
             .get()
-            .sync(accountId = accountId, feedId = feedId, groupId = groupId)
+            .sync(
+                accountId = accountId,
+                feedId = feedId,
+                groupId = groupId,
+                excludedReadStateIds = excludedReadStateIds,
+            )
             .also {
                 rssService.get().clearKeepArchivedArticles().forEach {
                     readerCacheHelper.deleteCacheFor(articleId = it.id)

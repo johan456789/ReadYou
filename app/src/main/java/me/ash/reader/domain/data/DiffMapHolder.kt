@@ -20,6 +20,8 @@ import kotlinx.coroutines.flow.stateIn
 import kotlinx.coroutines.launch
 import kotlinx.coroutines.supervisorScope
 import kotlinx.coroutines.withContext
+import kotlinx.coroutines.sync.Mutex
+import kotlinx.coroutines.sync.withLock
 import me.ash.reader.domain.model.account.Account
 import me.ash.reader.domain.model.account.AccountType
 import me.ash.reader.domain.model.article.ArticleWithFeed
@@ -29,7 +31,6 @@ import me.ash.reader.infrastructure.di.ApplicationScope
 import me.ash.reader.infrastructure.di.IODispatcher
 import me.ash.reader.ui.ext.dollarLast
 import java.io.File
-import java.util.concurrent.ConcurrentHashMap
 import javax.inject.Inject
 
 private const val TAG = "DiffMapHolder"
@@ -42,20 +43,11 @@ class DiffMapHolder @Inject constructor(
     private val accountService: AccountService,
     private val rssService: RssService,
 ) {
-    companion object {
-        private val pendingReadStateArticleIdsByAccount = ConcurrentHashMap<Int, Set<String>>()
-
-        fun pendingReadStateRemoteIds(accountId: Int): Set<String> =
-            pendingReadStateArticleIdsByAccount[accountId]
-                ?.map { it.dollarLast() }
-                ?.toSet()
-                ?: emptySet()
-    }
-
     val diffMap = mutableStateMapOf<String, Diff>()
 
     private val pendingSyncDiffs = mutableStateMapOf<String, Diff>()
     private val syncedDiffs = mutableMapOf<String, Diff>()
+    private val pendingSyncMutex = Mutex()
 
     val diffMapSnapshotFlow = snapshotFlow { diffMap.toMap() }.stateIn(
         applicationScope, SharingStarted.Eagerly, emptyMap()
@@ -102,16 +94,12 @@ class DiffMapHolder @Inject constructor(
     }
 
     private fun cleanup(account: Account) {
-        val accountId = account.id
         dbJob?.cancel()
         remoteJob?.cancel()
         writeDiffsToCache()
         diffMap.clear()
         pendingSyncDiffs.clear()
         syncedDiffs.clear()
-        if (accountId != null) {
-            pendingReadStateArticleIdsByAccount.remove(accountId)
-        }
     }
 
     private fun commitOnChange() {
@@ -127,8 +115,10 @@ class DiffMapHolder @Inject constructor(
     private fun syncOnChange() {
         remoteJob = applicationScope.launch(ioDispatcher) {
             pendingSyncDiffsSnapshotFlow.debounce(2_000).collect {
-                withContext(ioDispatcher) {
-                    syncDiffsWithRemote(it)
+                pendingSyncMutex.withLock {
+                    withContext(ioDispatcher) {
+                        flushPendingSyncDiffs(it)
+                    }
                 }
             }
         }
@@ -183,12 +173,10 @@ class DiffMapHolder @Inject constructor(
                 isUnread = isUnread, articleWithFeed = articleWithFeed
             )
             diffMap[articleId] = diff
-            publishPendingReadStateIds()
             return diff
         } else {
             if (isUnread == null || diff.isUnread != isUnread) {
                 val diff = diffMap.remove(articleId)
-                publishPendingReadStateIds()
                 return diff?.copy(isUnread = !diff.isUnread)
             }
         }
@@ -212,7 +200,6 @@ class DiffMapHolder @Inject constructor(
         val syncedDiff = syncedDiffs[diff.articleId]
         if (syncedDiff == null || syncedDiff.isUnread != diff.isUnread) {
             pendingSyncDiffs[diff.articleId] = diff
-            publishPendingReadStateIds()
         }
     }
 
@@ -229,7 +216,18 @@ class DiffMapHolder @Inject constructor(
             appliedDiffs = diffsToCommit,
         )
         syncCacheWithCurrentDiffs()
-        publishPendingReadStateIds()
+    }
+
+    suspend fun prepareReadStateForSync(accountId: Int): Set<String> {
+        if (currentAccount?.id != accountId) return emptySet()
+
+        commitDiffsToDb()
+        if (!shouldSyncWithRemote) return emptySet()
+
+        return pendingSyncMutex.withLock {
+            flushPendingSyncDiffs(pendingSyncDiffs.toMap())
+            pendingSyncDiffs.keys.map { it.dollarLast() }.toSet()
+        }
     }
 
     private fun writeDiffsToCache() {
@@ -238,7 +236,7 @@ class DiffMapHolder @Inject constructor(
         }
     }
 
-    private suspend fun syncDiffsWithRemote(diffs: Map<String, Diff>) {
+    private suspend fun flushPendingSyncDiffs(diffs: Map<String, Diff>) {
         if (!shouldSyncWithRemote) return
         if (diffs.isEmpty()) return
         val toBeSync = diffs
@@ -266,9 +264,12 @@ class DiffMapHolder @Inject constructor(
                     runCatching { unread.await() }.getOrElse { emptySet() }
         }
 
-        pendingSyncDiffs -= synced
-        syncedDiffs += diffs.filter { synced.contains(it.key) }
-        publishPendingReadStateIds()
+        val syncedDiffsSnapshot = diffs.filter { synced.contains(it.key) }
+        ReadStateDiffApplier.removeMatchingDiffs(
+            currentDiffs = pendingSyncDiffs,
+            appliedDiffs = syncedDiffsSnapshot,
+        )
+        syncedDiffs += syncedDiffsSnapshot
     }
 
     private fun commitDiffsFromCache() {
@@ -282,7 +283,6 @@ class DiffMapHolder @Inject constructor(
                 diffMapFromCache?.let {
                     diffMap.clear()
                     diffMap.putAll(it)
-                    publishPendingReadStateIds()
                 }
             }
             commitDiffsToDb()
@@ -306,15 +306,6 @@ class DiffMapHolder @Inject constructor(
         }
     }
 
-    private fun publishPendingReadStateIds() {
-        val accountId = currentAccount?.id ?: return
-        val pendingArticleIds = (diffMap.keys + pendingSyncDiffs.keys).toSet()
-        if (pendingArticleIds.isEmpty()) {
-            pendingReadStateArticleIdsByAccount.remove(accountId)
-        } else {
-            pendingReadStateArticleIdsByAccount[accountId] = pendingArticleIds
-        }
-    }
 }
 
 data class Diff(

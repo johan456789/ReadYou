@@ -222,7 +222,6 @@ constructor(
             }
         }
         applicationScope.launch(ioDispatcher) {
-            diffMapHolder.commitDiffsToDb()
             val filterState = filterStateUseCase.filterStateFlow.value
             val service = rssService.get()
             when (service) {

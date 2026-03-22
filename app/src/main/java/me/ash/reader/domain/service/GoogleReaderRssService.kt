@@ -26,7 +26,6 @@ import kotlinx.coroutines.supervisorScope
 import kotlinx.coroutines.sync.Semaphore
 import kotlinx.coroutines.sync.withPermit
 import me.ash.reader.R
-import me.ash.reader.domain.data.DiffMapHolder
 import me.ash.reader.domain.data.SyncLogger
 import me.ash.reader.domain.model.account.Account
 import me.ash.reader.domain.model.account.AccountType
@@ -225,11 +224,12 @@ constructor(
         accountId: Int,
         feedId: String?,
         groupId: String?,
+        excludedReadStateIds: Set<String>,
     ): ListenableWorker.Result {
         return if (feedId != null) {
-            syncFeed(accountId, feedId)
+            syncFeed(accountId, feedId, excludedReadStateIds)
         } else {
-            sync(accountId)
+            sync(accountId, excludedReadStateIds)
         }
     }
 
@@ -253,7 +253,10 @@ constructor(
      * @link https://github.com/theoldreader/api
      */
     @OptIn(ExperimentalCoroutinesApi::class)
-    private suspend fun sync(accountId: Int): ListenableWorker.Result = coroutineScope {
+    private suspend fun sync(
+        accountId: Int,
+        excludedReadStateIds: Set<String>,
+    ): ListenableWorker.Result = coroutineScope {
         val preTime = System.currentTimeMillis()
         val preDate = Date(preTime)
 
@@ -312,7 +315,6 @@ constructor(
                 localAllItems.filter { !it.isUnread }.map { it.id.dollarLast() }.toSet()
 
             val localItemIds = localAllItems.map { it.id.dollarLast() }.toSet()
-            val excludedPendingReadStateIds = DiffMapHolder.pendingReadStateRemoteIds(accountId)
 
             //            launch {
             //                val toBeStarredRemote = localStarredIds - remoteStarredIds.await()
@@ -356,7 +358,7 @@ constructor(
                         localReadIds = localReadIds,
                         remoteUnreadIds = remoteUnreadIds.await(),
                         remoteReadIds = remoteReadIds.await(),
-                        excludedIds = excludedPendingReadStateIds,
+                        excludedIds = excludedReadStateIds,
                     )
                 val toBeReadLocal =
                     readStateReconciliation.markReadIds.map { accountId spacerDollar it }
@@ -376,7 +378,7 @@ constructor(
                         localReadIds = localReadIds,
                         remoteUnreadIds = remoteUnreadIds.await(),
                         remoteReadIds = remoteReadIds.await(),
-                        excludedIds = excludedPendingReadStateIds,
+                        excludedIds = excludedReadStateIds,
                     )
                 val toBeUnreadLocal =
                     readStateReconciliation.markUnreadIds.map { accountId spacerDollar it }
@@ -537,7 +539,11 @@ constructor(
         }
     }
 
-    private suspend fun syncFeed(accountId: Int, feedId: String): ListenableWorker.Result =
+    private suspend fun syncFeed(
+        accountId: Int,
+        feedId: String,
+        excludedReadStateIds: Set<String>,
+    ): ListenableWorker.Result =
         supervisorScope {
             val preTime = System.currentTimeMillis()
             val account = accountService.getAccountById(accountId)
@@ -571,7 +577,6 @@ constructor(
                     .toSet()
 
             val localIds = (localReadIds + localUnreadIds).toSet()
-            val excludedPendingReadStateIds = DiffMapHolder.pendingReadStateRemoteIds(accountId)
 
             val remoteUnreadIds = async {
                 fetchItemIdsAndContinue {
@@ -626,7 +631,7 @@ constructor(
                         localReadIds = localReadIds,
                         remoteUnreadIds = remoteUnreadIds.await(),
                         remoteReadIds = remoteAllIds.await() - remoteUnreadIds.await(),
-                        excludedIds = excludedPendingReadStateIds,
+                        excludedIds = excludedReadStateIds,
                     )
                 val toBeReadIds = readStateReconciliation.markReadIds
 
@@ -649,7 +654,7 @@ constructor(
                         localReadIds = localReadIds,
                         remoteUnreadIds = remoteUnreadIds.await(),
                         remoteReadIds = remoteAllIds.await() - remoteUnreadIds.await(),
-                        excludedIds = excludedPendingReadStateIds,
+                        excludedIds = excludedReadStateIds,
                     )
                 val toBeUnreadIds = readStateReconciliation.markUnreadIds
                 toBeUnreadIds
