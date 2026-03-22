@@ -81,6 +81,9 @@ android {
     }
     lint { disable.addAll(listOf("MissingTranslation", "ExtraTranslation")) }
     buildTypes {
+        getByName("debug") {
+            applicationIdSuffix = ".debug"
+        }
         getByName("release") {
             isMinifyEnabled = true
             isShrinkResources = true
