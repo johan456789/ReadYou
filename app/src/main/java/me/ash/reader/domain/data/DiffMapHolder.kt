@@ -216,28 +216,25 @@ class DiffMapHolder @Inject constructor(
         }
     }
 
-    fun commitDiffsToDb() {
-        applicationScope.launch(ioDispatcher) {
-            val markAsReadArticles = diffMap.filter { !it.value.isUnread }.map { it.key }.toSet()
-            val markAsUnreadArticles = diffMap.filter { it.value.isUnread }.map { it.key }.toSet()
-            clearDiffs()
-            rssService.get().batchMarkAsRead(articleIds = markAsReadArticles, isUnread = false)
-            rssService.get().batchMarkAsRead(articleIds = markAsUnreadArticles, isUnread = true)
-        }
+    suspend fun commitDiffsToDb() {
+        val diffsToCommit = diffMap.toMap()
+        if (diffsToCommit.isEmpty()) return
+
+        val diffBatch = ReadStateDiffApplier.toBatch(diffsToCommit)
+        rssService.get().batchMarkAsRead(articleIds = diffBatch.markReadIds, isUnread = false)
+        rssService.get().batchMarkAsRead(articleIds = diffBatch.markUnreadIds, isUnread = true)
+
+        ReadStateDiffApplier.removeMatchingDiffs(
+            currentDiffs = diffMap,
+            appliedDiffs = diffsToCommit,
+        )
+        syncCacheWithCurrentDiffs()
+        publishPendingReadStateIds()
     }
 
     private fun writeDiffsToCache() {
         applicationScope.launch(ioDispatcher) {
-            try {
-                val tmpJson = gson.toJson(diffMap)
-                userCacheDir.mkdirs()
-                cacheFile.createNewFile()
-                if (cacheFile.exists() && cacheFile.canWrite()) {
-                    cacheFile.writeText(tmpJson)
-                }
-            } catch (_: Exception) {
-
-            }
+            syncCacheWithCurrentDiffs()
         }
     }
 
@@ -288,18 +285,24 @@ class DiffMapHolder @Inject constructor(
                     publishPendingReadStateIds()
                 }
             }
-        }.invokeOnCompletion {
             commitDiffsToDb()
         }
     }
 
-    private fun clearDiffs() {
-        applicationScope.launch(ioDispatcher) {
+    private suspend fun syncCacheWithCurrentDiffs() {
+        try {
             if (cacheFile.exists() && cacheFile.canWrite()) {
                 cacheFile.delete()
             }
-            diffMap.clear()
-            publishPendingReadStateIds()
+            if (diffMap.isNotEmpty()) {
+                val tmpJson = gson.toJson(diffMap)
+                userCacheDir.mkdirs()
+                cacheFile.createNewFile()
+                if (cacheFile.exists() && cacheFile.canWrite()) {
+                    cacheFile.writeText(tmpJson)
+                }
+            }
+        } catch (_: Exception) {
         }
     }
 

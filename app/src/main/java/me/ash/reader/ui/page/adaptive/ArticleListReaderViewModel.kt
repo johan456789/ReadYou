@@ -211,7 +211,6 @@ constructor(
     }
 
     fun sync() {
-        diffMapHolder.commitDiffsToDb()
         viewModelScope.launch {
             _isSyncingFlow.value = true
             val isSyncing = syncWorkerStatusFlow.value
@@ -223,6 +222,7 @@ constructor(
             }
         }
         applicationScope.launch(ioDispatcher) {
+            diffMapHolder.commitDiffsToDb()
             val filterState = filterStateUseCase.filterStateFlow.value
             val service = rssService.get()
             when (service) {
