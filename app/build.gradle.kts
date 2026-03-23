@@ -205,9 +205,11 @@ dependencies {
 
     // Testing
     testImplementation(libs.junit)
+    testImplementation(kotlin("reflect"))
     androidTestImplementation(libs.junit.ext)
     androidTestImplementation(libs.espresso)
     testImplementation(libs.mockito.core)
     testImplementation(libs.mockito.junit.jupiter)
     testImplementation(libs.mockito.kotlin)
+    testImplementation("org.objenesis:objenesis:3.4")
 }
