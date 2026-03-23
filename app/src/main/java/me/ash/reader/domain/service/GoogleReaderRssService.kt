@@ -707,11 +707,15 @@ constructor(
     private suspend fun fetchItemIdsAndContinue(
         getItemIdsFunc: suspend (continuationId: String?) -> GoogleReaderDTO.ItemIds?
     ): MutableList<String> {
-        var result = getItemIdsFunc(null)
-        val ids = result?.itemRefs?.mapNotNull { it.id }?.toMutableList() ?: return mutableListOf()
-        while (result != null && result.continuation != null) {
-            result = getItemIdsFunc(result.continuation)
-            result?.itemRefs?.mapNotNull { it.id }?.let { ids.addAll(it) }
+        var result = requireNotNull(getItemIdsFunc(null)) {
+            "Failed to fetch initial page of item ids"
+        }
+        val ids = result.itemRefs?.mapNotNull { it.id }?.toMutableList() ?: mutableListOf()
+        while (result.continuation != null) {
+            result = requireNotNull(getItemIdsFunc(result.continuation)) {
+                "Failed to fetch continuation page of item ids"
+            }
+            result.itemRefs?.mapNotNull { it.id }?.let { ids.addAll(it) }
         }
         return ids
     }
