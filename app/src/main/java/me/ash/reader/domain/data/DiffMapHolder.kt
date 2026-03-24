@@ -48,6 +48,10 @@ class DiffMapHolder @Inject constructor(
     private val syncedDiffs = mutableMapOf<String, Diff>()
     private val pendingSyncMutex = Mutex()
 
+    val diffMapSnapshotFlow = snapshotFlow { diffMap.toMap() }.stateIn(
+        applicationScope, SharingStarted.Eagerly, emptyMap()
+    )
+
     private val pendingSyncDiffsSnapshotFlow = snapshotFlow { pendingSyncDiffs.toMap() }.stateIn(
         applicationScope, SharingStarted.Eagerly, emptyMap()
     )
@@ -213,7 +217,6 @@ class DiffMapHolder @Inject constructor(
             currentDiffs = diffMap,
             appliedDiffs = diffsToCommit,
         )
-        syncCacheWithCurrentDiffs()
     }
 
     suspend fun prepareReadStateForSync(accountId: Int): Set<String> {
@@ -263,6 +266,9 @@ class DiffMapHolder @Inject constructor(
                     diffMap.clear()
                     diffMap.putAll(it)
                     persistPendingReadStateOps(it.values)
+                }
+                if (cacheFile.canWrite()) {
+                    cacheFile.delete()
                 }
             }
             commitDiffsToDb()
@@ -323,23 +329,6 @@ class DiffMapHolder @Inject constructor(
             feedId = diff.feedId,
             isUnread = diff.isUnread,
         )
-    }
-
-    private suspend fun syncCacheWithCurrentDiffs() {
-        try {
-            if (cacheFile.exists() && cacheFile.canWrite()) {
-                cacheFile.delete()
-            }
-            if (diffMap.isNotEmpty()) {
-                val tmpJson = gson.toJson(diffMap)
-                userCacheDir.mkdirs()
-                cacheFile.createNewFile()
-                if (cacheFile.exists() && cacheFile.canWrite()) {
-                    cacheFile.writeText(tmpJson)
-                }
-            }
-        } catch (_: Exception) {
-        }
     }
 
 }
