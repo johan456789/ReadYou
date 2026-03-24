@@ -58,8 +58,6 @@ class FreshRssSyncE2eTest {
     private var scenario: ActivityScenario<MainActivity>? = null
 
     private val markAsReadText by lazy { targetContext.getString(R.string.mark_as_read) }
-    private val markAsUnreadText by lazy { targetContext.getString(R.string.mark_as_unread) }
-
     @Before
     fun setUp() {
         GoogleReaderAPI.clearInstance()
@@ -125,7 +123,11 @@ class FreshRssSyncE2eTest {
 
         longClickText(article.title)
         clickText(markAsReadText)
-        assertArticleMenuState(article.title, expectedActionText = markAsUnreadText)
+        awaitArticleUnreadState(article.localArticleId, expectedUnread = false)
+        assertTrue(
+            "Expected offline read article to disappear from unread list immediately",
+            device.wait(Until.gone(By.text(article.title)), UI_TIMEOUT_MS),
+        )
 
         SystemClock.sleep(2_500)
         dispatcher.networkAvailable = true
@@ -134,6 +136,45 @@ class FreshRssSyncE2eTest {
         awaitArticleUnreadState(article.localArticleId, expectedUnread = false)
         assertTrue(
             "Expected offline read article to disappear from unread list after sync",
+            device.wait(Until.gone(By.text(article.title)), UI_TIMEOUT_MS),
+        )
+    }
+
+    @Test
+    fun offline_local_reads_stay_read_after_app_restart_and_sync() {
+        val article =
+            seedUnreadArticle(
+                title = "Offline local read after restart",
+                remoteArticleId = "offline-local-read-restart",
+                publishedAt = Date(System.currentTimeMillis() - TimeUnit.DAYS.toMillis(2)),
+                remoteUnreadIds = setOf("offline-local-read-restart"),
+                remoteReadIds = emptySet(),
+            )
+
+        dispatcher.networkAvailable = false
+        launchApp()
+        waitForText(article.title)
+
+        longClickText(article.title)
+        clickText(markAsReadText)
+        awaitArticleUnreadState(article.localArticleId, expectedUnread = false)
+        assertTrue(
+            "Expected offline read article to disappear from unread list immediately",
+            device.wait(Until.gone(By.text(article.title)), UI_TIMEOUT_MS),
+        )
+
+        SystemClock.sleep(2_500)
+        scenario?.close()
+        GoogleReaderAPI.clearInstance()
+
+        dispatcher.networkAvailable = true
+        launchApp()
+        awaitArticleUnreadState(article.localArticleId, expectedUnread = false)
+
+        pullToSyncFromFlow()
+        awaitArticleUnreadState(article.localArticleId, expectedUnread = false)
+        assertTrue(
+            "Expected offline read article to stay read after app restart and sync",
             device.wait(Until.gone(By.text(article.title)), UI_TIMEOUT_MS),
         )
     }
@@ -255,12 +296,6 @@ class FreshRssSyncE2eTest {
             device.wait(Until.findObject(By.text(text)), UI_TIMEOUT_MS)
                 ?: throw AssertionError("Expected text \"$text\" to appear")
         obj.longClick()
-    }
-
-    private fun assertArticleMenuState(title: String, expectedActionText: String) {
-        longClickText(title)
-        waitForText(expectedActionText)
-        device.pressBack()
     }
 
     private fun clickDescription(description: String) {

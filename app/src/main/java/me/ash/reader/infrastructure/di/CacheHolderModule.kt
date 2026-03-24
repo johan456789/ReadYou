@@ -8,6 +8,7 @@ import dagger.hilt.android.qualifiers.ApplicationContext
 import dagger.hilt.components.SingletonComponent
 import kotlinx.coroutines.CoroutineDispatcher
 import kotlinx.coroutines.CoroutineScope
+import me.ash.reader.domain.repository.PendingReadStateOpDao
 import me.ash.reader.domain.service.RssService
 import me.ash.reader.domain.data.DiffMapHolder
 import me.ash.reader.domain.service.AccountService
@@ -27,9 +28,15 @@ object CacheHolderModule {
         @IODispatcher ioDispatcher: CoroutineDispatcher,
         accountService: AccountService,
         rssService: RssService,
+        pendingReadStateOpDao: PendingReadStateOpDao,
     ): DiffMapHolder {
         return DiffMapHolder(
-            context = context, applicationScope, ioDispatcher, accountService, rssService
+            context = context,
+            applicationScope = applicationScope,
+            ioDispatcher = ioDispatcher,
+            accountService = accountService,
+            rssService = rssService,
+            pendingReadStateOpDao = pendingReadStateOpDao,
         )
     }
 

@@ -58,6 +58,9 @@ android {
 
         ksp { arg("room.incremental", "true") }
     }
+    testOptions {
+        execution = "ANDROIDX_TEST_ORCHESTRATOR"
+    }
 
     flavorDimensions.add("channel")
     productFlavors {
@@ -211,6 +214,7 @@ dependencies {
     androidTestImplementation("androidx.test:rules:1.5.0")
     androidTestImplementation("androidx.test.uiautomator:uiautomator:2.3.0")
     androidTestImplementation("com.squareup.okhttp3:mockwebserver:5.0.0-alpha.12")
+    androidTestUtil("androidx.test:orchestrator:1.5.1")
     testImplementation(libs.mockito.core)
     testImplementation(libs.mockito.junit.jupiter)
     testImplementation(libs.mockito.kotlin)

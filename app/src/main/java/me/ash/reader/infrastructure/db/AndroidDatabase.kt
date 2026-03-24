@@ -8,23 +8,33 @@ import me.ash.reader.domain.model.account.*
 import me.ash.reader.domain.model.account.security.DESUtils
 import me.ash.reader.domain.model.article.ArchivedArticle
 import me.ash.reader.domain.model.article.Article
+import me.ash.reader.domain.model.article.PendingReadStateOp
 import me.ash.reader.domain.model.feed.Feed
 import me.ash.reader.domain.model.group.Group
 import me.ash.reader.domain.repository.AccountDao
 import me.ash.reader.domain.repository.ArticleDao
 import me.ash.reader.domain.repository.FeedDao
 import me.ash.reader.domain.repository.GroupDao
+import me.ash.reader.domain.repository.PendingReadStateOpDao
 import me.ash.reader.infrastructure.preference.*
 import me.ash.reader.ui.ext.toInt
 import java.util.*
 
 @Database(
-    entities = [Account::class, Feed::class, Article::class, Group::class, ArchivedArticle::class],
-    version = 7,
+    entities = [
+        Account::class,
+        Feed::class,
+        Article::class,
+        Group::class,
+        ArchivedArticle::class,
+        PendingReadStateOp::class,
+    ],
+    version = 8,
     autoMigrations = [
         AutoMigration(from = 5, to = 6),
         AutoMigration(from = 5, to = 7),
         AutoMigration(from = 6, to = 7),
+        AutoMigration(from = 7, to = 8),
     ]
 )
 @TypeConverters(
@@ -43,6 +53,7 @@ abstract class AndroidDatabase : RoomDatabase() {
     abstract fun feedDao(): FeedDao
     abstract fun articleDao(): ArticleDao
     abstract fun groupDao(): GroupDao
+    abstract fun pendingReadStateOpDao(): PendingReadStateOpDao
 
     companion object {
 
