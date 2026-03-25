@@ -58,7 +58,8 @@ constructor(
     override suspend fun sync(
         accountId: Int,
         feedId: String?,
-        groupId: String?
+        groupId: String?,
+        excludedReadStateIds: Set<String>,
     ): ListenableWorker.Result = supervisorScope {
         return@supervisorScope runCatching {
             val preTime = System.currentTimeMillis()

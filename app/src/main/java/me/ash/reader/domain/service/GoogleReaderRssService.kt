@@ -224,11 +224,12 @@ constructor(
         accountId: Int,
         feedId: String?,
         groupId: String?,
+        excludedReadStateIds: Set<String>,
     ): ListenableWorker.Result {
         return if (feedId != null) {
-            syncFeed(accountId, feedId)
+            syncFeed(accountId, feedId, excludedReadStateIds)
         } else {
-            sync(accountId)
+            sync(accountId, excludedReadStateIds)
         }
     }
 
@@ -252,7 +253,10 @@ constructor(
      * @link https://github.com/theoldreader/api
      */
     @OptIn(ExperimentalCoroutinesApi::class)
-    private suspend fun sync(accountId: Int): ListenableWorker.Result = coroutineScope {
+    private suspend fun sync(
+        accountId: Int,
+        excludedReadStateIds: Set<String>,
+    ): ListenableWorker.Result = coroutineScope {
         val preTime = System.currentTimeMillis()
         val preDate = Date(preTime)
 
@@ -348,10 +352,16 @@ constructor(
             }
 
             launch {
+                val readStateReconciliation =
+                    GoogleReaderReadStateReconciler.reconcile(
+                        localUnreadIds = localUnreadIds,
+                        localReadIds = localReadIds,
+                        remoteUnreadIds = remoteUnreadIds.await(),
+                        remoteReadIds = remoteReadIds.await(),
+                        excludedIds = excludedReadStateIds,
+                    )
                 val toBeReadLocal =
-                    remoteReadIds.await().intersect(localUnreadIds).map {
-                        accountId spacerDollar it
-                    }
+                    readStateReconciliation.markReadIds.map { accountId spacerDollar it }
                 toBeReadLocal.chunked(1000).forEach {
                     articleDao.markAsReadByIdSet(
                         accountId = accountId,
@@ -362,10 +372,16 @@ constructor(
             }
 
             launch {
+                val readStateReconciliation =
+                    GoogleReaderReadStateReconciler.reconcile(
+                        localUnreadIds = localUnreadIds,
+                        localReadIds = localReadIds,
+                        remoteUnreadIds = remoteUnreadIds.await(),
+                        remoteReadIds = remoteReadIds.await(),
+                        excludedIds = excludedReadStateIds,
+                    )
                 val toBeUnreadLocal =
-                    localReadIds.intersect(remoteUnreadIds.await()).map {
-                        accountId spacerDollar it
-                    }
+                    readStateReconciliation.markUnreadIds.map { accountId spacerDollar it }
                 toBeUnreadLocal.chunked(1000).forEach {
                     articleDao.markAsReadByIdSet(
                         accountId = accountId,
@@ -523,7 +539,11 @@ constructor(
         }
     }
 
-    private suspend fun syncFeed(accountId: Int, feedId: String): ListenableWorker.Result =
+    private suspend fun syncFeed(
+        accountId: Int,
+        feedId: String,
+        excludedReadStateIds: Set<String>,
+    ): ListenableWorker.Result =
         supervisorScope {
             val preTime = System.currentTimeMillis()
             val account = accountService.getAccountById(accountId)
@@ -605,8 +625,15 @@ constructor(
             }
 
             launch {
-                val remoteReadIds = remoteAllIds.await() - remoteUnreadIds.await()
-                val toBeReadIds = remoteReadIds.intersect(localUnreadIds)
+                val readStateReconciliation =
+                    GoogleReaderReadStateReconciler.reconcile(
+                        localUnreadIds = localUnreadIds,
+                        localReadIds = localReadIds,
+                        remoteUnreadIds = remoteUnreadIds.await(),
+                        remoteReadIds = remoteAllIds.await() - remoteUnreadIds.await(),
+                        excludedIds = excludedReadStateIds,
+                    )
+                val toBeReadIds = readStateReconciliation.markReadIds
 
                 toBeReadIds
                     .map { it.dbId(accountId) }
@@ -621,7 +648,15 @@ constructor(
             }
 
             launch {
-                val toBeUnreadIds = localReadIds.intersect(remoteUnreadIds.await())
+                val readStateReconciliation =
+                    GoogleReaderReadStateReconciler.reconcile(
+                        localUnreadIds = localUnreadIds,
+                        localReadIds = localReadIds,
+                        remoteUnreadIds = remoteUnreadIds.await(),
+                        remoteReadIds = remoteAllIds.await() - remoteUnreadIds.await(),
+                        excludedIds = excludedReadStateIds,
+                    )
+                val toBeUnreadIds = readStateReconciliation.markUnreadIds
                 toBeUnreadIds
                     .map { it.dbId(accountId) }
                     .chunked(1000)
@@ -672,11 +707,15 @@ constructor(
     private suspend fun fetchItemIdsAndContinue(
         getItemIdsFunc: suspend (continuationId: String?) -> GoogleReaderDTO.ItemIds?
     ): MutableList<String> {
-        var result = getItemIdsFunc(null)
-        val ids = result?.itemRefs?.mapNotNull { it.id }?.toMutableList() ?: return mutableListOf()
-        while (result != null && result.continuation != null) {
-            result = getItemIdsFunc(result.continuation)
-            result?.itemRefs?.mapNotNull { it.id }?.let { ids.addAll(it) }
+        var result = requireNotNull(getItemIdsFunc(null)) {
+            "Failed to fetch initial page of item ids"
+        }
+        val ids = result.itemRefs?.mapNotNull { it.id }?.toMutableList() ?: mutableListOf()
+        while (result.continuation != null) {
+            result = requireNotNull(getItemIdsFunc(result.continuation)) {
+                "Failed to fetch continuation page of item ids"
+            }
+            result.itemRefs?.mapNotNull { it.id }?.let { ids.addAll(it) }
         }
         return ids
     }

@@ -76,7 +76,11 @@ class FeedsViewModel @Inject constructor(
         }
     }
 
-    fun commitDiffs() = diffMapHolder.commitDiffsToDb()
+    fun commitDiffs() {
+        applicationScope.launch(ioDispatcher) {
+            diffMapHolder.commitDiffsToDb()
+        }
+    }
 
     fun changeFilter(filterState: FilterState) {
         filterStateUseCase.updateFilterState(filterState)
