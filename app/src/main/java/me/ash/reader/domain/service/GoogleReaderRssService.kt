@@ -920,6 +920,8 @@ internal suspend fun persistRemoteSubscriptions(
     queryIcon: suspend (String) -> String?,
 ) {
     val existingFeedIds = subscriptionStore.existingFeedIds()
+    subscriptionStore.insertOrUpdate(remoteGroups, remoteFeeds)
+
     val feedsWithBackfilledIcons =
         backfillIconsForFeeds(
             feeds = selectNewFeedsMissingIcons(remoteFeeds, existingFeedIds),
@@ -928,7 +930,6 @@ internal suspend fun persistRemoteSubscriptions(
     if (feedsWithBackfilledIcons.isNotEmpty()) {
         subscriptionStore.updateFeeds(feedsWithBackfilledIcons)
     }
-    subscriptionStore.insertOrUpdate(remoteGroups, remoteFeeds)
 }
 
 internal interface SubscriptionStore {
