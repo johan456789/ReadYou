@@ -479,29 +479,15 @@ constructor(
                     )
                     .toMutableList()
 
-            val remoteGroups = async { groupWithFeedsMap.await().keys.toList() }
-            val remoteFeeds = async { groupWithFeedsMap.await().values.flatten() }
+            val remoteGroupsList = groupWithFeedsMap.await().keys.toList()
+            val remoteFeedsList = groupWithFeedsMap.await().values.flatten()
 
-            // Handle empty icon for feeds
-            launch {
-                val localFeeds = feedDao.queryAll(accountId)
-                val remoteFeeds = remoteFeeds.await()
-                val newFeeds = remoteFeeds.filter { feed -> feed.id !in localFeeds.map { it.id } }
-
-                val feedsWithIconFetched =
-                    newFeeds
-                        .filter { it.icon == null }
-                        .map { feed ->
-                            async { feed.copy(icon = rssHelper.queryRssIconLink(feed.url)) }
-                        }
-                feedsWithIconFetched
-                    .awaitAll()
-                    .filterNot { it.icon.isNullOrEmpty() }
-                    .also { feedDao.update(*it.toTypedArray()) }
-            }
-
-            groupDao.insertOrUpdate(remoteGroups.await())
-            feedDao.insertOrUpdate(remoteFeeds.await())
+            persistRemoteSubscriptions(
+                remoteGroups = remoteGroupsList,
+                remoteFeeds = remoteFeedsList,
+                subscriptionStore = DaoSubscriptionStore(accountId, feedDao, groupDao),
+                queryIcon = { rssHelper.queryRssIconLink(it) },
+            )
 
             val notificationFeeds =
                 feedDao.queryNotificationEnabled(accountId).associateBy { it.id }
@@ -541,11 +527,11 @@ constructor(
             // starred/un-starred
             groupDao
                 .queryAll(accountId)
-                .filter { it.id !in remoteGroups.await().map { group -> group.id } }
+                .filter { it.id !in remoteGroupsList.map { group -> group.id } }
                 .forEach { super.deleteGroup(it, true) }
             feedDao
                 .queryAll(accountId)
-                .filter { it.id !in remoteFeeds.await().map { feed -> feed.id } }
+                .filter { it.id !in remoteFeedsList.map { feed -> feed.id } }
                 .forEach { super.deleteFeed(it, true) }
 
             accountService.update(account.copy(updateAt = Date()))
@@ -927,6 +913,67 @@ constructor(
             )
     }
 }
+internal suspend fun persistRemoteSubscriptions(
+    remoteGroups: List<Group>,
+    remoteFeeds: List<Feed>,
+    subscriptionStore: SubscriptionStore,
+    queryIcon: suspend (String) -> String?,
+) {
+    val existingFeedIds = subscriptionStore.existingFeedIds()
+    val feedsWithBackfilledIcons =
+        backfillIconsForFeeds(
+            feeds = selectNewFeedsMissingIcons(remoteFeeds, existingFeedIds),
+            queryIcon = queryIcon,
+        )
+    if (feedsWithBackfilledIcons.isNotEmpty()) {
+        subscriptionStore.updateFeeds(feedsWithBackfilledIcons)
+    }
+    subscriptionStore.insertOrUpdate(remoteGroups, remoteFeeds)
+}
+
+internal interface SubscriptionStore {
+    suspend fun existingFeedIds(): Set<String>
+
+    suspend fun insertOrUpdate(groups: List<Group>, feeds: List<Feed>)
+
+    suspend fun updateFeeds(feeds: List<Feed>)
+}
+
+internal class DaoSubscriptionStore(
+    private val accountId: Int,
+    private val feedDao: FeedDao,
+    private val groupDao: GroupDao,
+) : SubscriptionStore {
+    override suspend fun existingFeedIds(): Set<String> =
+        feedDao.queryAll(accountId).mapTo(mutableSetOf()) { it.id }
+
+    override suspend fun insertOrUpdate(groups: List<Group>, feeds: List<Feed>) {
+        groupDao.insertOrUpdate(groups)
+        feedDao.insertOrUpdate(feeds)
+    }
+
+    override suspend fun updateFeeds(feeds: List<Feed>) {
+        feedDao.update(*feeds.toTypedArray())
+    }
+}
+
+internal fun selectNewFeedsMissingIcons(
+    remoteFeeds: List<Feed>,
+    existingFeedIds: Set<String>,
+): List<Feed> = remoteFeeds.filter { feed ->
+    feed.id !in existingFeedIds && feed.icon.isNullOrEmpty()
+}
+
+internal suspend fun backfillIconsForFeeds(
+    feeds: List<Feed>,
+    queryIcon: suspend (String) -> String?,
+): List<Feed> = coroutineScope {
+    feeds
+        .map { feed -> async { feed.copy(icon = queryIcon(feed.url)) } }
+        .awaitAll()
+        .filterNot { it.icon.isNullOrEmpty() }
+}
+
 private fun Account.normalizedFreshRssIconBaseUrl(): Uri? {
     if (type.id != FreshRSS.id) return null
     val serverUrl = FreshRSSSecurityKey(securityKey).serverUrl ?: return null
