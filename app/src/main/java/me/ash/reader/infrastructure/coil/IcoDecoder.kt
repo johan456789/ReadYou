@@ -9,8 +9,6 @@ import coil.request.Options
 import coil.size.Dimension
 import coil.size.Size
 import okio.BufferedSource
-import java.nio.ByteBuffer
-import java.nio.ByteOrder
 
 /**
  * Decodes ICO favicons served by FreshRSS proxy endpoints.
@@ -27,19 +25,13 @@ class IcoDecoder(
 
         source.skip(image.offset.toLong())
         val imageBytes = source.readByteArray(image.size.toLong())
-        val decodeBytes =
-            if (imageBytes.hasPngHeader()) {
-                imageBytes
-            } else {
-                buildSingleEntryIco(image, imageBytes)
-            }
 
         val bitmap =
             requireNotNull(
                 BitmapFactory.decodeByteArray(
-                    decodeBytes,
+                    imageBytes,
                     0,
-                    decodeBytes.size,
+                    imageBytes.size,
                     BitmapFactory.Options().apply {
                         inPreferredConfig = options.config
                     },
@@ -58,7 +50,8 @@ class IcoDecoder(
             options: Options,
             imageLoader: ImageLoader,
         ): Decoder? {
-            return if (isIco(result.source.source().peek())) {
+            val source = result.source.source().peek()
+            return if (supportsDecode(source, options.size)) {
                 IcoDecoder(result, options)
             } else {
                 null
@@ -66,9 +59,6 @@ class IcoDecoder(
         }
     }
 }
-
-private const val ICO_HEADER_SIZE = 6
-private const val ICO_ENTRY_SIZE = 16
 
 private data class IconDirEntry(
     val width: Byte,
@@ -92,6 +82,22 @@ private fun isIco(source: BufferedSource): Boolean {
         peek.readShortLe() == 0.toShort() &&
             peek.readShortLe() == 1.toShort() &&
             peek.readShortLe().toInt() in 1..256
+    }.getOrDefault(false)
+}
+
+private fun supportsDecode(
+    source: BufferedSource,
+    preferredSize: Size,
+): Boolean {
+    if (!isIco(source)) return false
+
+    return runCatching {
+        val peek = source.peek()
+        val image = selectBestEntry(peek, preferredSize)
+        peek.skip(image.offset.toLong())
+        // We only claim ICO payloads when the selected entry is PNG. BMP/DIB entries are left to
+        // Coil's normal failure path so ReadYou avoids crashing on unsupported ICO variants.
+        peek.readByteArray(image.size.toLong()).hasPngHeader()
     }.getOrDefault(false)
 }
 
@@ -138,28 +144,6 @@ private fun parseEntry(source: BufferedSource): IconDirEntry {
     val offset = source.readIntLe()
     return IconDirEntry(width, height, numColors, colorPlanes, bytesPerPixel, size, offset)
 }
-
-private fun buildSingleEntryIco(
-    image: IconDirEntry,
-    imageBytes: ByteArray,
-): ByteArray =
-    ByteBuffer
-        .wrap(ByteArray(ICO_HEADER_SIZE + ICO_ENTRY_SIZE + image.size))
-        .apply {
-            order(ByteOrder.LITTLE_ENDIAN)
-            putShort(0)
-            putShort(1)
-            putShort(1)
-            put(image.width)
-            put(image.height)
-            put(image.numColors)
-            put(0)
-            putShort(image.colorPlanes)
-            putShort(image.bytesPerPixel)
-            putInt(image.size)
-            putInt(ICO_HEADER_SIZE + ICO_ENTRY_SIZE)
-            put(imageBytes)
-        }.array()
 
 private fun ByteArray.hasPngHeader(): Boolean =
     size > 4 &&
