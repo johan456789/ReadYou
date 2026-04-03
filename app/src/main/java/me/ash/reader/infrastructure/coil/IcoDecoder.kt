@@ -84,10 +84,10 @@ private data class IconDirEntry(
     val offset: Int,
 ) {
     val widthPixels: Int
-        get() = width.toInt().takeUnless { it == 0 } ?: 256
+        get() = width.toUnsignedDimension()
 
     val heightPixels: Int
-        get() = height.toInt().takeUnless { it == 0 } ?: 256
+        get() = height.toUnsignedDimension()
 }
 
 private fun isIco(source: BufferedSource): Boolean {
@@ -171,3 +171,8 @@ private fun ByteArray.hasPngHeader(): Boolean =
         this[1] == 0x50.toByte() &&
         this[2] == 0x4E.toByte() &&
         this[3] == 0x47.toByte()
+
+private fun Byte.toUnsignedDimension(): Int {
+    val value = toInt() and 0xFF
+    return if (value == 0) 256 else value
+}
