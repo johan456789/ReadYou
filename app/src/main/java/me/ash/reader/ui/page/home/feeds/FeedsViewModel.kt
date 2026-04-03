@@ -47,11 +47,11 @@ class FeedsViewModel @Inject constructor(
     private val rssService: RssService,
     private val workManager: WorkManager,
     private val androidStringsHelper: AndroidStringsHelper,
-    @DefaultDispatcher
+    @param:DefaultDispatcher
     private val defaultDispatcher: CoroutineDispatcher,
-    @IODispatcher
+    @param:IODispatcher
     private val ioDispatcher: CoroutineDispatcher,
-    @ApplicationScope
+    @param:ApplicationScope
     private val applicationScope: CoroutineScope,
     private val settingsProvider: SettingsProvider,
     private val diffMapHolder: DiffMapHolder,

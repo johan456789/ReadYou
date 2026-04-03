@@ -22,7 +22,7 @@ constructor(
     settingsProvider: SettingsProvider,
     private val feedDao: FeedDao,
     private val groupDao: GroupDao,
-    @ApplicationScope private val coroutineScope: CoroutineScope,
+    @param:ApplicationScope private val coroutineScope: CoroutineScope,
 ) {
 
     private val _filterUiState =

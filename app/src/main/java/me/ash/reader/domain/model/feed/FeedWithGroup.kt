@@ -8,8 +8,8 @@ import me.ash.reader.domain.model.group.Group
  * A [feed] contains a [group].
  */
 data class FeedWithGroup(
-    @Embedded
+    @field:Embedded
     var feed: Feed,
-    @Relation(parentColumn = "groupId", entityColumn = "id")
+    @field:Relation(parentColumn = "groupId", entityColumn = "id")
     var group: Group,
 )

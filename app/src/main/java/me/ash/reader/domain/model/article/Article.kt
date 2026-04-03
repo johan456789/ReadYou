@@ -18,36 +18,36 @@ import java.util.*
     )]
 )
 data class Article(
-    @PrimaryKey
+    @field:PrimaryKey
     var id: String,
-    @ColumnInfo
+    @field:ColumnInfo
     var date: Date,
-    @ColumnInfo
+    @field:ColumnInfo
     var title: String,
-    @ColumnInfo
+    @field:ColumnInfo
     var author: String? = null,
-    @ColumnInfo
+    @field:ColumnInfo
     var rawDescription: String,
-    @ColumnInfo
+    @field:ColumnInfo
     var shortDescription: String,
-    @ColumnInfo
-    @Deprecated("fullContent is the same as rawDescription")
+    @field:ColumnInfo
+    @property:Deprecated("fullContent is the same as rawDescription")
     var fullContent: String? = null,
-    @ColumnInfo
+    @field:ColumnInfo
     var img: String? = null,
-    @ColumnInfo
+    @field:ColumnInfo
     var link: String,
-    @ColumnInfo(index = true)
+    @field:ColumnInfo(index = true)
     var feedId: String,
-    @ColumnInfo(index = true)
+    @field:ColumnInfo(index = true)
     var accountId: Int,
-    @ColumnInfo
+    @field:ColumnInfo
     var isUnread: Boolean = true,
-    @ColumnInfo
+    @field:ColumnInfo
     var isStarred: Boolean = false,
-    @ColumnInfo
+    @field:ColumnInfo
     var isReadLater: Boolean = false,
-    @ColumnInfo
+    @field:ColumnInfo
     var updateAt: Date? = null,
 ) {
 

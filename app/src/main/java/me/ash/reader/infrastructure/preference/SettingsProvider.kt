@@ -23,7 +23,7 @@ import me.ash.reader.ui.ext.dataStore
 import javax.inject.Inject
 
 class SettingsProvider @Inject constructor(
-    @ApplicationContext private val context: Context,
+    @param:ApplicationContext private val context: Context,
     @ApplicationScope coroutineScope: CoroutineScope,
     @IODispatcher ioDispatcher: CoroutineDispatcher
 ) {

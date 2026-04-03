@@ -13,7 +13,7 @@ import me.ash.reader.infrastructure.di.ApplicationScope
 class RssService
 @Inject
 constructor(
-    @ApplicationScope private val coroutineScope: CoroutineScope,
+    @param:ApplicationScope private val coroutineScope: CoroutineScope,
     private val accountService: AccountService,
     private val localRssService: LocalRssService,
     private val feverRssService: FeverRssService,

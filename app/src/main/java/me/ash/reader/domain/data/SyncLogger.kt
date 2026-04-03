@@ -20,8 +20,8 @@ import me.ash.reader.infrastructure.di.ApplicationScope
 class SyncLogger
 @Inject
 constructor(
-    @ApplicationContext private val context: Context,
-    @ApplicationScope private val coroutineScope: CoroutineScope,
+    @param:ApplicationContext private val context: Context,
+    @param:ApplicationScope private val coroutineScope: CoroutineScope,
 ) {
 
     private val cacheDir = context.cacheDir

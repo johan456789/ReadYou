@@ -35,9 +35,9 @@ import javax.inject.Inject
 
 @OptIn(FlowPreview::class)
 class DiffMapHolder @Inject constructor(
-    @ApplicationContext private val context: Context,
-    @ApplicationScope private val applicationScope: CoroutineScope,
-    @IODispatcher private val ioDispatcher: CoroutineDispatcher,
+    @param:ApplicationContext private val context: Context,
+    @param:ApplicationScope private val applicationScope: CoroutineScope,
+    @param:IODispatcher private val ioDispatcher: CoroutineDispatcher,
     private val accountService: AccountService,
     private val rssService: RssService,
     private val pendingReadStateOpDao: PendingReadStateOpDao,

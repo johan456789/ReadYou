@@ -35,12 +35,12 @@ import me.ash.reader.ui.ext.spacerDollar
 class AccountService
 @Inject
 constructor(
-    @ApplicationContext private val context: Context,
+    @param:ApplicationContext private val context: Context,
     private val accountDao: AccountDao,
     private val groupDao: GroupDao,
     private val feedDao: FeedDao,
     private val articleDao: ArticleDao,
-    @ApplicationScope private val coroutineScope: CoroutineScope,
+    @param:ApplicationScope private val coroutineScope: CoroutineScope,
     settingsProvider: SettingsProvider,
 ) {
 

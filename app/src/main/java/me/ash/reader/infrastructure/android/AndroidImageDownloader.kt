@@ -26,8 +26,8 @@ import kotlin.io.path.createFile
 import kotlin.io.path.createParentDirectories
 
 class AndroidImageDownloader @Inject constructor(
-    @ApplicationContext private val context: Context,
-    @IODispatcher private val ioDispatcher: CoroutineDispatcher,
+    @param:ApplicationContext private val context: Context,
+    @param:IODispatcher private val ioDispatcher: CoroutineDispatcher,
     private val okHttpClient: OkHttpClient,
 ) {
     @CheckResult

@@ -7,7 +7,7 @@ import java.util.*
 import javax.inject.Inject
 
 class AndroidStringsHelper @Inject constructor(
-    @ApplicationContext
+    @param:ApplicationContext
     private val context: Context,
 ) {
 

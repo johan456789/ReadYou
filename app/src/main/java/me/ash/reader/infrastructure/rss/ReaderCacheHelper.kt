@@ -16,8 +16,8 @@ import me.ash.reader.infrastructure.di.IODispatcher
 class ReaderCacheHelper
 @Inject
 constructor(
-    @ApplicationContext private val context: Context,
-    @IODispatcher private val ioDispatcher: CoroutineDispatcher,
+    @param:ApplicationContext private val context: Context,
+    @param:IODispatcher private val ioDispatcher: CoroutineDispatcher,
     private val rssHelper: RssHelper,
     private val accountService: AccountService,
 ) {

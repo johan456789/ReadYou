@@ -31,8 +31,8 @@ import me.ash.reader.ui.widget.WidgetRepository
 class WidgetUpdateWorker
 @AssistedInject
 constructor(
-    @Assisted private val context: Context,
-    @Assisted private val workerParams: WorkerParameters,
+    @param:Assisted private val context: Context,
+    @param:Assisted private val workerParams: WorkerParameters,
     private val repository: WidgetRepository,
 ) : CoroutineWorker(context, workerParams) {
     var haveSetPreviews = false

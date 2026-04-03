@@ -5,7 +5,7 @@ import com.google.gson.annotations.SerializedName
 object GoogleReaderDTO {
 
     data class GReaderError(
-        @SerializedName("errors") val errors: List<String>,
+        @field:SerializedName("errors") val errors: List<String>,
     )
 
     /**

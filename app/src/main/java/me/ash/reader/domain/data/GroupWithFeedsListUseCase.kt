@@ -28,8 +28,8 @@ import javax.inject.Inject
 
 @OptIn(ExperimentalCoroutinesApi::class)
 class GroupWithFeedsListUseCase @Inject constructor(
-    @ApplicationScope private val applicationScope: CoroutineScope,
-    @IODispatcher private val ioDispatcher: CoroutineDispatcher,
+    @param:ApplicationScope private val applicationScope: CoroutineScope,
+    @param:IODispatcher private val ioDispatcher: CoroutineDispatcher,
     private val settingsProvider: SettingsProvider,
     private val rssService: RssService,
     private val filterStateUseCase: FilterStateUseCase,

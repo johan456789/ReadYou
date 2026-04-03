@@ -30,9 +30,9 @@ import timber.log.Timber
 class NotificationHelper
 @Inject
 constructor(
-    @ApplicationContext private val context: Context,
-    @IODispatcher private val ioDispatcher: CoroutineDispatcher,
-    @ApplicationScope private val coroutineScope: CoroutineScope,
+    @param:ApplicationContext private val context: Context,
+    @param:IODispatcher private val ioDispatcher: CoroutineDispatcher,
+    @param:ApplicationScope private val coroutineScope: CoroutineScope,
 ) {
 
     private val notificationManager: NotificationManagerCompat =

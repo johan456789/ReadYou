@@ -8,10 +8,10 @@ import androidx.room.PrimaryKey
  */
 
 data class ArticleMeta(
-    @PrimaryKey
+    @field:PrimaryKey
     var id: String,
-    @ColumnInfo
+    @field:ColumnInfo
     var isUnread: Boolean = true,
-    @ColumnInfo
+    @field:ColumnInfo
     var isStarred: Boolean = false,
 )

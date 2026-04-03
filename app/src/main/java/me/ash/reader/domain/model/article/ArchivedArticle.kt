@@ -16,7 +16,7 @@ import me.ash.reader.domain.model.feed.Feed
     )]
 )
 data class ArchivedArticle(
-    @PrimaryKey(autoGenerate = true)
+    @field:PrimaryKey(autoGenerate = true)
     val id: Int = 0,
     val feedId: String,
     val link: String

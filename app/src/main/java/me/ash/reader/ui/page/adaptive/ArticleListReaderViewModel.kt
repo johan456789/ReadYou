@@ -56,8 +56,8 @@ class ArticleListReaderViewModel
 @Inject
 constructor(
     private val rssService: RssService,
-    @IODispatcher private val ioDispatcher: CoroutineDispatcher,
-    @ApplicationScope private val applicationScope: CoroutineScope,
+    @param:IODispatcher private val ioDispatcher: CoroutineDispatcher,
+    @param:ApplicationScope private val applicationScope: CoroutineScope,
     val diffMapHolder: DiffMapHolder,
     private val filterStateUseCase: FilterStateUseCase,
     private val groupWithFeedsListUseCase: GroupWithFeedsListUseCase,
