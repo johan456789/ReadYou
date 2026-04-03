@@ -141,6 +141,63 @@ class FreshRssSyncE2eTest {
         )
     }
 
+    @Test
+    fun sync_rewrites_proxied_icon_urls_to_the_configured_freshrss_host() {
+        dispatcher.subscriptionIconUrl = "http://192.168.107.2/f.php?h=feed-icon"
+        val accountId = seedFreshRssAccount()
+
+        launchApp()
+        pullToSyncFromFlow()
+
+        val expectedIconUrl = server.url("/f.php?h=feed-icon").toString()
+        assertTrue(
+            "Expected synced feed icon to be normalized to $expectedIconUrl",
+            waitForCondition(15_000) {
+                runBlocking {
+                    database.feedDao().queryById(accountId.spacerDollar(FEED_ID))?.icon ==
+                        expectedIconUrl
+                }
+            },
+        )
+    }
+
+    @Test
+    fun app_start_repairs_stored_proxied_icon_urls_to_the_configured_freshrss_host() {
+        val accountId = seedFreshRssAccount()
+        val feedId = accountId.spacerDollar(FEED_ID)
+        val oldIconUrl = "http://192.168.107.2/f.php?h=stored-icon"
+        val expectedIconUrl = server.url("/f.php?h=stored-icon").toString()
+
+        runBlocking {
+            database.groupDao().insert(
+                Group(
+                    id = accountId.getDefaultGroupId(),
+                    name = "Defaults",
+                    accountId = accountId,
+                ),
+            )
+            database.feedDao().insert(
+                Feed(
+                    id = feedId,
+                    name = "Stored Feed",
+                    url = "https://example.com/feed",
+                    groupId = accountId.getDefaultGroupId(),
+                    accountId = accountId,
+                    icon = oldIconUrl,
+                ),
+            )
+        }
+
+        launchApp()
+
+        assertTrue(
+            "Expected startup repair to rewrite $oldIconUrl to $expectedIconUrl",
+            waitForCondition(15_000) {
+                runBlocking { database.feedDao().queryById(feedId)?.icon == expectedIconUrl }
+            },
+        )
+    }
+
     @Ignore("Temporarily disabled to unblock CI while the restart flow is unstable.")
     @Test
     fun offline_local_reads_stay_read_after_app_restart_and_sync() {
@@ -251,6 +308,44 @@ class FreshRssSyncE2eTest {
         return SeededArticle(title = title, localArticleId = article.id)
     }
 
+    private fun seedFreshRssAccount(): Int {
+        val accountId =
+            runBlocking {
+                val securityKey =
+                    GoogleReaderSecurityKey(
+                        server.url("/").toString(),
+                        "demo",
+                        "demo",
+                        null,
+                    ).toString()
+                database.accountDao()
+                    .insert(
+                        Account(
+                            name = "FreshRSS E2E",
+                            type = AccountType.FreshRSS,
+                            securityKey = securityKey,
+                        )
+                    )
+                    .toInt()
+            }
+
+        runBlocking {
+            targetContext.dataStore.put(DataStoreKey.isFirstLaunch, false)
+            targetContext.dataStore.put(DataStoreKey.currentAccountId, accountId)
+            targetContext.dataStore.put(DataStoreKey.currentAccountType, AccountType.FreshRSS.id)
+            targetContext.dataStore.put(
+                DataStoreKey.initialPage,
+                InitialPagePreference.FlowPage.value,
+            )
+            targetContext.dataStore.put(
+                DataStoreKey.initialFilter,
+                InitialFilterPreference.Unread.value,
+            )
+        }
+
+        return accountId
+    }
+
     private fun launchApp() {
         val intent =
             Intent(targetContext, MainActivity::class.java).apply {
@@ -335,6 +430,7 @@ class FreshRssSyncE2eTest {
         @Volatile var networkAvailable: Boolean = true
         @Volatile var remoteUnreadIds: Set<String> = emptySet()
         @Volatile var remoteReadIds: Set<String> = emptySet()
+        @Volatile var subscriptionIconUrl: String? = null
 
         override fun dispatch(request: RecordedRequest): MockResponse {
             if (!networkAvailable) {
@@ -353,7 +449,7 @@ class FreshRssSyncE2eTest {
                 "/reader/api/0/subscription/list" ->
                     jsonResponse(
                         """
-                        {"subscriptions":[{"id":"feed/$FEED_ID","title":"E2E Feed","url":"https://example.com/feed","htmlUrl":"https://example.com","iconUrl":null,"sortid":"1"}]}
+                        {"subscriptions":[{"id":"feed/$FEED_ID","title":"E2E Feed","url":"https://example.com/feed","htmlUrl":"https://example.com","iconUrl":${subscriptionIconJson()},"sortid":"1"}]}
                         """.trimIndent()
                     )
 
@@ -395,6 +491,10 @@ class FreshRssSyncE2eTest {
                 .setResponseCode(200)
                 .addHeader("Content-Type", "application/json")
                 .setBody(body)
+        }
+
+        private fun subscriptionIconJson(): String {
+            return subscriptionIconUrl?.let { "\"$it\"" } ?: "null"
         }
     }
 
