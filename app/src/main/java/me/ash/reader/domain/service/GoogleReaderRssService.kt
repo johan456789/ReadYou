@@ -954,7 +954,7 @@ internal class DaoSubscriptionStore(
     }
 
     override suspend fun updateFeeds(feeds: List<Feed>) {
-        feedDao.update(*feeds.toTypedArray())
+        feedDao.updateAll(feeds)
     }
 }
 
