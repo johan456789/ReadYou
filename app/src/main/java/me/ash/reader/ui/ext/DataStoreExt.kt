@@ -88,8 +88,12 @@ fun <T> DataStore<Preferences>.get(key: String): T? {
                     throw exception
                 }
             }
-            .map { it[PreferencesKey.keys[key]?.key as Preferences.Key<T>] }
-            .first() as T
+            .map { preferences ->
+                PreferencesKey.keys[key]?.let { typedKey ->
+                    preferences[typedKey.key as Preferences.Key<T>]
+                }
+            }
+            .first()
     }
 }
 
