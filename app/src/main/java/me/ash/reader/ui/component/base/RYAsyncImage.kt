@@ -1,5 +1,4 @@
 package me.ash.reader.ui.component.base
-
 import androidx.annotation.DrawableRes
 import androidx.compose.foundation.Image
 import androidx.compose.foundation.background
@@ -14,6 +13,7 @@ import androidx.compose.ui.graphics.painter.Painter
 import androidx.compose.ui.layout.ContentScale
 import androidx.compose.ui.platform.LocalContext
 import coil.compose.rememberAsyncImagePainter
+import coil.imageLoader
 import coil.request.ImageRequest
 import coil.size.Precision
 import coil.size.Scale
@@ -34,10 +34,12 @@ fun RYAsyncImage(
     @DrawableRes placeholder: Int? = null,
     @DrawableRes error: Int? = null,
 ) {
+    val context = LocalContext.current
     val painter =
         rememberAsyncImagePainter(
+            imageLoader = context.imageLoader,
             model =
-                ImageRequest.Builder(LocalContext.current)
+                ImageRequest.Builder(context)
                     .apply {
                         val domain = data.toString().extractDomain()
                         if (data.toString().extractDomain() != null) {

@@ -102,6 +102,7 @@ class AndroidApp : Application(), Configuration.Provider {
         }
         applicationScope.launch {
             accountInit()
+            repairCurrentAccountData()
             workerInit()
             checkUpdate()
         }
@@ -130,6 +131,13 @@ class AndroidApp : Application(), Configuration.Provider {
 
     private suspend fun workerInit() {
         rssService.get().initSync()
+    }
+
+    private suspend fun repairCurrentAccountData() {
+        withContext(ioDispatcher) {
+            val account = accountService.getCurrentAccount()
+            rssService.get(account.type.id).repairAccountData(account.id!!)
+        }
     }
 
     private suspend fun checkUpdate() {
