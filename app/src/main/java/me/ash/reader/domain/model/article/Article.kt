@@ -31,7 +31,7 @@ data class Article(
     @field:ColumnInfo
     var shortDescription: String,
     @field:ColumnInfo
-    @property:Deprecated("fullContent is the same as rawDescription")
+    @Deprecated("fullContent is the same as rawDescription")
     var fullContent: String? = null,
     @field:ColumnInfo
     var img: String? = null,
