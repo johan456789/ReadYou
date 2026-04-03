@@ -58,10 +58,6 @@ class IcoDecoder(
             options: Options,
             imageLoader: ImageLoader,
         ): Decoder? {
-            val mimeType = result.mimeType
-            if (mimeType != null && mimeType.contains("icon", ignoreCase = true)) {
-                return IcoDecoder(result, options)
-            }
             return if (isIco(result.source.source().peek())) {
                 IcoDecoder(result, options)
             } else {
