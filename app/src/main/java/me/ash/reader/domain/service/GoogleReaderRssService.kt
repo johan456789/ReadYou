@@ -970,7 +970,11 @@ internal suspend fun backfillIconsForFeeds(
     queryIcon: suspend (String) -> String?,
 ): List<Feed> = coroutineScope {
     feeds
-        .map { feed -> async { feed.copy(icon = queryIcon(feed.url)) } }
+        .map { feed ->
+            async {
+                feed.copy(icon = runCatching { queryIcon(feed.url) }.getOrNull())
+            }
+        }
         .awaitAll()
         .filterNot { it.icon.isNullOrEmpty() }
 }
