@@ -6,8 +6,8 @@ import androidx.datastore.preferences.core.Preferences
 import kotlinx.coroutines.CoroutineScope
 import kotlinx.coroutines.launch
 import me.ash.reader.domain.model.constant.ElevationTokens
-import me.ash.reader.ui.ext.DataStoreKey
-import me.ash.reader.ui.ext.DataStoreKey.Companion.feedsGroupListTonalElevation
+import me.ash.reader.ui.ext.PreferencesKey
+import me.ash.reader.ui.ext.PreferencesKey.Companion.feedsGroupListTonalElevation
 import me.ash.reader.ui.ext.dataStore
 import me.ash.reader.ui.ext.put
 
@@ -25,7 +25,7 @@ sealed class FeedsGroupListTonalElevationPreference(val value: Int) : Preference
     override fun put(context: Context, scope: CoroutineScope) {
         scope.launch {
             context.dataStore.put(
-                DataStoreKey.feedsGroupListTonalElevation,
+                PreferencesKey.feedsGroupListTonalElevation,
                 value
             )
         }
@@ -47,7 +47,7 @@ sealed class FeedsGroupListTonalElevationPreference(val value: Int) : Preference
         val values = listOf(Level0, Level1, Level2, Level3, Level4, Level5)
 
         fun fromPreferences(preferences: Preferences) =
-            when (preferences[DataStoreKey.keys[feedsGroupListTonalElevation]?.key as Preferences.Key<Int>]) {
+            when (preferences[PreferencesKey.keys[feedsGroupListTonalElevation]?.key as Preferences.Key<Int>]) {
                 ElevationTokens.Level0 -> Level0
                 ElevationTokens.Level1 -> Level1
                 ElevationTokens.Level2 -> Level2

@@ -5,8 +5,8 @@ import androidx.compose.runtime.compositionLocalOf
 import androidx.datastore.preferences.core.Preferences
 import kotlinx.coroutines.CoroutineScope
 import kotlinx.coroutines.launch
-import me.ash.reader.ui.ext.DataStoreKey
-import me.ash.reader.ui.ext.DataStoreKey.Companion.readingImageMaximize
+import me.ash.reader.ui.ext.PreferencesKey
+import me.ash.reader.ui.ext.PreferencesKey.Companion.readingImageMaximize
 import me.ash.reader.ui.ext.dataStore
 import me.ash.reader.ui.ext.put
 
@@ -19,7 +19,7 @@ sealed class ReadingImageMaximizePreference(val value: Boolean) : Preference() {
 
     override fun put(context: Context, scope: CoroutineScope) {
         scope.launch {
-            context.dataStore.put(DataStoreKey.readingImageMaximize, value)
+            context.dataStore.put(PreferencesKey.readingImageMaximize, value)
         }
     }
 
@@ -29,7 +29,7 @@ sealed class ReadingImageMaximizePreference(val value: Boolean) : Preference() {
         val values = listOf(ON, OFF)
 
         fun fromPreferences(preferences: Preferences) =
-            when (preferences[DataStoreKey.keys[readingImageMaximize]?.key as Preferences.Key<Boolean>]) {
+            when (preferences[PreferencesKey.keys[readingImageMaximize]?.key as Preferences.Key<Boolean>]) {
                 true -> ON
                 false -> OFF
                 else -> default

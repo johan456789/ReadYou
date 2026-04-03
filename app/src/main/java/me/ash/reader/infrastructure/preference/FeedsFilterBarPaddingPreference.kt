@@ -5,8 +5,8 @@ import androidx.compose.runtime.compositionLocalOf
 import androidx.datastore.preferences.core.Preferences
 import kotlinx.coroutines.CoroutineScope
 import kotlinx.coroutines.launch
-import me.ash.reader.ui.ext.DataStoreKey
-import me.ash.reader.ui.ext.DataStoreKey.Companion.feedsFilterBarPadding
+import me.ash.reader.ui.ext.PreferencesKey
+import me.ash.reader.ui.ext.PreferencesKey.Companion.feedsFilterBarPadding
 import me.ash.reader.ui.ext.dataStore
 import me.ash.reader.ui.ext.put
 
@@ -19,10 +19,10 @@ object FeedsFilterBarPaddingPreference {
 
     fun put(context: Context, scope: CoroutineScope, value: Int) {
         scope.launch {
-            context.dataStore.put(DataStoreKey.feedsFilterBarPadding, value)
+            context.dataStore.put(PreferencesKey.feedsFilterBarPadding, value)
         }
     }
 
     fun fromPreferences(preferences: Preferences) =
-        preferences[DataStoreKey.keys[feedsFilterBarPadding]?.key as Preferences.Key<Int>] ?: default
+        preferences[PreferencesKey.keys[feedsFilterBarPadding]?.key as Preferences.Key<Int>] ?: default
 }

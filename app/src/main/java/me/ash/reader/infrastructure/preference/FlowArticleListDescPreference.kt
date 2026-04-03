@@ -8,8 +8,8 @@ import androidx.datastore.preferences.core.Preferences
 import kotlinx.coroutines.CoroutineScope
 import kotlinx.coroutines.launch
 import me.ash.reader.R
-import me.ash.reader.ui.ext.DataStoreKey
-import me.ash.reader.ui.ext.DataStoreKey.Companion.flowArticleListDesc
+import me.ash.reader.ui.ext.PreferencesKey
+import me.ash.reader.ui.ext.PreferencesKey.Companion.flowArticleListDesc
 import me.ash.reader.ui.ext.dataStore
 import me.ash.reader.ui.ext.put
 
@@ -24,7 +24,7 @@ sealed class FlowArticleListDescPreference(val value: Int) : Preference() {
     override fun put(context: Context, scope: CoroutineScope) {
         scope.launch {
             context.dataStore.put(
-                DataStoreKey.flowArticleListDesc,
+                PreferencesKey.flowArticleListDesc,
                 value
             )
         }
@@ -45,7 +45,7 @@ sealed class FlowArticleListDescPreference(val value: Int) : Preference() {
         val values = listOf(NONE, SHORT, LONG)
 
         fun fromPreferences(preferences: Preferences) =
-            when (preferences[DataStoreKey.keys[flowArticleListDesc]?.key as Preferences.Key<*>]) {
+            when (preferences[PreferencesKey.keys[flowArticleListDesc]?.key as Preferences.Key<*>]) {
                 0 -> NONE
                 1 -> SHORT
                 2 -> LONG

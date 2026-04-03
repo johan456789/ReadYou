@@ -7,8 +7,8 @@ import androidx.datastore.preferences.core.Preferences
 import kotlinx.coroutines.CoroutineScope
 import kotlinx.coroutines.launch
 import me.ash.reader.R
-import me.ash.reader.ui.ext.DataStoreKey
-import me.ash.reader.ui.ext.DataStoreKey.Companion.pullToLoadNextFeed
+import me.ash.reader.ui.ext.PreferencesKey
+import me.ash.reader.ui.ext.PreferencesKey.Companion.pullToLoadNextFeed
 import me.ash.reader.ui.ext.dataStore
 import me.ash.reader.ui.ext.put
 
@@ -46,7 +46,7 @@ sealed class PullToLoadNextFeedPreference(val value: Int) : Preference() {
 
         fun fromPreference(preference: Preferences): PullToLoadNextFeedPreference {
             val value =
-                preference[DataStoreKey.keys[pullToLoadNextFeed]?.key as Preferences.Key<Int>]
+                preference[PreferencesKey.keys[pullToLoadNextFeed]?.key as Preferences.Key<Int>]
             return when (value) {
                 0 -> None
                 1 -> LoadNextFeed

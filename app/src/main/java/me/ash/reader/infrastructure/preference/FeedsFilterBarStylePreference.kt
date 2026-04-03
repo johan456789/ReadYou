@@ -6,8 +6,8 @@ import androidx.datastore.preferences.core.Preferences
 import kotlinx.coroutines.CoroutineScope
 import kotlinx.coroutines.launch
 import me.ash.reader.R
-import me.ash.reader.ui.ext.DataStoreKey
-import me.ash.reader.ui.ext.DataStoreKey.Companion.feedsFilterBarStyle
+import me.ash.reader.ui.ext.PreferencesKey
+import me.ash.reader.ui.ext.PreferencesKey.Companion.feedsFilterBarStyle
 import me.ash.reader.ui.ext.dataStore
 import me.ash.reader.ui.ext.put
 
@@ -22,7 +22,7 @@ sealed class FeedsFilterBarStylePreference(val value: Int) : Preference() {
     override fun put(context: Context, scope: CoroutineScope) {
         scope.launch {
             context.dataStore.put(
-                DataStoreKey.feedsFilterBarStyle,
+                PreferencesKey.feedsFilterBarStyle,
                 value
             )
         }
@@ -41,7 +41,7 @@ sealed class FeedsFilterBarStylePreference(val value: Int) : Preference() {
         val values = listOf(Icon, IconLabel, IconLabelOnlySelected)
 
         fun fromPreferences(preferences: Preferences): FeedsFilterBarStylePreference =
-            when (preferences[DataStoreKey.keys[feedsFilterBarStyle]?.key as Preferences.Key<Int>]) {
+            when (preferences[PreferencesKey.keys[feedsFilterBarStyle]?.key as Preferences.Key<Int>]) {
                 0 -> Icon
                 1 -> IconLabel
                 2 -> IconLabelOnlySelected

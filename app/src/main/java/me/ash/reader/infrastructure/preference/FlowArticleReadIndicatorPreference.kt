@@ -8,8 +8,8 @@ import androidx.datastore.preferences.core.Preferences
 import kotlinx.coroutines.CoroutineScope
 import kotlinx.coroutines.launch
 import me.ash.reader.R
-import me.ash.reader.ui.ext.DataStoreKey
-import me.ash.reader.ui.ext.DataStoreKey.Companion.flowArticleListReadIndicator
+import me.ash.reader.ui.ext.PreferencesKey
+import me.ash.reader.ui.ext.PreferencesKey.Companion.flowArticleListReadIndicator
 import me.ash.reader.ui.ext.dataStore
 import me.ash.reader.ui.ext.put
 
@@ -45,7 +45,7 @@ sealed class FlowArticleReadIndicatorPreference(val value: Int) : Preference() {
         val values = listOf(ExcludingStarred, AllRead, None)
 
         fun fromPreferences(preferences: Preferences) =
-            when (preferences[DataStoreKey.keys[flowArticleListReadIndicator]?.key as Preferences.Key<Int>]) {
+            when (preferences[PreferencesKey.keys[flowArticleListReadIndicator]?.key as Preferences.Key<Int>]) {
                 0 -> ExcludingStarred
                 1 -> AllRead
                 2 -> None

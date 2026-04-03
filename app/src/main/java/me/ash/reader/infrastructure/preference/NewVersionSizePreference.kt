@@ -6,8 +6,8 @@ import androidx.datastore.preferences.core.Preferences
 import kotlinx.coroutines.CoroutineScope
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.launch
-import me.ash.reader.ui.ext.DataStoreKey
-import me.ash.reader.ui.ext.DataStoreKey.Companion.newVersionSizeString
+import me.ash.reader.ui.ext.PreferencesKey
+import me.ash.reader.ui.ext.PreferencesKey.Companion.newVersionSizeString
 import me.ash.reader.ui.ext.dataStore
 import me.ash.reader.ui.ext.put
 
@@ -29,5 +29,5 @@ object NewVersionSizePreference {
     }
 
     fun fromPreferences(preferences: Preferences) =
-        preferences[DataStoreKey.keys[newVersionSizeString]?.key as Preferences.Key<String>] ?: default
+        preferences[PreferencesKey.keys[newVersionSizeString]?.key as Preferences.Key<String>] ?: default
 }

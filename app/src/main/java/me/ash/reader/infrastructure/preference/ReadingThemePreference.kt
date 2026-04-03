@@ -6,8 +6,8 @@ import androidx.compose.runtime.compositionLocalOf
 import androidx.datastore.preferences.core.Preferences
 import kotlinx.coroutines.CoroutineScope
 import kotlinx.coroutines.launch
-import me.ash.reader.ui.ext.DataStoreKey
-import me.ash.reader.ui.ext.DataStoreKey.Companion.readingTheme
+import me.ash.reader.ui.ext.PreferencesKey
+import me.ash.reader.ui.ext.PreferencesKey.Companion.readingTheme
 import me.ash.reader.ui.ext.dataStore
 import me.ash.reader.ui.ext.put
 
@@ -24,7 +24,7 @@ sealed class ReadingThemePreference(val value: Int) : Preference() {
 
     override fun put(context: Context, scope: CoroutineScope) {
         scope.launch {
-            context.dataStore.put(DataStoreKey.readingTheme, value)
+            context.dataStore.put(PreferencesKey.readingTheme, value)
         }
     }
 
@@ -125,7 +125,7 @@ sealed class ReadingThemePreference(val value: Int) : Preference() {
         val values = listOf(MaterialYou, Reeder, Paper, Custom)
 
         fun fromPreferences(preferences: Preferences): ReadingThemePreference =
-            when (preferences[DataStoreKey.keys[readingTheme]?.key as Preferences.Key<Int>]) {
+            when (preferences[PreferencesKey.keys[readingTheme]?.key as Preferences.Key<Int>]) {
                 0 -> MaterialYou
                 1 -> Reeder
                 2 -> Paper

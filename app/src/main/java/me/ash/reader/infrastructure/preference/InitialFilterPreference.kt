@@ -7,8 +7,8 @@ import kotlinx.coroutines.CoroutineScope
 import kotlinx.coroutines.launch
 import me.ash.reader.R
 import me.ash.reader.domain.model.general.Filter
-import me.ash.reader.ui.ext.DataStoreKey
-import me.ash.reader.ui.ext.DataStoreKey.Companion.initialFilter
+import me.ash.reader.ui.ext.PreferencesKey
+import me.ash.reader.ui.ext.PreferencesKey.Companion.initialFilter
 import me.ash.reader.ui.ext.dataStore
 import me.ash.reader.ui.ext.put
 
@@ -23,7 +23,7 @@ sealed class InitialFilterPreference(val value: Int) : Preference() {
     override fun put(context: Context, scope: CoroutineScope) {
         scope.launch {
             context.dataStore.put(
-                DataStoreKey.initialFilter,
+                PreferencesKey.initialFilter,
                 value
             )
         }
@@ -50,7 +50,7 @@ sealed class InitialFilterPreference(val value: Int) : Preference() {
         val values = listOf(Starred, Unread, All)
 
         fun fromPreferences(preferences: Preferences) =
-            when (preferences[DataStoreKey.keys[initialFilter]?.key as Preferences.Key<Int>]) {
+            when (preferences[PreferencesKey.keys[initialFilter]?.key as Preferences.Key<Int>]) {
                 0 -> Starred
                 1 -> Unread
                 2 -> All

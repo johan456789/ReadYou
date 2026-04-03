@@ -7,8 +7,8 @@ import androidx.datastore.preferences.core.Preferences
 import kotlinx.coroutines.CoroutineScope
 import kotlinx.coroutines.launch
 import me.ash.reader.R
-import me.ash.reader.ui.ext.DataStoreKey
-import me.ash.reader.ui.ext.DataStoreKey.Companion.readingRenderer
+import me.ash.reader.ui.ext.PreferencesKey
+import me.ash.reader.ui.ext.PreferencesKey.Companion.readingRenderer
 import me.ash.reader.ui.ext.dataStore
 import me.ash.reader.ui.ext.put
 
@@ -21,7 +21,7 @@ sealed class ReadingRendererPreference(val value: Int) : Preference() {
 
     override fun put(context: Context, scope: CoroutineScope) {
         scope.launch {
-            context.dataStore.put(DataStoreKey.readingRenderer, value)
+            context.dataStore.put(PreferencesKey.readingRenderer, value)
         }
     }
 
@@ -38,7 +38,7 @@ sealed class ReadingRendererPreference(val value: Int) : Preference() {
         val values = listOf(WebView, NativeComponent)
 
         fun fromPreferences(preferences: Preferences) =
-            when (preferences[DataStoreKey.keys[readingRenderer]?.key as Preferences.Key<Int>]) {
+            when (preferences[PreferencesKey.keys[readingRenderer]?.key as Preferences.Key<Int>]) {
                 0 -> WebView
                 1 -> NativeComponent
                 else -> default
