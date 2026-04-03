@@ -15,6 +15,7 @@ import dagger.hilt.InstallIn
 import dagger.hilt.android.qualifiers.ApplicationContext
 import dagger.hilt.components.SingletonComponent
 import kotlinx.coroutines.Dispatchers
+import me.ash.reader.infrastructure.coil.IcoDecoder
 import okhttp3.OkHttpClient
 import javax.inject.Singleton
 
@@ -37,6 +38,7 @@ object ImageLoaderModule {
             // This slightly improves scrolling performance
             .dispatcher(Dispatchers.Default)
             .components {
+                add(IcoDecoder.Factory())
                 // Support SVG decoding
                 add(SvgDecoder.Factory())
                 // Support GIF decoding

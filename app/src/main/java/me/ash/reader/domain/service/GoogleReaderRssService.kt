@@ -1,6 +1,7 @@
 package me.ash.reader.domain.service
 
 import android.content.Context
+import android.net.Uri
 import android.util.Log
 import androidx.compose.ui.util.fastFilter
 import androidx.compose.ui.util.fastFilteredMap
@@ -30,6 +31,7 @@ import me.ash.reader.domain.data.SyncLogger
 import me.ash.reader.domain.model.account.Account
 import me.ash.reader.domain.model.account.AccountType
 import me.ash.reader.domain.model.account.AccountType.Companion.FreshRSS
+import me.ash.reader.domain.model.account.security.FreshRSSSecurityKey
 import me.ash.reader.domain.model.account.security.GoogleReaderSecurityKey
 import me.ash.reader.domain.model.article.Article
 import me.ash.reader.domain.model.feed.Feed
@@ -125,6 +127,25 @@ constructor(
 
     override suspend fun clearAuthorization() {
         GoogleReaderAPI.clearInstance()
+    }
+
+    override suspend fun repairAccountData(accountId: Int) {
+        val account = accountService.getAccountById(accountId) ?: return
+        val normalizedIconBaseUrl = account.normalizedFreshRssIconBaseUrl() ?: return
+        val normalizedFeeds =
+            feedDao.queryAll(accountId)
+                .mapNotNull { feed ->
+                    val normalizedIcon = normalizeFreshRssIconUrl(feed.icon, normalizedIconBaseUrl)
+                    if (normalizedIcon != feed.icon) {
+                        feed.copy(icon = normalizedIcon)
+                    } else {
+                        null
+                    }
+                }
+
+        if (normalizedFeeds.isNotEmpty()) {
+            feedDao.update(*normalizedFeeds.toTypedArray())
+        }
     }
 
     override suspend fun subscribe(
@@ -404,6 +425,8 @@ constructor(
 
             // 2. Fetch folder and subscription list
             val groupWithFeedsMap = async {
+                val currentAccount = requireNotNull(accountService.getAccountById(accountId))
+                val normalizedIconBaseUrl = currentAccount.normalizedFreshRssIconBaseUrl()
                 val subscriptionList = googleReaderAPI.getSubscriptionList()
                 requireNotNull(subscriptionList) { "subscriptionList is null" }
                 subscriptionList.subscriptions
@@ -432,7 +455,7 @@ constructor(
                                 url = feedUrl,
                                 groupId = group.id,
                                 accountId = accountId,
-                                icon = it.iconUrl,
+                                icon = normalizeFreshRssIconUrl(it.iconUrl, normalizedIconBaseUrl),
                             )
                         }
                     }
@@ -903,4 +926,35 @@ constructor(
                 unmark = if (!isStarred) GoogleReaderAPI.Stream.Starred.tag else null,
             )
     }
+}
+private fun Account.normalizedFreshRssIconBaseUrl(): Uri? {
+    if (type.id != FreshRSS.id) return null
+    val serverUrl = FreshRSSSecurityKey(securityKey).serverUrl ?: return null
+    val serverUri = Uri.parse(serverUrl)
+    if (serverUri.scheme.isNullOrBlank() || serverUri.encodedAuthority.isNullOrBlank()) return null
+    return serverUri.buildUpon().clearQuery().fragment(null).path(null).build()
+}
+
+private fun normalizeFreshRssIconUrl(iconUrl: String?, normalizedIconBaseUrl: Uri?): String? {
+    if (iconUrl.isNullOrBlank() || normalizedIconBaseUrl == null) return iconUrl
+
+    val iconUri = Uri.parse(iconUrl)
+    val path = iconUri.path ?: return iconUrl
+    if (!path.startsWith("/f.php")) return iconUrl
+
+    val iconAuthority = iconUri.encodedAuthority
+    val iconScheme = iconUri.scheme
+    if (
+        iconScheme == normalizedIconBaseUrl.scheme &&
+            iconAuthority == normalizedIconBaseUrl.encodedAuthority
+    ) {
+        return iconUrl
+    }
+
+    return iconUri
+        .buildUpon()
+        .scheme(normalizedIconBaseUrl.scheme)
+        .encodedAuthority(normalizedIconBaseUrl.encodedAuthority)
+        .build()
+        .toString()
 }

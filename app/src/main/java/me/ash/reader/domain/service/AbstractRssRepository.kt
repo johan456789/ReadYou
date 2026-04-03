@@ -51,6 +51,8 @@ abstract class AbstractRssRepository(
 
     open suspend fun clearAuthorization() {}
 
+    open suspend fun repairAccountData(accountId: Int) {}
+
     open suspend fun subscribe(
         feedLink: String,
         searchedFeed: SyndFeed,
