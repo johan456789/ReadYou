@@ -297,7 +297,8 @@ constructor(
             }
             item.run {
                 _readingUiState.update {
-                    it.copy(articleWithFeed = this, isStarred = article.isStarred, isUnread = false)
+                    ReadingUiState(articleWithFeed = this, isStarred = article.isStarred)
+                        .withUnreadState(isUnread = false)
                 }
                 _readerState.update {
                     it.copy(
@@ -368,11 +369,10 @@ constructor(
     }
 
     fun updateReadStatus(isUnread: Boolean) {
-        readingUiState.value.articleWithFeed?.let {
-            diffMapHolder.updateDiff(it, isUnread = isUnread)
-        }
-        _readingUiState.update {
-            it.copy(isUnread = diffMapHolder.checkIfUnread(it.articleWithFeed!!))
+        _readingUiState.update { state ->
+            val articleWithFeed = state.articleWithFeed ?: return@update state
+            diffMapHolder.updateDiff(articleWithFeed, isUnread = isUnread)
+            state.withUnreadState(diffMapHolder.checkIfUnread(articleWithFeed))
         }
     }
 
@@ -452,7 +452,12 @@ data class ReadingUiState(
     val isUnread: Boolean = false,
     val isStarred: Boolean = false,
 ) {
-    fun withUnreadState(isUnread: Boolean): ReadingUiState = copy(isUnread = isUnread)
+    fun withUnreadState(isUnread: Boolean): ReadingUiState =
+        copy(
+            articleWithFeed =
+                articleWithFeed?.copy(article = articleWithFeed.article.copy(isUnread = isUnread)),
+            isUnread = isUnread,
+        )
 }
 
 data class ReaderState(
