@@ -369,9 +369,11 @@ constructor(
     }
 
     fun updateReadStatus(isUnread: Boolean) {
+        val articleWithFeed = readingUiState.value.articleWithFeed ?: return
+        diffMapHolder.updateDiff(articleWithFeed, isUnread = isUnread)
+
         _readingUiState.update { state ->
-            val articleWithFeed = state.articleWithFeed ?: return@update state
-            diffMapHolder.updateDiff(articleWithFeed, isUnread = isUnread)
+            if (state.articleWithFeed?.article?.id != articleWithFeed.article.id) return@update state
             state.withUnreadState(diffMapHolder.checkIfUnread(articleWithFeed))
         }
     }
