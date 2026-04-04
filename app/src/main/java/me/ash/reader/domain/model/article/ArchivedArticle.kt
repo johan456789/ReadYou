@@ -2,11 +2,13 @@ package me.ash.reader.domain.model.article
 
 import androidx.room.Entity
 import androidx.room.ForeignKey
+import androidx.room.Index
 import androidx.room.PrimaryKey
 import me.ash.reader.domain.model.feed.Feed
 
 @Entity(
     tableName = "archived_article",
+    indices = [Index(value = ["feedId"])],
     foreignKeys = [ForeignKey(
         entity = Feed::class,
         parentColumns = ["id"],
