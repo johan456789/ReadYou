@@ -25,7 +25,7 @@ import me.ash.reader.infrastructure.db.AndroidDatabase
 import me.ash.reader.infrastructure.preference.InitialFilterPreference
 import me.ash.reader.infrastructure.preference.InitialPagePreference
 import me.ash.reader.infrastructure.rss.provider.greader.GoogleReaderAPI
-import me.ash.reader.ui.ext.DataStoreKey
+import me.ash.reader.ui.ext.PreferencesKey
 import me.ash.reader.ui.ext.dataStore
 import me.ash.reader.ui.ext.getDefaultGroupId
 import me.ash.reader.ui.ext.put
@@ -292,15 +292,15 @@ class FreshRssSyncE2eTest {
             database.groupDao().insert(group)
             database.feedDao().insert(feed)
             database.articleDao().insert(article)
-            targetContext.dataStore.put(DataStoreKey.isFirstLaunch, false)
-            targetContext.dataStore.put(DataStoreKey.currentAccountId, accountId)
-            targetContext.dataStore.put(DataStoreKey.currentAccountType, AccountType.FreshRSS.id)
+            targetContext.dataStore.put(PreferencesKey.isFirstLaunch, false)
+            targetContext.dataStore.put(PreferencesKey.currentAccountId, accountId)
+            targetContext.dataStore.put(PreferencesKey.currentAccountType, AccountType.FreshRSS.id)
             targetContext.dataStore.put(
-                DataStoreKey.initialPage,
+                PreferencesKey.initialPage,
                 InitialPagePreference.FlowPage.value,
             )
             targetContext.dataStore.put(
-                DataStoreKey.initialFilter,
+                PreferencesKey.initialFilter,
                 InitialFilterPreference.Unread.value,
             )
         }
@@ -330,15 +330,15 @@ class FreshRssSyncE2eTest {
             }
 
         runBlocking {
-            targetContext.dataStore.put(DataStoreKey.isFirstLaunch, false)
-            targetContext.dataStore.put(DataStoreKey.currentAccountId, accountId)
-            targetContext.dataStore.put(DataStoreKey.currentAccountType, AccountType.FreshRSS.id)
+            targetContext.dataStore.put(PreferencesKey.isFirstLaunch, false)
+            targetContext.dataStore.put(PreferencesKey.currentAccountId, accountId)
+            targetContext.dataStore.put(PreferencesKey.currentAccountType, AccountType.FreshRSS.id)
             targetContext.dataStore.put(
-                DataStoreKey.initialPage,
+                PreferencesKey.initialPage,
                 InitialPagePreference.FlowPage.value,
             )
             targetContext.dataStore.put(
-                DataStoreKey.initialFilter,
+                PreferencesKey.initialFilter,
                 InitialFilterPreference.Unread.value,
             )
         }

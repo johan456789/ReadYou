@@ -451,7 +451,9 @@ data class ReadingUiState(
     val articleWithFeed: ArticleWithFeed? = null,
     val isUnread: Boolean = false,
     val isStarred: Boolean = false,
-)
+) {
+    fun withUnreadState(isUnread: Boolean): ReadingUiState = copy(isUnread = isUnread)
+}
 
 data class ReaderState(
     val articleId: String? = null,
