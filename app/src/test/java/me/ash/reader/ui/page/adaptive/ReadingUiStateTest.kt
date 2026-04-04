@@ -46,7 +46,8 @@ class ReadingUiStateTest {
             feed = sampleFeed(),
         )
 
-    private fun readArticle(): ArticleWithFeed = unreadArticle().copy(article = unreadArticle().article.copy(isUnread = false))
+    private fun readArticle(): ArticleWithFeed =
+        unreadArticle().run { copy(article = article.copy(isUnread = false)) }
 
     private fun sampleFeed(): Feed =
         Feed(
