@@ -26,11 +26,11 @@ import javax.inject.Inject
 @HiltViewModel
 class GroupOptionViewModel @Inject constructor(
     val rssService: RssService,
-    @MainDispatcher
+    @param:MainDispatcher
     private val mainDispatcher: CoroutineDispatcher,
-    @IODispatcher
+    @param:IODispatcher
     private val ioDispatcher: CoroutineDispatcher,
-    @ApplicationScope
+    @param:ApplicationScope
     private val applicationScope: CoroutineScope,
 ) : ViewModel() {
 

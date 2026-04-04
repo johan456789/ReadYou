@@ -23,12 +23,12 @@ import me.ash.reader.ui.ext.skipVersionNumber
 import javax.inject.Inject
 
 class AppService @Inject constructor(
-    @ApplicationContext
+    @param:ApplicationContext
     private val context: Context,
     private val networkDataSource: NetworkDataSource,
-    @IODispatcher
+    @param:IODispatcher
     private val ioDispatcher: CoroutineDispatcher,
-    @MainDispatcher
+    @param:MainDispatcher
     private val mainDispatcher: CoroutineDispatcher,
 ) {
 

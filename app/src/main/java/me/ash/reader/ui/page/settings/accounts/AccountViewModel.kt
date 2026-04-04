@@ -29,13 +29,13 @@ class AccountViewModel @Inject constructor(
     private val accountService: AccountService,
     private val rssService: RssService,
     private val opmlService: OpmlService,
-    @IODispatcher
+    @param:IODispatcher
     private val ioDispatcher: CoroutineDispatcher,
-    @DefaultDispatcher
+    @param:DefaultDispatcher
     private val defaultDispatcher: CoroutineDispatcher,
-    @MainDispatcher
+    @param:MainDispatcher
     private val mainDispatcher: CoroutineDispatcher,
-    @ApplicationScope
+    @param:ApplicationScope
     private val applicationScope: CoroutineScope,
 ) : ViewModel() {
 

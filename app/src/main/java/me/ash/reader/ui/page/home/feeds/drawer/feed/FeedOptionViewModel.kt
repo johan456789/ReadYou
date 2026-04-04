@@ -29,9 +29,9 @@ class FeedOptionViewModel
 @Inject
 constructor(
     val rssService: RssService,
-    @MainDispatcher private val mainDispatcher: CoroutineDispatcher,
-    @IODispatcher private val ioDispatcher: CoroutineDispatcher,
-    @ApplicationScope private val applicationScope: CoroutineScope,
+    @param:MainDispatcher private val mainDispatcher: CoroutineDispatcher,
+    @param:IODispatcher private val ioDispatcher: CoroutineDispatcher,
+    @param:ApplicationScope private val applicationScope: CoroutineScope,
     private val rssHelper: RssHelper,
     private val feedDao: FeedDao,
 ) : ViewModel() {

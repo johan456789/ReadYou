@@ -24,14 +24,14 @@ import javax.inject.Inject
  * Supports import and export from OPML files.
  */
 class OpmlService @Inject constructor(
-    @ApplicationContext
+    @param:ApplicationContext
     private val context: Context,
     private val groupDao: GroupDao,
     private val feedDao: FeedDao,
     private val accountService: AccountService,
     private val rssService: RssService,
     private val OPMLDataSource: OPMLDataSource,
-    @IODispatcher
+    @param:IODispatcher
     private val ioDispatcher: CoroutineDispatcher,
 ) {
 

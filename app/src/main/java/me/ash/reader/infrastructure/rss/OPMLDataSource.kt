@@ -16,9 +16,9 @@ import java.util.*
 import javax.inject.Inject
 
 class OPMLDataSource @Inject constructor(
-    @ApplicationContext
+    @param:ApplicationContext
     private val context: Context,
-    @IODispatcher
+    @param:IODispatcher
     private val ioDispatcher: CoroutineDispatcher,
 ) {
 

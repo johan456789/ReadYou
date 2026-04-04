@@ -38,8 +38,8 @@ internal val Context.widgetDataStore by preferencesDataStore("widgets")
 class WidgetRepository
 @Inject
 constructor(
-    @ApplicationContext private val context: Context,
-    @ApplicationScope private val coroutineScope: CoroutineScope,
+    @param:ApplicationContext private val context: Context,
+    @param:ApplicationScope private val coroutineScope: CoroutineScope,
     private val articleDao: ArticleDao,
     private val feedDao: FeedDao,
     private val groupDao: GroupDao,

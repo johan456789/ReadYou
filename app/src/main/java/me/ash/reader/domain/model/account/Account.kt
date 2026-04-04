@@ -13,28 +13,28 @@ import java.util.*
  */
 @Entity(tableName = "account")
 data class Account(
-    @PrimaryKey(autoGenerate = true)
+    @field:PrimaryKey(autoGenerate = true)
     val id: Int? = null,
-    @ColumnInfo
+    @field:ColumnInfo
     val name: String,
-    @ColumnInfo
+    @field:ColumnInfo
     val type: AccountType,
-    @ColumnInfo
+    @field:ColumnInfo
     val updateAt: Date? = null,
-    @ColumnInfo
+    @field:ColumnInfo
     val lastArticleId: String? = null,
-    @ColumnInfo(defaultValue = "30")
+    @field:ColumnInfo(defaultValue = "30")
     val syncInterval: SyncIntervalPreference = SyncIntervalPreference.default,
-    @ColumnInfo(defaultValue = "0")
+    @field:ColumnInfo(defaultValue = "0")
     val syncOnStart: SyncOnStartPreference = SyncOnStartPreference.default,
-    @ColumnInfo(defaultValue = "0")
+    @field:ColumnInfo(defaultValue = "0")
     val syncOnlyOnWiFi: SyncOnlyOnWiFiPreference = SyncOnlyOnWiFiPreference.default,
-    @ColumnInfo(defaultValue = "0")
+    @field:ColumnInfo(defaultValue = "0")
     val syncOnlyWhenCharging: SyncOnlyWhenChargingPreference = SyncOnlyWhenChargingPreference.default,
-    @ColumnInfo(defaultValue = "2592000000")
+    @field:ColumnInfo(defaultValue = "2592000000")
     val keepArchived: KeepArchivedPreference = KeepArchivedPreference.default,
-    @ColumnInfo(defaultValue = "")
+    @field:ColumnInfo(defaultValue = "")
     val syncBlockList: SyncBlockList = SyncBlockListPreference.default,
-    @ColumnInfo(defaultValue = DESUtils.empty)
+    @field:ColumnInfo(defaultValue = DESUtils.empty)
     val securityKey: String? = DESUtils.empty,
 )

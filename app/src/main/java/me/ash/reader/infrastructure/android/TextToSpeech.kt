@@ -22,9 +22,9 @@ import javax.inject.Singleton
 
 @Singleton
 class TextToSpeechManager @Inject constructor(
-    @ApplicationContext
+    @param:ApplicationContext
     private val context: Context,
-    @ApplicationScope
+    @param:ApplicationScope
     private val coroutineScope: CoroutineScope
 ) {
 

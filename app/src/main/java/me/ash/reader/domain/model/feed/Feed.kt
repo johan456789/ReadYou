@@ -17,23 +17,23 @@ import me.ash.reader.domain.model.group.Group
     )],
 )
 data class Feed(
-    @PrimaryKey
+    @field:PrimaryKey
     val id: String,
-    @ColumnInfo
+    @field:ColumnInfo
     val name: String,
-    @ColumnInfo
+    @field:ColumnInfo
     val icon: String? = null,
-    @ColumnInfo
+    @field:ColumnInfo
     val url: String,
-    @ColumnInfo(index = true)
+    @field:ColumnInfo(index = true)
     var groupId: String,
-    @ColumnInfo(index = true)
+    @field:ColumnInfo(index = true)
     val accountId: Int,
-    @ColumnInfo
+    @field:ColumnInfo
     val isNotification: Boolean = false,
-    @ColumnInfo
+    @field:ColumnInfo
     val isFullContent: Boolean = false,
-    @ColumnInfo(defaultValue = "0")
+    @field:ColumnInfo(defaultValue = "0")
     val isBrowser: Boolean = false,
     @Ignore val important: Int = 0
 ) {

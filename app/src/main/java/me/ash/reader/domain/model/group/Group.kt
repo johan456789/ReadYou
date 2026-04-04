@@ -10,10 +10,10 @@ import androidx.room.PrimaryKey
  */
 @Entity(tableName = "group")
 data class Group(
-    @PrimaryKey
+    @field:PrimaryKey
     val id: String,
-    @ColumnInfo
+    @field:ColumnInfo
     val name: String,
-    @ColumnInfo(index = true)
+    @field:ColumnInfo(index = true)
     val accountId: Int,
 )

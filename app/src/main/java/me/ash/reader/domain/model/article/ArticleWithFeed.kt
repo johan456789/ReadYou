@@ -8,8 +8,8 @@ import me.ash.reader.domain.model.feed.Feed
  * An [article] contains a [feed].
  */
 data class ArticleWithFeed(
-    @Embedded
+    @field:Embedded
     var article: Article,
-    @Relation(parentColumn = "feedId", entityColumn = "id")
+    @field:Relation(parentColumn = "feedId", entityColumn = "id")
     var feed: Feed,
 )
