@@ -5,8 +5,8 @@ import androidx.compose.runtime.compositionLocalOf
 import androidx.datastore.preferences.core.Preferences
 import kotlinx.coroutines.CoroutineScope
 import kotlinx.coroutines.launch
-import me.ash.reader.ui.ext.DataStoreKey
-import me.ash.reader.ui.ext.DataStoreKey.Companion.flowArticleListDateStickyHeader
+import me.ash.reader.ui.ext.PreferencesKey
+import me.ash.reader.ui.ext.PreferencesKey.Companion.flowArticleListDateStickyHeader
 import me.ash.reader.ui.ext.dataStore
 import me.ash.reader.ui.ext.put
 
@@ -20,7 +20,7 @@ sealed class FlowArticleListDateStickyHeaderPreference(val value: Boolean) : Pre
     override fun put(context: Context, scope: CoroutineScope) {
         scope.launch {
             context.dataStore.put(
-                DataStoreKey.flowArticleListDateStickyHeader,
+                PreferencesKey.flowArticleListDateStickyHeader,
                 value
             )
         }
@@ -32,7 +32,7 @@ sealed class FlowArticleListDateStickyHeaderPreference(val value: Boolean) : Pre
         val values = listOf(ON, OFF)
 
         fun fromPreferences(preferences: Preferences) =
-            when (preferences[DataStoreKey.keys[flowArticleListDateStickyHeader]?.key as Preferences.Key<Boolean>]) {
+            when (preferences[PreferencesKey.keys[flowArticleListDateStickyHeader]?.key as Preferences.Key<Boolean>]) {
                 true -> ON
                 false -> OFF
                 else -> default

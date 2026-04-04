@@ -25,7 +25,7 @@ import me.ash.reader.domain.repository.FeedDao
 import me.ash.reader.domain.repository.GroupDao
 import me.ash.reader.infrastructure.di.ApplicationScope
 import me.ash.reader.infrastructure.preference.SettingsProvider
-import me.ash.reader.ui.ext.DataStoreKey
+import me.ash.reader.ui.ext.PreferencesKey
 import me.ash.reader.ui.ext.dataStore
 import me.ash.reader.ui.ext.getDefaultGroupId
 import me.ash.reader.ui.ext.put
@@ -44,7 +44,7 @@ constructor(
     settingsProvider: SettingsProvider,
 ) {
 
-    private val accountIdKey = intPreferencesKey(DataStoreKey.currentAccountId)
+    private val accountIdKey = intPreferencesKey(PreferencesKey.currentAccountId)
 
     val currentAccountIdFlow =
         settingsProvider.preferencesFlow
@@ -88,8 +88,8 @@ constructor(
                     )
                 }
             }
-            context.dataStore.put(DataStoreKey.currentAccountId, it.id!!)
-            context.dataStore.put(DataStoreKey.currentAccountType, it.type.id)
+            context.dataStore.put(PreferencesKey.currentAccountId, it.id!!)
+            context.dataStore.put(PreferencesKey.currentAccountType, it.type.id)
         }
     }
 
@@ -143,14 +143,14 @@ constructor(
             groupDao.deleteByAccountId(accountId)
             accountDao.delete(it)
             accountDao.queryAll().getOrNull(0)?.let {
-                context.dataStore.put(DataStoreKey.currentAccountId, it.id!!)
-                context.dataStore.put(DataStoreKey.currentAccountType, it.type.id)
+                context.dataStore.put(PreferencesKey.currentAccountId, it.id!!)
+                context.dataStore.put(PreferencesKey.currentAccountType, it.type.id)
             }
         }
     }
 
     suspend fun switch(account: Account) {
-        context.dataStore.put(DataStoreKey.currentAccountId, account.id!!)
-        context.dataStore.put(DataStoreKey.currentAccountType, account.type.id)
+        context.dataStore.put(PreferencesKey.currentAccountId, account.id!!)
+        context.dataStore.put(PreferencesKey.currentAccountType, account.type.id)
     }
 }

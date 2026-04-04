@@ -6,8 +6,8 @@ import androidx.datastore.preferences.core.Preferences
 import kotlinx.coroutines.CoroutineScope
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.launch
-import me.ash.reader.ui.ext.DataStoreKey
-import me.ash.reader.ui.ext.DataStoreKey.Companion.newVersionPublishDate
+import me.ash.reader.ui.ext.PreferencesKey
+import me.ash.reader.ui.ext.PreferencesKey.Companion.newVersionPublishDate
 import me.ash.reader.ui.ext.dataStore
 import me.ash.reader.ui.ext.put
 
@@ -19,10 +19,10 @@ object NewVersionPublishDatePreference {
 
     fun put(context: Context, scope: CoroutineScope, value: String) {
         scope.launch(Dispatchers.IO) {
-            context.dataStore.put(DataStoreKey.newVersionPublishDate, value)
+            context.dataStore.put(PreferencesKey.newVersionPublishDate, value)
         }
     }
 
     fun fromPreferences(preferences: Preferences) =
-        preferences[DataStoreKey.keys[newVersionPublishDate]?.key as Preferences.Key<String>] ?: default
+        preferences[PreferencesKey.keys[newVersionPublishDate]?.key as Preferences.Key<String>] ?: default
 }

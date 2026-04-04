@@ -5,8 +5,8 @@ import androidx.compose.runtime.compositionLocalOf
 import androidx.datastore.preferences.core.Preferences
 import kotlinx.coroutines.CoroutineScope
 import kotlinx.coroutines.launch
-import me.ash.reader.ui.ext.DataStoreKey
-import me.ash.reader.ui.ext.DataStoreKey.Companion.readingImageHorizontalPadding
+import me.ash.reader.ui.ext.PreferencesKey
+import me.ash.reader.ui.ext.PreferencesKey.Companion.readingImageHorizontalPadding
 import me.ash.reader.ui.ext.dataStore
 import me.ash.reader.ui.ext.put
 
@@ -19,10 +19,10 @@ object ReadingImageHorizontalPaddingPreference {
 
     fun put(context: Context, scope: CoroutineScope, value: Int) {
         scope.launch {
-            context.dataStore.put(DataStoreKey.readingImageHorizontalPadding, value)
+            context.dataStore.put(PreferencesKey.readingImageHorizontalPadding, value)
         }
     }
 
     fun fromPreferences(preferences: Preferences) =
-        preferences[DataStoreKey.keys[readingImageHorizontalPadding]?.key as Preferences.Key<Int>] ?: default
+        preferences[PreferencesKey.keys[readingImageHorizontalPadding]?.key as Preferences.Key<Int>] ?: default
 }

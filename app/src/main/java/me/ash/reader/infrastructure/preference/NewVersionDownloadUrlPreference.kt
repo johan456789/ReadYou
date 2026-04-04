@@ -6,8 +6,8 @@ import androidx.datastore.preferences.core.Preferences
 import kotlinx.coroutines.CoroutineScope
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.launch
-import me.ash.reader.ui.ext.DataStoreKey
-import me.ash.reader.ui.ext.DataStoreKey.Companion.newVersionDownloadUrl
+import me.ash.reader.ui.ext.PreferencesKey
+import me.ash.reader.ui.ext.PreferencesKey.Companion.newVersionDownloadUrl
 import me.ash.reader.ui.ext.dataStore
 import me.ash.reader.ui.ext.put
 
@@ -19,10 +19,10 @@ object NewVersionDownloadUrlPreference {
 
     fun put(context: Context, scope: CoroutineScope, value: String) {
         scope.launch(Dispatchers.IO) {
-            context.dataStore.put(DataStoreKey.newVersionDownloadUrl, value)
+            context.dataStore.put(PreferencesKey.newVersionDownloadUrl, value)
         }
     }
 
     fun fromPreferences(preferences: Preferences) =
-        preferences[DataStoreKey.keys[newVersionDownloadUrl]?.key as Preferences.Key<String>] ?: default
+        preferences[PreferencesKey.keys[newVersionDownloadUrl]?.key as Preferences.Key<String>] ?: default
 }

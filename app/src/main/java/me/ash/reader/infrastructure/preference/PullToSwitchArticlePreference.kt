@@ -5,8 +5,8 @@ import androidx.compose.runtime.compositionLocalOf
 import androidx.datastore.preferences.core.Preferences
 import kotlinx.coroutines.CoroutineScope
 import kotlinx.coroutines.launch
-import me.ash.reader.ui.ext.DataStoreKey
-import me.ash.reader.ui.ext.DataStoreKey.Companion.pullToSwitchArticle
+import me.ash.reader.ui.ext.PreferencesKey
+import me.ash.reader.ui.ext.PreferencesKey.Companion.pullToSwitchArticle
 import me.ash.reader.ui.ext.dataStore
 import me.ash.reader.ui.ext.put
 
@@ -15,7 +15,7 @@ val LocalPullToSwitchArticle = compositionLocalOf { PullToSwitchArticlePreferenc
 class PullToSwitchArticlePreference(val value: Boolean) : Preference() {
     override fun put(context: Context, scope: CoroutineScope) {
         scope.launch {
-            context.dataStore.put(DataStoreKey.pullToSwitchArticle, value)
+            context.dataStore.put(PreferencesKey.pullToSwitchArticle, value)
         }
     }
 
@@ -26,7 +26,7 @@ class PullToSwitchArticlePreference(val value: Boolean) : Preference() {
         val default = PullToSwitchArticlePreference(true)
         fun fromPreference(preference: Preferences): PullToSwitchArticlePreference {
             return PullToSwitchArticlePreference(
-                preference[DataStoreKey.keys[pullToSwitchArticle]?.key as Preferences.Key<Boolean>] ?: return default
+                preference[PreferencesKey.keys[pullToSwitchArticle]?.key as Preferences.Key<Boolean>] ?: return default
             )
         }
     }

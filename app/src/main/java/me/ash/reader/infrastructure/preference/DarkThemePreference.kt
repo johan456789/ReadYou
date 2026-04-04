@@ -9,8 +9,8 @@ import androidx.datastore.preferences.core.Preferences
 import kotlinx.coroutines.CoroutineScope
 import kotlinx.coroutines.launch
 import me.ash.reader.R
-import me.ash.reader.ui.ext.DataStoreKey
-import me.ash.reader.ui.ext.DataStoreKey.Companion.darkTheme
+import me.ash.reader.ui.ext.PreferencesKey
+import me.ash.reader.ui.ext.PreferencesKey.Companion.darkTheme
 import me.ash.reader.ui.ext.dataStore
 import me.ash.reader.ui.ext.put
 
@@ -49,7 +49,7 @@ sealed class DarkThemePreference(val value: Int) : Preference() {
         val values = listOf(UseDeviceTheme, ON, OFF)
 
         fun fromPreferences(preferences: Preferences) =
-            when (preferences[DataStoreKey.keys[darkTheme]?.key as Preferences.Key<Int>]) {
+            when (preferences[PreferencesKey.keys[darkTheme]?.key as Preferences.Key<Int>]) {
                 0 -> UseDeviceTheme
                 1 -> ON
                 2 -> OFF

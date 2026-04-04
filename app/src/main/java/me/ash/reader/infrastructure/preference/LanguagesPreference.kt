@@ -11,8 +11,8 @@ import kotlinx.coroutines.CoroutineScope
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.launch
 import me.ash.reader.R
-import me.ash.reader.ui.ext.DataStoreKey
-import me.ash.reader.ui.ext.DataStoreKey.Companion.languages
+import me.ash.reader.ui.ext.PreferencesKey
+import me.ash.reader.ui.ext.PreferencesKey.Companion.languages
 import me.ash.reader.ui.ext.dataStore
 import me.ash.reader.ui.ext.put
 import java.util.Locale
@@ -66,7 +66,7 @@ sealed class LanguagesPreference(val value: Int) : Preference() {
     override fun put(context: Context, scope: CoroutineScope) {
         scope.launch {
             context.dataStore.put(
-                DataStoreKey.languages, value
+                PreferencesKey.languages, value
             )
             scope.launch(Dispatchers.Main) { setLocale(this@LanguagesPreference) }
         }
@@ -180,7 +180,7 @@ sealed class LanguagesPreference(val value: Int) : Preference() {
         )
 
         fun fromPreferences(preferences: Preferences): LanguagesPreference =
-            fromValue(preferences[DataStoreKey.keys[languages]?.key as Preferences.Key<Int>] ?: 0)
+            fromValue(preferences[PreferencesKey.keys[languages]?.key as Preferences.Key<Int>] ?: 0)
 
 
         fun fromValue(value: Int): LanguagesPreference = when (value) {

@@ -8,9 +8,9 @@ import androidx.datastore.preferences.core.Preferences
 import kotlinx.coroutines.CoroutineScope
 import kotlinx.coroutines.launch
 import me.ash.reader.R
-import me.ash.reader.ui.ext.DataStoreKey
-import me.ash.reader.ui.ext.DataStoreKey.Companion.swipeEndAction
-import me.ash.reader.ui.ext.DataStoreKey.Companion.swipeStartAction
+import me.ash.reader.ui.ext.PreferencesKey
+import me.ash.reader.ui.ext.PreferencesKey.Companion.swipeEndAction
+import me.ash.reader.ui.ext.PreferencesKey.Companion.swipeStartAction
 import me.ash.reader.ui.ext.dataStore
 import me.ash.reader.ui.ext.put
 
@@ -26,7 +26,7 @@ sealed class SwipeEndActionPreference(val action: Int) : Preference() {
     override fun put(context: Context, scope: CoroutineScope) {
         scope.launch {
             context.dataStore.put(
-                DataStoreKey.swipeEndAction, action
+                PreferencesKey.swipeEndAction, action
             )
         }
     }
@@ -52,7 +52,7 @@ sealed class SwipeEndActionPreference(val action: Int) : Preference() {
         )
 
         fun fromPreferences(preferences: Preferences): SwipeEndActionPreference {
-            return when (preferences[DataStoreKey.keys[swipeEndAction]?.key as Preferences.Key<Int>]) {
+            return when (preferences[PreferencesKey.keys[swipeEndAction]?.key as Preferences.Key<Int>]) {
                 SwipeGestureActions.None -> None
                 SwipeGestureActions.ToggleRead -> ToggleRead
                 SwipeGestureActions.ToggleStarred -> ToggleStarred
@@ -67,7 +67,7 @@ val LocalArticleListSwipeStartAction = compositionLocalOf { SwipeStartActionPref
 sealed class SwipeStartActionPreference(val action: Int) : Preference() {
     override fun put(context: Context, scope: CoroutineScope) {
         scope.launch {
-            context.dataStore.put(DataStoreKey.swipeStartAction, action)
+            context.dataStore.put(PreferencesKey.swipeStartAction, action)
         }
     }
 
@@ -92,7 +92,7 @@ sealed class SwipeStartActionPreference(val action: Int) : Preference() {
         )
 
         fun fromPreferences(preferences: Preferences): SwipeStartActionPreference {
-            return when (preferences[DataStoreKey.keys[swipeStartAction]?.key as Preferences.Key<Int>]) {
+            return when (preferences[PreferencesKey.keys[swipeStartAction]?.key as Preferences.Key<Int>]) {
                 SwipeGestureActions.None -> None
                 SwipeGestureActions.ToggleRead -> ToggleRead
                 SwipeGestureActions.ToggleStarred -> ToggleStarred

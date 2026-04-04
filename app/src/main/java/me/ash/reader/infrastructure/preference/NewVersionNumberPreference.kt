@@ -9,8 +9,8 @@ import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.launch
 import me.ash.reader.domain.model.general.Version
 import me.ash.reader.domain.model.general.toVersion
-import me.ash.reader.ui.ext.DataStoreKey
-import me.ash.reader.ui.ext.DataStoreKey.Companion.newVersionNumber
+import me.ash.reader.ui.ext.PreferencesKey
+import me.ash.reader.ui.ext.PreferencesKey.Companion.newVersionNumber
 import me.ash.reader.ui.ext.dataStore
 import me.ash.reader.ui.ext.put
 
@@ -30,5 +30,5 @@ object NewVersionNumberPreference {
     }
 
     fun fromPreferences(preferences: Preferences) =
-        preferences[DataStoreKey.keys[newVersionNumber]?.key as Preferences.Key<String>].toVersion()
+        preferences[PreferencesKey.keys[newVersionNumber]?.key as Preferences.Key<String>].toVersion()
 }

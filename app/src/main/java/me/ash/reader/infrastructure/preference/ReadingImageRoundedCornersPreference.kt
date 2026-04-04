@@ -5,8 +5,8 @@ import androidx.compose.runtime.compositionLocalOf
 import androidx.datastore.preferences.core.Preferences
 import kotlinx.coroutines.CoroutineScope
 import kotlinx.coroutines.launch
-import me.ash.reader.ui.ext.DataStoreKey
-import me.ash.reader.ui.ext.DataStoreKey.Companion.readingImageRoundedCorners
+import me.ash.reader.ui.ext.PreferencesKey
+import me.ash.reader.ui.ext.PreferencesKey.Companion.readingImageRoundedCorners
 import me.ash.reader.ui.ext.dataStore
 import me.ash.reader.ui.ext.put
 
@@ -19,10 +19,10 @@ object ReadingImageRoundedCornersPreference {
 
     fun put(context: Context, scope: CoroutineScope, value: Int) {
         scope.launch {
-            context.dataStore.put(DataStoreKey.readingImageRoundedCorners, value)
+            context.dataStore.put(PreferencesKey.readingImageRoundedCorners, value)
         }
     }
 
     fun fromPreferences(preferences: Preferences) =
-        preferences[DataStoreKey.keys[readingImageRoundedCorners]?.key as Preferences.Key<Int>] ?: default
+        preferences[PreferencesKey.keys[readingImageRoundedCorners]?.key as Preferences.Key<Int>] ?: default
 }

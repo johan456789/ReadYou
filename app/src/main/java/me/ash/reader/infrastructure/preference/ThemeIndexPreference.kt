@@ -6,8 +6,8 @@ import androidx.datastore.preferences.core.Preferences
 import kotlinx.coroutines.CoroutineScope
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.launch
-import me.ash.reader.ui.ext.DataStoreKey
-import me.ash.reader.ui.ext.DataStoreKey.Companion.themeIndex
+import me.ash.reader.ui.ext.PreferencesKey
+import me.ash.reader.ui.ext.PreferencesKey.Companion.themeIndex
 import me.ash.reader.ui.ext.dataStore
 import me.ash.reader.ui.ext.put
 
@@ -20,10 +20,10 @@ object ThemeIndexPreference {
 
     fun put(context: Context, scope: CoroutineScope, value: Int) {
         scope.launch(Dispatchers.IO) {
-            context.dataStore.put(DataStoreKey.themeIndex, value)
+            context.dataStore.put(PreferencesKey.themeIndex, value)
         }
     }
 
     fun fromPreferences(preferences: Preferences) =
-        preferences[DataStoreKey.keys[themeIndex]?.key as Preferences.Key<Int>] ?: default
+        preferences[PreferencesKey.keys[themeIndex]?.key as Preferences.Key<Int>] ?: default
 }

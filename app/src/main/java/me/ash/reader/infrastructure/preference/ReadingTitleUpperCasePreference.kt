@@ -5,8 +5,8 @@ import androidx.compose.runtime.compositionLocalOf
 import androidx.datastore.preferences.core.Preferences
 import kotlinx.coroutines.CoroutineScope
 import kotlinx.coroutines.launch
-import me.ash.reader.ui.ext.DataStoreKey
-import me.ash.reader.ui.ext.DataStoreKey.Companion.readingTitleUpperCase
+import me.ash.reader.ui.ext.PreferencesKey
+import me.ash.reader.ui.ext.PreferencesKey.Companion.readingTitleUpperCase
 import me.ash.reader.ui.ext.dataStore
 import me.ash.reader.ui.ext.put
 
@@ -20,7 +20,7 @@ sealed class ReadingTitleUpperCasePreference(val value: Boolean) : Preference() 
     override fun put(context: Context, scope: CoroutineScope) {
         scope.launch {
             context.dataStore.put(
-                DataStoreKey.readingTitleUpperCase,
+                PreferencesKey.readingTitleUpperCase,
                 value
             )
         }
@@ -32,7 +32,7 @@ sealed class ReadingTitleUpperCasePreference(val value: Boolean) : Preference() 
         val values = listOf(ON, OFF)
 
         fun fromPreferences(preferences: Preferences) =
-            when (preferences[DataStoreKey.keys[readingTitleUpperCase]?.key as Preferences.Key<Boolean>]) {
+            when (preferences[PreferencesKey.keys[readingTitleUpperCase]?.key as Preferences.Key<Boolean>]) {
                 true -> ON
                 false -> OFF
                 else -> default

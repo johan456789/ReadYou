@@ -34,7 +34,7 @@ import me.ash.reader.ui.component.base.DynamicSVGImage
 import me.ash.reader.ui.component.base.RYDialog
 import me.ash.reader.ui.component.base.RYScaffold
 import me.ash.reader.ui.component.base.Tips
-import me.ash.reader.ui.ext.DataStoreKey
+import me.ash.reader.ui.ext.PreferencesKey
 import me.ash.reader.ui.ext.dataStore
 import me.ash.reader.ui.ext.put
 import me.ash.reader.ui.page.common.RouteName
@@ -94,7 +94,7 @@ fun StartupPage(
                 modifier = Modifier.navigationBarsPadding(),
                 onClick = {
                     onNavigateToFeeds()
-                    scope.launch { context.dataStore.put(DataStoreKey.isFirstLaunch, false) }
+                    scope.launch { context.dataStore.put(PreferencesKey.isFirstLaunch, false) }
                 },
                 icon = { Icon(Icons.Rounded.CheckCircleOutline, stringResource(R.string.agree)) },
                 text = { Text(text = stringResource(R.string.agree)) },
@@ -128,7 +128,7 @@ fun StartupPage(
             TextButton(
                 onClick = {
                     onNavigateToFeeds()
-                    scope.launch { context.dataStore.put(DataStoreKey.isFirstLaunch, false) }
+                    scope.launch { context.dataStore.put(PreferencesKey.isFirstLaunch, false) }
                 }
             ) {
                 Text(text = stringResource(R.string.agree))

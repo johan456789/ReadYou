@@ -8,8 +8,8 @@ import androidx.datastore.preferences.core.Preferences
 import kotlinx.coroutines.CoroutineScope
 import kotlinx.coroutines.launch
 import me.ash.reader.R
-import me.ash.reader.ui.ext.DataStoreKey
-import me.ash.reader.ui.ext.DataStoreKey.Companion.readingTextAlign
+import me.ash.reader.ui.ext.PreferencesKey
+import me.ash.reader.ui.ext.PreferencesKey.Companion.readingTextAlign
 import me.ash.reader.ui.ext.dataStore
 import me.ash.reader.ui.ext.put
 
@@ -25,7 +25,7 @@ sealed class ReadingTextAlignPreference(val value: Int) : Preference() {
     override fun put(context: Context, scope: CoroutineScope) {
         scope.launch {
             context.dataStore.put(
-                DataStoreKey.readingTextAlign,
+                PreferencesKey.readingTextAlign,
                 value
             )
         }
@@ -69,7 +69,7 @@ sealed class ReadingTextAlignPreference(val value: Int) : Preference() {
         val values = listOf(Start, End, Center, Justify)
 
         fun fromPreferences(preferences: Preferences): ReadingTextAlignPreference =
-            when (preferences[DataStoreKey.keys[readingTextAlign]?.key as Preferences.Key<Int>]) {
+            when (preferences[PreferencesKey.keys[readingTextAlign]?.key as Preferences.Key<Int>]) {
                 0 -> Start
                 1 -> End
                 2 -> Center

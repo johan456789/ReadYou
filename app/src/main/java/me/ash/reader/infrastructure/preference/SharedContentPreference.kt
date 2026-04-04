@@ -8,8 +8,8 @@ import androidx.datastore.preferences.core.Preferences
 import kotlinx.coroutines.CoroutineScope
 import kotlinx.coroutines.launch
 import me.ash.reader.R
-import me.ash.reader.ui.ext.DataStoreKey
-import me.ash.reader.ui.ext.DataStoreKey.Companion.sharedContent
+import me.ash.reader.ui.ext.PreferencesKey
+import me.ash.reader.ui.ext.PreferencesKey.Companion.sharedContent
 import me.ash.reader.ui.ext.dataStore
 import me.ash.reader.ui.ext.orNotEmpty
 import me.ash.reader.ui.ext.put
@@ -23,7 +23,7 @@ sealed class SharedContentPreference(val value: Int) : Preference() {
     override fun put(context: Context, scope: CoroutineScope) {
         scope.launch {
             context.dataStore.put(
-                DataStoreKey.sharedContent,
+                PreferencesKey.sharedContent,
                 value
             )
         }
@@ -56,7 +56,7 @@ sealed class SharedContentPreference(val value: Int) : Preference() {
         val values = listOf(OnlyLink, TitleAndLink)
 
         fun fromPreferences(preferences: Preferences): SharedContentPreference =
-            when (preferences[DataStoreKey.keys[sharedContent]?.key as Preferences.Key<Int>]) {
+            when (preferences[PreferencesKey.keys[sharedContent]?.key as Preferences.Key<Int>]) {
                 0 -> OnlyLink
                 1 -> TitleAndLink
                 else -> default

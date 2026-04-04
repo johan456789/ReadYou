@@ -6,8 +6,8 @@ import androidx.datastore.preferences.core.Preferences
 import kotlinx.coroutines.CoroutineScope
 import kotlinx.coroutines.launch
 import me.ash.reader.domain.model.constant.ElevationTokens
-import me.ash.reader.ui.ext.DataStoreKey
-import me.ash.reader.ui.ext.DataStoreKey.Companion.flowTopBarTonalElevation
+import me.ash.reader.ui.ext.PreferencesKey
+import me.ash.reader.ui.ext.PreferencesKey.Companion.flowTopBarTonalElevation
 import me.ash.reader.ui.ext.dataStore
 import me.ash.reader.ui.ext.put
 
@@ -36,7 +36,7 @@ sealed class FlowTopBarTonalElevationPreference(val value: Int) : Preference() {
         val values = listOf(None, Elevated)
 
         fun fromPreferences(preferences: Preferences) =
-            when (preferences[DataStoreKey.keys[flowTopBarTonalElevation]?.key as Preferences.Key<Int>]) {
+            when (preferences[PreferencesKey.keys[flowTopBarTonalElevation]?.key as Preferences.Key<Int>]) {
                 ElevationTokens.Level0 -> None
                 ElevationTokens.Level2 -> Elevated
                 else -> default

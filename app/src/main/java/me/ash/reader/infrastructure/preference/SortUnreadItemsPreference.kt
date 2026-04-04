@@ -9,8 +9,8 @@ import androidx.datastore.preferences.core.Preferences
 import kotlinx.coroutines.CoroutineScope
 import kotlinx.coroutines.launch
 import me.ash.reader.R
-import me.ash.reader.ui.ext.DataStoreKey
-import me.ash.reader.ui.ext.DataStoreKey.Companion.flowSortUnreadArticles
+import me.ash.reader.ui.ext.PreferencesKey
+import me.ash.reader.ui.ext.PreferencesKey.Companion.flowSortUnreadArticles
 import me.ash.reader.ui.ext.dataStore
 import me.ash.reader.ui.ext.put
 
@@ -44,7 +44,7 @@ sealed class SortUnreadArticlesPreference(val value: Boolean) : Preference() {
         val values = listOf(Latest, Earliest)
 
         fun fromPreferences(preferences: Preferences) =
-            when (preferences[DataStoreKey.keys[flowSortUnreadArticles]?.key as Preferences.Key<Boolean>]) {
+            when (preferences[PreferencesKey.keys[flowSortUnreadArticles]?.key as Preferences.Key<Boolean>]) {
                 true -> Earliest
                 false -> Latest
                 else -> default

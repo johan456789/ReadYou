@@ -7,8 +7,8 @@ import androidx.datastore.preferences.core.Preferences
 import kotlinx.coroutines.CoroutineScope
 import kotlinx.coroutines.launch
 import me.ash.reader.R
-import me.ash.reader.ui.ext.DataStoreKey
-import me.ash.reader.ui.ext.DataStoreKey.Companion.readingFonts
+import me.ash.reader.ui.ext.PreferencesKey
+import me.ash.reader.ui.ext.PreferencesKey.Companion.readingFonts
 import me.ash.reader.ui.ext.ExternalFonts
 import me.ash.reader.ui.ext.dataStore
 import me.ash.reader.ui.ext.put
@@ -35,7 +35,7 @@ sealed class ReadingFontsPreference(val value: Int) : Preference() {
 
     override fun put(context: Context, scope: CoroutineScope) {
         scope.launch {
-            context.dataStore.put(DataStoreKey.readingFonts, value)
+            context.dataStore.put(PreferencesKey.readingFonts, value)
             if (this@ReadingFontsPreference == External) {
                 context.restart()
             }
@@ -72,7 +72,7 @@ sealed class ReadingFontsPreference(val value: Int) : Preference() {
         val values = listOf(GoogleSans, System, Serif, SansSerif, Monospace, Cursive, External)
 
         fun fromPreferences(preferences: Preferences): ReadingFontsPreference =
-            when (preferences[DataStoreKey.keys[readingFonts]?.key as Preferences.Key<Int>]) {
+            when (preferences[PreferencesKey.keys[readingFonts]?.key as Preferences.Key<Int>]) {
                 0 -> System
                 1 -> Serif
                 2 -> SansSerif

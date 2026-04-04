@@ -8,8 +8,8 @@ import androidx.datastore.preferences.core.Preferences
 import kotlinx.coroutines.CoroutineScope
 import kotlinx.coroutines.launch
 import me.ash.reader.R
-import me.ash.reader.ui.ext.DataStoreKey
-import me.ash.reader.ui.ext.DataStoreKey.Companion.openLinkAppSpecificBrowser
+import me.ash.reader.ui.ext.PreferencesKey
+import me.ash.reader.ui.ext.PreferencesKey.Companion.openLinkAppSpecificBrowser
 import me.ash.reader.ui.ext.dataStore
 import me.ash.reader.ui.ext.put
 
@@ -23,7 +23,7 @@ data class OpenLinkSpecificBrowserPreference(
     override fun put(context: Context, scope: CoroutineScope) {
         scope.launch {
             context.dataStore.put(
-                DataStoreKey.openLinkAppSpecificBrowser,
+                PreferencesKey.openLinkAppSpecificBrowser,
                 packageName.orEmpty()
             )
         }
@@ -52,7 +52,7 @@ data class OpenLinkSpecificBrowserPreference(
     companion object {
         val default = OpenLinkSpecificBrowserPreference(null)
         fun fromPreferences(preferences: Preferences): OpenLinkSpecificBrowserPreference {
-            val packageName = preferences[DataStoreKey.keys[openLinkAppSpecificBrowser]?.key as Preferences.Key<String>]
+            val packageName = preferences[PreferencesKey.keys[openLinkAppSpecificBrowser]?.key as Preferences.Key<String>]
             return OpenLinkSpecificBrowserPreference(packageName)
         }
     }

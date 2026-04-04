@@ -15,7 +15,7 @@ import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.platform.LocalLayoutDirection
 import androidx.compose.ui.unit.Dp
 import androidx.compose.ui.unit.dp
-import me.ash.reader.ui.ext.surfaceColorAtElevation
+import me.ash.reader.ui.ext.atElevation
 import me.ash.reader.ui.theme.palette.onDark
 
 @OptIn(ExperimentalMaterial3Api::class)
@@ -34,19 +34,13 @@ fun RYScaffold(
     floatingActionButton: (@Composable () -> Unit)? = null,
     content: @Composable () -> Unit = {},
 ) {
+    val surfaceTint = MaterialTheme.colorScheme.surfaceTint
+    val topBarColor = containerColor.atElevation(surfaceTint, topBarTonalElevation)
+    val scaffoldColor = containerColor.atElevation(surfaceTint, containerTonalElevation)
+
     Scaffold(
-        modifier =
-            modifier.background(
-                MaterialTheme.colorScheme.surfaceColorAtElevation(
-                    topBarTonalElevation,
-                    color = containerColor,
-                )
-            ),
-        containerColor =
-            MaterialTheme.colorScheme.surfaceColorAtElevation(
-                containerTonalElevation,
-                color = containerColor,
-            ) onDark MaterialTheme.colorScheme.surface,
+        modifier = modifier.background(topBarColor),
+        containerColor = scaffoldColor onDark MaterialTheme.colorScheme.surface,
         topBar = {
             if (topBar != null) topBar()
             else if (navigationIcon != null || actions != null) {
@@ -56,10 +50,7 @@ fun RYScaffold(
                     actions = { actions?.invoke(this) },
                     colors =
                         TopAppBarDefaults.topAppBarColors(
-                            containerColor =
-                                MaterialTheme.colorScheme.surfaceColorAtElevation(
-                                    topBarTonalElevation
-                                )
+                            containerColor = topBarColor
                         ),
                 )
             }
