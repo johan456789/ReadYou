@@ -8,8 +8,8 @@ class ReadStateDiffApplierTest {
     fun buildsReadAndUnreadBatchesFromDiffs() {
         val diffs =
             mapOf(
-                "mark-read" to Diff(isUnread = false, articleId = "mark-read", feedId = "feed"),
-                "mark-unread" to Diff(isUnread = true, articleId = "mark-unread", feedId = "feed"),
+                "mark-read" to Diff(isRead = true, articleId = "mark-read", feedId = "feed"),
+                "mark-unread" to Diff(isRead = false, articleId = "mark-unread", feedId = "feed"),
             )
 
         val batch = ReadStateDiffApplier.toBatch(diffs)
@@ -20,8 +20,8 @@ class ReadStateDiffApplierTest {
 
     @Test
     fun removesOnlyMatchingCommittedDiffs() {
-        val committedReadDiff = Diff(isUnread = false, articleId = "article", feedId = "feed")
-        val newerUnreadDiff = Diff(isUnread = true, articleId = "article", feedId = "feed")
+        val committedReadDiff = Diff(isRead = true, articleId = "article", feedId = "feed")
+        val newerUnreadDiff = Diff(isRead = false, articleId = "article", feedId = "feed")
         val currentDiffs = mutableMapOf("article" to newerUnreadDiff)
 
         ReadStateDiffApplier.removeMatchingDiffs(

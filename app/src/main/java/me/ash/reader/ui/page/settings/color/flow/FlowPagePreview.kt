@@ -108,7 +108,7 @@ fun FlowPagePreview(
             timeString = article.dateString,
             imgData = R.drawable.animation,
             isStarred = article.isStarred,
-            isUnread = article.isUnread,
+            isRead = article.isRead,
             onClick = {},
             onLongClick = null
         )

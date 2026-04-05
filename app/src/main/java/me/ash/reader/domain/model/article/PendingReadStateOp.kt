@@ -21,4 +21,7 @@ data class PendingReadStateOp(
     val isUnread: Boolean,
     @ColumnInfo
     val updatedAt: Date = Date(),
-)
+) {
+    val isRead: Boolean
+        get() = !isUnread
+}

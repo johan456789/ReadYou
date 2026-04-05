@@ -14,4 +14,10 @@ data class ArticleMeta(
     var isUnread: Boolean = true,
     @field:ColumnInfo
     var isStarred: Boolean = false,
-)
+) {
+    var isRead: Boolean
+        get() = !isUnread
+        set(value) {
+            isUnread = !value
+        }
+}

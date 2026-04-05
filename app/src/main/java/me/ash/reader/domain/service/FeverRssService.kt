@@ -266,7 +266,7 @@ constructor(
                     feedDao.queryNotificationEnabled(accountId).associateBy { it.id }
                 val notificationFeedIds = notificationFeeds.keys
                 allArticles
-                    .fastFilter { it.isUnread && it.feedId in notificationFeedIds }
+                    .fastFilter { !it.isRead && it.feedId in notificationFeedIds }
                     .groupBy { it.feedId }
                     .mapKeys { (feedId, _) -> notificationFeeds[feedId]!! }
                     .forEach { (feed, articles) -> notificationHelper.notify(feed, articles) }
@@ -280,7 +280,7 @@ constructor(
                 val articleId = meta.id.dollarLast()
                 val shouldBeUnread = unreadArticleIds?.contains(articleId)
                 val shouldBeStarred = starredArticleIds?.contains(articleId)
-                if (meta.isUnread != shouldBeUnread) {
+                if ((!meta.isRead) != shouldBeUnread) {
                     articleDao.markAsReadByArticleId(accountId, meta.id, shouldBeUnread ?: true)
                 }
                 if (meta.isStarred != shouldBeStarred) {
@@ -331,10 +331,11 @@ constructor(
         feedId: String?,
         articleId: String?,
         before: Date?,
-        isUnread: Boolean,
+        markRead: Boolean,
     ) {
-        super.markAsRead(groupId, feedId, articleId, before, isUnread)
+        super.markAsRead(groupId, feedId, articleId, before, markRead)
         val feverAPI = getFeverAPI()
+        val isUnread = !markRead
         val beforeUnixTimestamp = (before?.time ?: Date(Long.MAX_VALUE).time) / 1000
         when {
             groupId != null -> {
@@ -374,8 +375,9 @@ constructor(
     }
 
     @CheckResult
-    override suspend fun syncReadStatus(articleIds: Set<String>, isUnread: Boolean): Set<String> {
+    override suspend fun syncReadStatus(articleIds: Set<String>, markRead: Boolean): Set<String> {
         val feverAPI = getFeverAPI()
+        val isUnread = !markRead
         val syncedEntries = mutableSetOf<String>()
         articleIds
             .takeIf { it.isNotEmpty() }

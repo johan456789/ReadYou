@@ -149,7 +149,7 @@ class FeedsViewModel @Inject constructor(
                 ) { diffMap, unreadCountMap ->
                     val sum = unreadCountMap.values.sum()
                     val combinedSum =
-                        sum + diffMap.values.sumOf { if (it.isUnread) 1.toInt() else -1 } // KT-46360
+                        sum + diffMap.values.sumOf { if (it.isRead) -1 else 1.toInt() } // KT-46360
                     androidStringsHelper.getQuantityString(
                         R.plurals.unread_desc,
                         combinedSum,

@@ -328,12 +328,12 @@ constructor(
 
             val localAllItems = articleDao.queryMetadataAll(accountId)
             val localUnreadIds =
-                localAllItems.filter { it.isUnread }.map { it.id.dollarLast() }.toSet()
+                localAllItems.filterNot { it.isRead }.map { it.id.dollarLast() }.toSet()
             val localStarredIds =
                 localAllItems.filter { it.isStarred }.map { it.id.dollarLast() }.toSet()
 
             val localReadIds =
-                localAllItems.filter { !it.isUnread }.map { it.id.dollarLast() }.toSet()
+                localAllItems.filter { it.isRead }.map { it.id.dollarLast() }.toSet()
 
             val localItemIds = localAllItems.map { it.id.dollarLast() }.toSet()
 
@@ -502,7 +502,7 @@ constructor(
                                     articleDao.insertList(it)
                                     articlesToNotify.addAll(
                                         it.fastFilter {
-                                            it.isUnread && notificationFeedIds.contains(it.feedId)
+                                            !it.isRead && notificationFeedIds.contains(it.feedId)
                                         }
                                     )
                                     deferredList.remove(deferred)
@@ -629,7 +629,7 @@ constructor(
                 )
 
             if (feed.isNotification) {
-                val articlesToNotify = items.fastFilter { it.isUnread }
+                val articlesToNotify = items.fastFilter { !it.isRead }
                 notificationHelper.notify(feed, articlesToNotify)
             }
 
@@ -817,8 +817,9 @@ constructor(
         feedId: String?,
         articleId: String?,
         before: Date?,
-        isUnread: Boolean,
+        markRead: Boolean,
     ) {
+        val isUnread = !markRead
         val accountId = accountService.getCurrentAccountId()
         val googleReaderAPI = getGoogleReaderAPI()
         val markList: List<String> =
@@ -863,7 +864,7 @@ constructor(
                         .map { it.id.dollarLast() }
                 }
             }
-        super.markAsRead(groupId, feedId, articleId, before, isUnread)
+        super.markAsRead(groupId, feedId, articleId, before, markRead)
         markList
             .takeIf { it.isNotEmpty() }
             ?.chunked(500)
@@ -877,7 +878,8 @@ constructor(
             }
     }
 
-    override suspend fun syncReadStatus(articleIds: Set<String>, isUnread: Boolean): Set<String> {
+    override suspend fun syncReadStatus(articleIds: Set<String>, markRead: Boolean): Set<String> {
+        val isUnread = !markRead
         val googleReaderAPI = getGoogleReaderAPI()
         val syncedEntries = mutableSetOf<String>()
         articleIds
@@ -897,7 +899,7 @@ constructor(
                     .onFailure { it.printStackTrace() }
                     .onSuccess {
                         syncedEntries += idList
-                        println("synced $idList to isUnread: $isUnread")
+                        println("synced $idList to markRead: $markRead")
                     }
             }
         return syncedEntries

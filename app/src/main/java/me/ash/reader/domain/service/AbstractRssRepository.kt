@@ -100,8 +100,9 @@ abstract class AbstractRssRepository(
         feedId: String?,
         articleId: String?,
         before: Date?,
-        isUnread: Boolean,
+        markRead: Boolean,
     ) {
+        val isUnread = !markRead
         val accountId = accountService.getCurrentAccountId()
         when {
             groupId != null -> {
@@ -132,8 +133,9 @@ abstract class AbstractRssRepository(
         }
     }
 
-    open suspend fun batchMarkAsRead(articleIds: Set<String>, isUnread: Boolean) {
+    open suspend fun batchMarkAsRead(articleIds: Set<String>, markRead: Boolean) {
         val accountId = accountService.getCurrentAccountId()
+        val isUnread = !markRead
         articleIds
             .takeIf { it.isNotEmpty() }
             ?.chunked(500)
@@ -142,7 +144,7 @@ abstract class AbstractRssRepository(
             }
     }
 
-    open suspend fun syncReadStatus(articleIds: Set<String>, isUnread: Boolean): Set<String> {
+    open suspend fun syncReadStatus(articleIds: Set<String>, markRead: Boolean): Set<String> {
         /* no-op */
         return emptySet()
     }

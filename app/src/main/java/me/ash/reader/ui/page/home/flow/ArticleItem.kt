@@ -89,7 +89,7 @@ private const val TAG = "ArticleItem"
 fun ArticleItem(
     modifier: Modifier = Modifier,
     articleWithFeed: ArticleWithFeed,
-    isUnread: Boolean = articleWithFeed.article.isUnread,
+    isRead: Boolean = articleWithFeed.article.isRead,
     onClick: (ArticleWithFeed) -> Unit = {},
     onLongClick: (() -> Unit)? = null,
 ) {
@@ -105,7 +105,7 @@ fun ArticleItem(
         timeString = article.dateString,
         imgData = article.img,
         isStarred = article.isStarred,
-        isUnread = isUnread,
+        isRead = isRead,
         onClick = { onClick(articleWithFeed) },
         onLongClick = onLongClick,
     )
@@ -122,7 +122,7 @@ fun ArticleItem(
     timeString: String? = null,
     imgData: Any? = null,
     isStarred: Boolean = false,
-    isUnread: Boolean = false,
+    isRead: Boolean = false,
     onClick: () -> Unit = {},
     onLongClick: (() -> Unit)? = null,
 ) {
@@ -145,11 +145,11 @@ fun ArticleItem(
                         FlowArticleReadIndicatorPreference.None -> 1f
 
                         FlowArticleReadIndicatorPreference.AllRead -> {
-                            if (isUnread) 1f else 0.5f
+                            if (isRead) 0.5f else 1f
                         }
 
                         FlowArticleReadIndicatorPreference.ExcludingStarred -> {
-                            if (isUnread || isStarred) 1f else 0.5f
+                            if (!isRead || isStarred) 1f else 0.5f
                         }
                     }
                 )
@@ -310,7 +310,7 @@ private const val SwipeActionDelay = 300L
 @Composable
 fun SwipeableArticleItem(
     articleWithFeed: ArticleWithFeed,
-    isUnread: Boolean = articleWithFeed.article.isUnread,
+    isRead: Boolean = articleWithFeed.article.isRead,
     articleListTonalElevation: Int = 0,
     onClick: (ArticleWithFeed) -> Unit = {},
     isSwipeEnabled: () -> Boolean = { false },
@@ -334,7 +334,7 @@ fun SwipeableArticleItem(
 
     SwipeActionBox(
         articleWithFeed = articleWithFeed,
-        isRead = !isUnread,
+        isRead = isRead,
         isStarred = articleWithFeed.article.isStarred,
         onToggleStarred = onToggleStarred,
         onToggleRead = onToggleRead,
@@ -360,7 +360,7 @@ fun SwipeableArticleItem(
         ) {
             ArticleItem(
                 articleWithFeed = articleWithFeed,
-                isUnread = isUnread,
+                isRead = isRead,
                 onClick = onClick,
                 onLongClick = onLongClick,
             )
@@ -375,7 +375,7 @@ fun SwipeableArticleItem(
                         ArticleItemMenuContent(
                             articleWithFeed = articleWithFeed,
                             isStarred = isStarred,
-                            isRead = !isUnread,
+                            isRead = isRead,
                             onToggleStarred = onToggleStarred,
                             onToggleRead = onToggleRead,
                             onMarkAboveAsRead = onMarkAboveAsRead,
