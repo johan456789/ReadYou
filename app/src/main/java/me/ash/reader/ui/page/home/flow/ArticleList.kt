@@ -44,7 +44,7 @@ fun LazyListScope.ArticleList(
                     val article = item.articleWithFeed.article
                     SwipeableArticleItem(
                         articleWithFeed = item.articleWithFeed,
-                        isUnread = diffMap[article.id]?.isUnread ?: article.isUnread,
+                        isRead = diffMap[article.id]?.isRead ?: article.isRead,
                         articleListTonalElevation = articleListTonalElevation,
                         onClick = { onClick(it, index) },
                         isSwipeEnabled = isSwipeEnabled,
@@ -78,7 +78,7 @@ fun LazyListScope.ArticleList(
                         val article = item.articleWithFeed.article
                         SwipeableArticleItem(
                             articleWithFeed = item.articleWithFeed,
-                            isUnread = diffMap[article.id]?.isUnread ?: article.isUnread,
+                            isRead = diffMap[article.id]?.isRead ?: article.isRead,
                             articleListTonalElevation = articleListTonalElevation,
                             onClick = { onClick(it, index) },
                             isSwipeEnabled = isSwipeEnabled,

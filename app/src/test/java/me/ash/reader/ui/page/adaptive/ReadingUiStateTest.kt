@@ -10,23 +10,23 @@ import org.junit.Test
 
 class ReadingUiStateTest {
     @Test
-    fun withUnreadState_marksTheStoredArticleSnapshotAsRead() {
-        val state = ReadingUiState(articleWithFeed = unreadArticle(), isUnread = true)
+    fun withReadState_marksTheStoredArticleSnapshotAsRead() {
+        val state = ReadingUiState(articleWithFeed = unreadArticle(), isRead = false)
 
-        val updated = state.withUnreadState(isUnread = false)
+        val updated = state.withReadState(isRead = true)
 
-        assertFalse(updated.articleWithFeed!!.article.isUnread)
-        assertFalse(updated.isUnread)
+        assertTrue(updated.articleWithFeed!!.article.isRead)
+        assertTrue(updated.isRead)
     }
 
     @Test
-    fun withUnreadState_marksTheStoredArticleSnapshotAsUnread() {
-        val state = ReadingUiState(articleWithFeed = readArticle(), isUnread = false)
+    fun withReadState_marksTheStoredArticleSnapshotAsUnread() {
+        val state = ReadingUiState(articleWithFeed = readArticle(), isRead = true)
 
-        val updated = state.withUnreadState(isUnread = true)
+        val updated = state.withReadState(isRead = false)
 
-        assertTrue(updated.articleWithFeed!!.article.isUnread)
-        assertTrue(updated.isUnread)
+        assertFalse(updated.articleWithFeed!!.article.isRead)
+        assertFalse(updated.isRead)
     }
 
     private fun unreadArticle(): ArticleWithFeed =

@@ -109,25 +109,24 @@ class DiffMapHolder @Inject constructor(
         }
     }
 
-    fun checkIfUnread(articleWithFeed: ArticleWithFeed): Boolean {
-        return diffMap[articleWithFeed.article.id]?.isUnread ?: articleWithFeed.article.isUnread
+    fun checkIfRead(articleWithFeed: ArticleWithFeed): Boolean {
+        return diffMap[articleWithFeed.article.id]?.isRead ?: articleWithFeed.article.isRead
     }
 
     /**
-     * Updates the diff map with changes to an article's read/unread status.
+     * Updates the diff map with changes to an article's read status.
      *
      * This function manages a map (`diffMap`) that tracks pending changes (diffs) to the
-     * read/unread status of articles. These changes are not immediately applied to the
+     * read status of articles. These changes are not immediately applied to the
      * underlying data store but are held in `diffMap` until a later commit operation.
      *
      * The function supports three modes of updating:
      *
-     * 1. **Toggle:** If `isUnread` is `null`, the function toggles the current read/unread
-     *    status of the article.  If the article is currently unread, it will be marked as read,
-     *    and vice-versa.
-     * 2. **Mark as Unread:** If `isUnread` is `true`, the article will be marked as unread,
+     * 1. **Toggle:** If `markRead` is `null`, the function toggles the current read
+     *    status of the article.
+     * 2. **Mark as Read:** If `markRead` is `true`, the article will be marked as read,
      *    regardless of its current status.
-     * 3. **Mark as Read:** If `isUnread` is `false`, the article will be marked as read,
+     * 3. **Mark as Unread:** If `markRead` is `false`, the article will be marked as unread,
      *    regardless of its current status.
      *
      * The function determines if a change needs to be tracked based on the current status and desired status:
@@ -135,47 +134,47 @@ class DiffMapHolder @Inject constructor(
      *  - Otherwise, the diff is added to or updated in the map.
      *
      * @param articleWithFeed The article and its associated feed data. This is used to identify the article
-     *                        and access its current read/unread state.
-     * @param isUnread An optional boolean indicating the desired read/unread status of the article.
-     *                 - `null`: Toggles the current read/unread status.
-     *                 - `true`: Marks the article as unread.
-     *                 - `false`: Marks the article as read.
+     *                        and access its current read state.
+     * @param markRead An optional boolean indicating the desired read status of the article.
+     *                 - `null`: Toggles the current read status.
+     *                 - `true`: Marks the article as read.
+     *                 - `false`: Marks the article as unread.
      *
      * @return A [Diff] object representing the changes made to the article.
      *
      * @see Diff
      */
     private fun updateDiffInternal(
-        articleWithFeed: ArticleWithFeed, isUnread: Boolean? = null
+        articleWithFeed: ArticleWithFeed, markRead: Boolean? = null
     ): Diff? {
         val articleId = articleWithFeed.article.id
 
         val diff = diffMap[articleId]
 
         if (diff == null) {
-            val isUnread = isUnread ?: !articleWithFeed.article.isUnread
-            if (isUnread == articleWithFeed.article.isUnread) {
+            val isRead = markRead ?: !articleWithFeed.article.isRead
+            if (isRead == articleWithFeed.article.isRead) {
                 return null
             }
             val diff = Diff(
-                isUnread = isUnread, articleWithFeed = articleWithFeed
+                isRead = isRead, articleWithFeed = articleWithFeed
             )
             diffMap[articleId] = diff
             return diff
         } else {
-            if (isUnread == null || diff.isUnread != isUnread) {
+            if (markRead == null || diff.isRead != markRead) {
                 val diff = diffMap.remove(articleId)
-                return diff?.copy(isUnread = !diff.isUnread)
+                return diff?.copy(isRead = !diff.isRead)
             }
         }
         return null
     }
 
     fun updateDiff(
-        vararg articleWithFeed: ArticleWithFeed, isUnread: Boolean? = null
+        vararg articleWithFeed: ArticleWithFeed, markRead: Boolean? = null
     ) {
         val appliedDiffs = articleWithFeed.mapNotNull {
-            updateDiffInternal(it, isUnread)
+            updateDiffInternal(it, markRead)
         }
         if (appliedDiffs.isEmpty()) return
 
@@ -191,7 +190,7 @@ class DiffMapHolder @Inject constructor(
 
     private fun appendDiffToSync(diff: Diff) {
         val syncedDiff = syncedDiffs[diff.articleId]
-        if (syncedDiff == null || syncedDiff.isUnread != diff.isUnread) {
+        if (syncedDiff == null || syncedDiff.isRead != diff.isRead) {
             pendingSyncDiffs[diff.articleId] = diff
             applicationScope.launch(ioDispatcher) {
                 toPendingReadStateOp(diff)?.let { pendingReadStateOpDao.upsert(it) }
@@ -210,8 +209,8 @@ class DiffMapHolder @Inject constructor(
         if (diffsToCommit.isEmpty()) return
 
         val diffBatch = ReadStateDiffApplier.toBatch(diffsToCommit)
-        rssService.get().batchMarkAsRead(articleIds = diffBatch.markReadIds, isUnread = false)
-        rssService.get().batchMarkAsRead(articleIds = diffBatch.markUnreadIds, isUnread = true)
+        rssService.get().batchMarkAsRead(articleIds = diffBatch.markReadIds, markRead = true)
+        rssService.get().batchMarkAsRead(articleIds = diffBatch.markUnreadIds, markRead = false)
 
         ReadStateDiffApplier.removeMatchingDiffs(
             currentDiffs = diffMap,
@@ -236,10 +235,8 @@ class DiffMapHolder @Inject constructor(
         if (!shouldSyncWithRemote) return
         if (diffs.isEmpty()) return
         val toBeSync = diffs
-        val markAsReadArticles =
-            toBeSync.filter { !it.value.isUnread }.map { it.key }.toSet()
-        val markAsUnreadArticles =
-            toBeSync.filter { it.value.isUnread }.map { it.key }.toSet()
+        val markAsReadArticles = toBeSync.filter { it.value.isRead }.map { it.key }.toSet()
+        val markAsUnreadArticles = toBeSync.filter { !it.value.isRead }.map { it.key }.toSet()
 
         val synced = syncReadStateOps(markAsReadArticles, markAsUnreadArticles)
 
@@ -279,15 +276,15 @@ class DiffMapHolder @Inject constructor(
         val queuedOps = pendingReadStateOpDao.queryByAccountId(accountId)
         if (queuedOps.isEmpty()) return
 
-        val markAsReadArticles = queuedOps.filter { !it.isUnread }.map { it.articleId }.toSet()
-        val markAsUnreadArticles = queuedOps.filter { it.isUnread }.map { it.articleId }.toSet()
+        val markAsReadArticles = queuedOps.filter { it.isRead }.map { it.articleId }.toSet()
+        val markAsUnreadArticles = queuedOps.filter { !it.isRead }.map { it.articleId }.toSet()
         val synced = syncReadStateOps(markAsReadArticles, markAsUnreadArticles)
         if (synced.isEmpty()) return
 
         pendingReadStateOpDao.deleteByArticleIds(synced)
         syncedDiffs += queuedOps
             .filter { synced.contains(it.articleId) }
-            .associate { it.articleId to Diff(it.isUnread, it.articleId, it.feedId) }
+            .associate { it.articleId to Diff(it.isRead, it.articleId, it.feedId) }
     }
 
     private suspend fun syncReadStateOps(
@@ -299,13 +296,13 @@ class DiffMapHolder @Inject constructor(
             val read = async {
                 rssService.syncReadStatus(
                     articleIds = markAsReadArticles,
-                    isUnread = false
+                    markRead = true
                 )
             }
             val unread = async {
                 rssService.syncReadStatus(
                     articleIds = markAsUnreadArticles,
-                    isUnread = true
+                    markRead = false
                 )
             }
             runCatching { read.await() }.getOrElse { emptySet() } +
@@ -327,17 +324,17 @@ class DiffMapHolder @Inject constructor(
             articleId = diff.articleId,
             accountId = accountId,
             feedId = diff.feedId,
-            isUnread = diff.isUnread,
+            isUnread = !diff.isRead,
         )
     }
 
 }
 
 data class Diff(
-    val isUnread: Boolean, val articleId: String, val feedId: String
+    val isRead: Boolean, val articleId: String, val feedId: String
 ) {
-    constructor(isUnread: Boolean, articleWithFeed: ArticleWithFeed) : this(
-        isUnread = isUnread,
+    constructor(isRead: Boolean, articleWithFeed: ArticleWithFeed) : this(
+        isRead = isRead,
         articleId = articleWithFeed.article.id,
         feedId = articleWithFeed.feed.id,
     )

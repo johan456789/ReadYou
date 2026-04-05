@@ -47,13 +47,13 @@ private val sizeSpec = spring<IntSize>(stiffness = 700f)
 @Composable
 fun BottomBar(
     isShow: Boolean,
-    isUnread: Boolean,
+    isRead: Boolean,
     isStarred: Boolean,
     isNextArticleAvailable: Boolean,
     isFullContent: Boolean,
     isBoldCharacters: Boolean,
     ttsButton: @Composable () -> Unit,
-    onUnread: (isUnread: Boolean) -> Unit = {},
+    onRead: (markRead: Boolean) -> Unit = {},
     onStarred: (isStarred: Boolean) -> Unit = {},
     onNextArticle: () -> Unit = {},
     onFullContent: (isFullContent: Boolean) -> Unit = {},
@@ -98,20 +98,20 @@ fun BottomBar(
                         CanBeDisabledIconButton(
                             modifier = Modifier.size(40.dp),
                             disabled = false,
-                            imageVector = if (isUnread) {
-                                Icons.Filled.FiberManualRecord
-                            } else {
+                            imageVector = if (isRead) {
                                 Icons.Outlined.FiberManualRecord
-                            },
-                            contentDescription = stringResource(if (isUnread) R.string.mark_as_read else R.string.mark_as_unread),
-                            tint = if (isUnread) {
-                                MaterialTheme.colorScheme.onSecondaryContainer
                             } else {
+                                Icons.Filled.FiberManualRecord
+                            },
+                            contentDescription = stringResource(if (isRead) R.string.mark_as_unread else R.string.mark_as_read),
+                            tint = if (isRead) {
                                 MaterialTheme.colorScheme.outline
+                            } else {
+                                MaterialTheme.colorScheme.onSecondaryContainer
                             },
                         ) {
                             view.performHapticFeedback(HapticFeedbackConstants.KEYBOARD_TAP)
-                            onUnread(!isUnread)
+                            onRead(!isRead)
                         }
                         CanBeDisabledIconButton(
                             modifier = Modifier.size(40.dp),

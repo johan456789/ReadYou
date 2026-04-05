@@ -487,7 +487,7 @@ fun FlowPage(
                             feedId = filterUiState.feed?.id,
                             articleId = null,
                             conditions = it,
-                            isUnread = false,
+                            markRead = true,
                         )
                     }
                 }
@@ -546,7 +546,7 @@ fun FlowPage(
                                 if (items.isNotEmpty() && found) {
                                     viewModel.diffMapHolder.updateDiff(
                                         articleWithFeed = items.toTypedArray(),
-                                        isUnread = false,
+                                        markRead = true,
                                     )
                                 }
                             }
@@ -676,7 +676,7 @@ fun FlowPage(
                                     if (articleWithFeed.feed.isBrowser) {
                                         viewModel.diffMapHolder.updateDiff(
                                             articleWithFeed,
-                                            isUnread = false,
+                                            markRead = true,
                                         )
                                         context.openURL(
                                             articleWithFeed.article.link,

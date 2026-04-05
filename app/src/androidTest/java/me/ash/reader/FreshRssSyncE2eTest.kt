@@ -369,8 +369,8 @@ class FreshRssSyncE2eTest {
             "Expected article $localArticleId unread=$expectedUnread",
             waitForCondition(15_000) {
                 runBlocking {
-                    database.articleDao().queryById(localArticleId)?.article?.isUnread ==
-                        expectedUnread
+                    database.articleDao().queryById(localArticleId)?.article?.isRead ==
+                        !expectedUnread
                 }
             },
         )

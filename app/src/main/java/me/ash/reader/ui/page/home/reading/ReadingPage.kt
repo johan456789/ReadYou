@@ -281,14 +281,14 @@ fun ReadingPage(
                 if (readerState.articleId != null) {
                     BottomBar(
                         isShow = isShowToolBar,
-                        isUnread = readingUiState.isUnread,
+                        isRead = readingUiState.isRead,
                         isStarred = readingUiState.isStarred,
                         isNextArticleAvailable = isNextArticleAvailable,
                         isFullContent =
                             readerState.content is ReaderState.FullContent ||
                                 readerState.content is ReaderState.Error,
                         isBoldCharacters = boldCharacters.value,
-                        onUnread = { viewModel.updateReadStatus(it) },
+                        onRead = { viewModel.updateReadStatus(it) },
                         onStarred = { viewModel.updateStarredStatus(it) },
                         onNextArticle = {
                             readerState.nextArticle?.let {

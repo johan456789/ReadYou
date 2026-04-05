@@ -53,4 +53,10 @@ data class Article(
 
     @Ignore
     var dateString: String? = null
+
+    var isRead: Boolean
+        get() = !isUnread
+        set(value) {
+            isUnread = !value
+        }
 }

@@ -8,8 +8,8 @@ internal data class ReadStateDiffBatch(
 internal object ReadStateDiffApplier {
     fun toBatch(diffs: Map<String, Diff>): ReadStateDiffBatch =
         ReadStateDiffBatch(
-            markReadIds = diffs.filter { !it.value.isUnread }.keys,
-            markUnreadIds = diffs.filter { it.value.isUnread }.keys,
+            markReadIds = diffs.filter { it.value.isRead }.keys,
+            markUnreadIds = diffs.filter { !it.value.isRead }.keys,
         )
 
     fun removeMatchingDiffs(

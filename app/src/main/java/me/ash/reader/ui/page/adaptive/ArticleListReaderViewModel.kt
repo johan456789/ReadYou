@@ -145,7 +145,7 @@ constructor(
         feedId: String?,
         articleId: String?,
         conditions: MarkAsReadConditions,
-        isUnread: Boolean,
+        markRead: Boolean,
     ) {
         applicationScope.launch(ioDispatcher) {
             rssService
@@ -155,7 +155,7 @@ constructor(
                     feedId = feedId,
                     articleId = articleId,
                     before = conditions.toDate(),
-                    isUnread = isUnread,
+                    markRead = markRead,
                 )
         }
     }
@@ -176,14 +176,14 @@ constructor(
                     .map { it.articleWithFeed }
                     .filter {
                         if (isBefore) {
-                            date > it.article.date && it.article.isUnread
+                            date > it.article.date && !it.article.isRead
                         } else {
-                            date < it.article.date && it.article.isUnread
+                            date < it.article.date && !it.article.isRead
                         }
                     }
                     .distinctBy { it.article.id }
 
-            diffMapHolder.updateDiff(articleWithFeed = items.toTypedArray(), isUnread = false)
+            diffMapHolder.updateDiff(articleWithFeed = items.toTypedArray(), markRead = true)
         }
     }
 
@@ -206,7 +206,7 @@ constructor(
                     .filterIsInstance<ArticleFlowItem.Article>()
                     .map { it.articleWithFeed }
 
-            diffMapHolder.updateDiff(articleWithFeed = items.toTypedArray(), isUnread = false)
+            diffMapHolder.updateDiff(articleWithFeed = items.toTypedArray(), markRead = true)
         }
     }
 
@@ -292,13 +292,13 @@ constructor(
                     ?: (itemFromList?.articleWithFeed
                         ?: rssService.get().findArticleById(articleId)!!)
 
-            if (diffMapHolder.checkIfUnread(item)) {
-                diffMapHolder.updateDiff(item, isUnread = false)
+            if (!diffMapHolder.checkIfRead(item)) {
+                diffMapHolder.updateDiff(item, markRead = true)
             }
             item.run {
                 _readingUiState.update {
                     ReadingUiState(articleWithFeed = this, isStarred = article.isStarred)
-                        .withUnreadState(isUnread = false)
+                        .withReadState(isRead = true)
                 }
                 _readerState.update {
                     it.copy(
@@ -368,13 +368,13 @@ constructor(
         }
     }
 
-    fun updateReadStatus(isUnread: Boolean) {
+    fun updateReadStatus(markRead: Boolean) {
         val articleWithFeed = readingUiState.value.articleWithFeed ?: return
-        diffMapHolder.updateDiff(articleWithFeed, isUnread = isUnread)
+        diffMapHolder.updateDiff(articleWithFeed, markRead = markRead)
 
         _readingUiState.update { state ->
             if (state.articleWithFeed?.article?.id != articleWithFeed.article.id) return@update state
-            state.withUnreadState(diffMapHolder.checkIfUnread(articleWithFeed))
+            state.withReadState(diffMapHolder.checkIfRead(articleWithFeed))
         }
     }
 
@@ -451,14 +451,14 @@ data class FlowUiState(val pagerData: PagerData, val nextFilterState: FilterStat
 
 data class ReadingUiState(
     val articleWithFeed: ArticleWithFeed? = null,
-    val isUnread: Boolean = false,
+    val isRead: Boolean = false,
     val isStarred: Boolean = false,
 ) {
-    fun withUnreadState(isUnread: Boolean): ReadingUiState =
+    fun withReadState(isRead: Boolean): ReadingUiState =
         copy(
             articleWithFeed =
-                articleWithFeed?.copy(article = articleWithFeed.article.copy(isUnread = isUnread)),
-            isUnread = isUnread,
+                articleWithFeed?.copy(article = articleWithFeed.article.copy(isUnread = !isRead)),
+            isRead = isRead,
         )
 }
 

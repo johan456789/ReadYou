@@ -100,15 +100,16 @@ abstract class AbstractRssRepository(
         feedId: String?,
         articleId: String?,
         before: Date?,
-        isUnread: Boolean,
+        markRead: Boolean,
     ) {
+        val storedUnread = !markRead
         val accountId = accountService.getCurrentAccountId()
         when {
             groupId != null -> {
                 articleDao.markAllAsReadByGroupId(
                     accountId = accountId,
                     groupId = groupId,
-                    isUnread = isUnread,
+                    storedUnread = storedUnread,
                     before = before ?: Date(Long.MAX_VALUE),
                 )
             }
@@ -117,32 +118,33 @@ abstract class AbstractRssRepository(
                 articleDao.markAllAsReadByFeedId(
                     accountId = accountId,
                     feedId = feedId,
-                    isUnread = isUnread,
+                    storedUnread = storedUnread,
                     before = before ?: Date(Long.MAX_VALUE),
                 )
             }
 
             articleId != null -> {
-                articleDao.markAsReadByArticleId(accountId, articleId, isUnread)
+                articleDao.markAsReadByArticleId(accountId, articleId, storedUnread)
             }
 
             else -> {
-                articleDao.markAllAsRead(accountId, isUnread, before ?: Date(Long.MAX_VALUE))
+                articleDao.markAllAsRead(accountId, storedUnread, before ?: Date(Long.MAX_VALUE))
             }
         }
     }
 
-    open suspend fun batchMarkAsRead(articleIds: Set<String>, isUnread: Boolean) {
+    open suspend fun batchMarkAsRead(articleIds: Set<String>, markRead: Boolean) {
         val accountId = accountService.getCurrentAccountId()
+        val storedUnread = !markRead
         articleIds
             .takeIf { it.isNotEmpty() }
             ?.chunked(500)
             ?.forEachIndexed { index, it ->
-                articleDao.markAsReadByIdSet(accountId, it.toSet(), isUnread)
+                articleDao.markAsReadByIdSet(accountId, it.toSet(), storedUnread)
             }
     }
 
-    open suspend fun syncReadStatus(articleIds: Set<String>, isUnread: Boolean): Set<String> {
+    open suspend fun syncReadStatus(articleIds: Set<String>, markRead: Boolean): Set<String> {
         /* no-op */
         return emptySet()
     }

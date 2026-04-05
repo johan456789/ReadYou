@@ -266,7 +266,7 @@ constructor(
                     feedDao.queryNotificationEnabled(accountId).associateBy { it.id }
                 val notificationFeedIds = notificationFeeds.keys
                 allArticles
-                    .fastFilter { it.isUnread && it.feedId in notificationFeedIds }
+                    .fastFilter { !it.isRead && it.feedId in notificationFeedIds }
                     .groupBy { it.feedId }
                     .mapKeys { (feedId, _) -> notificationFeeds[feedId]!! }
                     .forEach { (feed, articles) -> notificationHelper.notify(feed, articles) }
@@ -278,10 +278,14 @@ constructor(
             val articleMeta = articleDao.queryMetadataAll(accountId)
             for (meta: ArticleMeta in articleMeta) {
                 val articleId = meta.id.dollarLast()
-                val shouldBeUnread = unreadArticleIds?.contains(articleId)
+                val shouldBeRead = unreadArticleIds?.contains(articleId)?.not()
                 val shouldBeStarred = starredArticleIds?.contains(articleId)
-                if (meta.isUnread != shouldBeUnread) {
-                    articleDao.markAsReadByArticleId(accountId, meta.id, shouldBeUnread ?: true)
+                if (shouldBeRead != null && meta.isRead != shouldBeRead) {
+                    articleDao.markAsReadByArticleId(
+                        accountId = accountId,
+                        articleId = meta.id,
+                        storedUnread = !shouldBeRead,
+                    )
                 }
                 if (meta.isStarred != shouldBeStarred) {
                     articleDao.markAsStarredByArticleId(
@@ -331,15 +335,16 @@ constructor(
         feedId: String?,
         articleId: String?,
         before: Date?,
-        isUnread: Boolean,
+        markRead: Boolean,
     ) {
-        super.markAsRead(groupId, feedId, articleId, before, isUnread)
+        super.markAsRead(groupId, feedId, articleId, before, markRead)
         val feverAPI = getFeverAPI()
+        val targetStatus = if (markRead) FeverDTO.StatusEnum.Read else FeverDTO.StatusEnum.Unread
         val beforeUnixTimestamp = (before?.time ?: Date(Long.MAX_VALUE).time) / 1000
         when {
             groupId != null -> {
                 feverAPI.markGroup(
-                    status = if (isUnread) FeverDTO.StatusEnum.Unread else FeverDTO.StatusEnum.Read,
+                    status = targetStatus,
                     id = groupId.dollarLast().toLong(),
                     before = beforeUnixTimestamp,
                 )
@@ -347,7 +352,7 @@ constructor(
 
             feedId != null -> {
                 feverAPI.markFeed(
-                    status = if (isUnread) FeverDTO.StatusEnum.Unread else FeverDTO.StatusEnum.Read,
+                    status = targetStatus,
                     id = feedId.dollarLast().toLong(),
                     before = beforeUnixTimestamp,
                 )
@@ -355,7 +360,7 @@ constructor(
 
             articleId != null -> {
                 feverAPI.markItem(
-                    status = if (isUnread) FeverDTO.StatusEnum.Unread else FeverDTO.StatusEnum.Read,
+                    status = targetStatus,
                     id = articleId.dollarLast(),
                 )
             }
@@ -363,8 +368,7 @@ constructor(
             else -> {
                 feedDao.queryAll(accountService.getCurrentAccountId()).forEach {
                     feverAPI.markFeed(
-                        status =
-                            if (isUnread) FeverDTO.StatusEnum.Unread else FeverDTO.StatusEnum.Read,
+                        status = targetStatus,
                         id = it.id.dollarLast().toLong(),
                         before = beforeUnixTimestamp,
                     )
@@ -374,15 +378,16 @@ constructor(
     }
 
     @CheckResult
-    override suspend fun syncReadStatus(articleIds: Set<String>, isUnread: Boolean): Set<String> {
+    override suspend fun syncReadStatus(articleIds: Set<String>, markRead: Boolean): Set<String> {
         val feverAPI = getFeverAPI()
+        val targetStatus = if (markRead) FeverDTO.StatusEnum.Read else FeverDTO.StatusEnum.Unread
         val syncedEntries = mutableSetOf<String>()
         articleIds
             .takeIf { it.isNotEmpty() }
             ?.forEachIndexed { index, it ->
                 Log.d("RLog", "sync markAsRead: ${index}/${articleIds.size} num")
                 feverAPI.markItem(
-                    status = if (isUnread) FeverDTO.StatusEnum.Unread else FeverDTO.StatusEnum.Read,
+                    status = targetStatus,
                     id = it.dollarLast(),
                 )
                 syncedEntries += it

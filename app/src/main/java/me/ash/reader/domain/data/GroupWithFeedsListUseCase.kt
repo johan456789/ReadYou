@@ -135,8 +135,8 @@ class GroupWithFeedsListUseCase @Inject constructor(
                 feedsFlow, unreadCountMapFlow, diffMapHolder.diffMapSnapshotFlow
             ) { groupWithFeedsList, unreadCountMap, diffMap ->
                 val result = mutableListOf<GroupWithFeed>()
-                val unreadDiffs = diffMap.values.filter { it.isUnread }
-                val readDiffs = diffMap.values.filterNot { it.isUnread }
+                val unreadDiffs = diffMap.values.filterNot { it.isRead }
+                val readDiffs = diffMap.values.filter { it.isRead }
 
                 for (groupItem in groupWithFeedsList) {
 
