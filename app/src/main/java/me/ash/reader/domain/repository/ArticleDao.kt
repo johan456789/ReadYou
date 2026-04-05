@@ -36,7 +36,7 @@ interface ArticleDao {
 
     @Query(
         """
-        UPDATE article SET isUnread = :isUnread 
+        UPDATE article SET isUnread = :storedUnread 
         WHERE accountId = :accountId
         AND id in (:ids)
         """
@@ -44,7 +44,7 @@ interface ArticleDao {
     fun markAsReadByIdSet(
         accountId: Int,
         ids: Set<String>,
-        isUnread: Boolean,
+        storedUnread: Boolean,
     ): Int
 
     @Transaction
@@ -321,59 +321,59 @@ interface ArticleDao {
     @Transaction
     @Query(
         """
-        UPDATE article SET isUnread = :isUnread 
+        UPDATE article SET isUnread = :storedUnread 
         WHERE accountId = :accountId
         AND date < :before
-        AND isUnread != :isUnread
+        AND isUnread != :storedUnread
         """
     )
     suspend fun markAllAsRead(
         accountId: Int,
-        isUnread: Boolean,
+        storedUnread: Boolean,
         before: Date,
     )
 
     @Transaction
     @Query(
         """
-        UPDATE article SET isUnread = :isUnread 
+        UPDATE article SET isUnread = :storedUnread 
         WHERE feedId IN (
             SELECT id FROM feed 
             WHERE groupId = :groupId
         )
         AND accountId = :accountId
-        AND isUnread != :isUnread
+        AND isUnread != :storedUnread
         AND date < :before
         """
     )
     suspend fun markAllAsReadByGroupId(
         accountId: Int,
         groupId: String,
-        isUnread: Boolean,
+        storedUnread: Boolean,
         before: Date,
     )
 
     @Transaction
     @Query(
         """
-        UPDATE article SET isUnread = :isUnread 
+        UPDATE article SET isUnread = :storedUnread 
         WHERE feedId = :feedId
         AND accountId = :accountId
-        AND isUnread != :isUnread
+        AND isUnread != :storedUnread
         AND date < :before
         """
     )
     suspend fun markAllAsReadByFeedId(
         accountId: Int,
         feedId: String,
-        isUnread: Boolean,
+        storedUnread: Boolean,
         before: Date,
     )
 
     @Transaction
     @Query(
         """
-        UPDATE article SET isUnread = :isUnread 
+        UPDATE article SET isUnread = :storedUnread 
         WHERE id = :articleId
         AND accountId = :accountId
         """
@@ -381,7 +381,7 @@ interface ArticleDao {
     suspend fun markAsReadByArticleId(
         accountId: Int,
         articleId: String,
-        isUnread: Boolean,
+        storedUnread: Boolean,
     )
 
     @Query(

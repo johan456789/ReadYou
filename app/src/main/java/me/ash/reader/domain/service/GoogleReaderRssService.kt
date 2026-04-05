@@ -387,7 +387,7 @@ constructor(
                     articleDao.markAsReadByIdSet(
                         accountId = accountId,
                         ids = it.toSet(),
-                        isUnread = false,
+                        storedUnread = false,
                     )
                 }
             }
@@ -407,7 +407,7 @@ constructor(
                     articleDao.markAsReadByIdSet(
                         accountId = accountId,
                         ids = it.toSet(),
-                        isUnread = true,
+                        storedUnread = true,
                     )
                 }
             }
@@ -651,7 +651,7 @@ constructor(
                         articleDao.markAsReadByIdSet(
                             accountId = accountId,
                             ids = it.toSet(),
-                            isUnread = false,
+                            storedUnread = false,
                         )
                     }
             }
@@ -673,7 +673,7 @@ constructor(
                         articleDao.markAsReadByIdSet(
                             accountId = accountId,
                             ids = it.toSet(),
-                            isUnread = true,
+                            storedUnread = true,
                         )
                     }
             }
@@ -819,7 +819,7 @@ constructor(
         before: Date?,
         markRead: Boolean,
     ) {
-        val isUnread = !markRead
+        val storedUnread = !markRead
         val accountId = accountService.getCurrentAccountId()
         val googleReaderAPI = getGoogleReaderAPI()
         val markList: List<String> =
@@ -829,14 +829,14 @@ constructor(
                             articleDao.queryMetadataByGroupIdWhenIsUnread(
                                 accountId,
                                 groupId,
-                                !isUnread,
+                                isUnread = !storedUnread,
                             )
                         } else {
                             articleDao.queryMetadataByGroupIdWhenIsUnread(
                                 accountId,
                                 groupId,
-                                !isUnread,
-                                before,
+                                isUnread = !storedUnread,
+                                before = before,
                             )
                         }
                         .map { it.id.dollarLast() }
@@ -844,9 +844,9 @@ constructor(
 
                 feedId != null -> {
                     if (before == null) {
-                            articleDao.queryMetadataByFeedId(accountId, feedId, !isUnread)
+                            articleDao.queryMetadataByFeedId(accountId, feedId, isUnread = !storedUnread)
                         } else {
-                            articleDao.queryMetadataByFeedId(accountId, feedId, !isUnread, before)
+                            articleDao.queryMetadataByFeedId(accountId, feedId, isUnread = !storedUnread, before = before)
                         }
                         .map { it.id.dollarLast() }
                 }
@@ -857,9 +857,9 @@ constructor(
 
                 else -> {
                     if (before == null) {
-                            articleDao.queryMetadataAll(accountId, !isUnread)
+                            articleDao.queryMetadataAll(accountId, isUnread = !storedUnread)
                         } else {
-                            articleDao.queryMetadataAll(accountId, !isUnread, before)
+                            articleDao.queryMetadataAll(accountId, isUnread = !storedUnread, before = before)
                         }
                         .map { it.id.dollarLast() }
                 }
@@ -872,14 +872,13 @@ constructor(
                 Log.d("RLog", "sync markAsRead:  ${(index * 500) + it.size}/${markList.size} num")
                 googleReaderAPI.editTag(
                     itemIds = it,
-                    mark = if (!isUnread) GoogleReaderAPI.Stream.Read.tag else null,
-                    unmark = if (isUnread) GoogleReaderAPI.Stream.Read.tag else null,
+                    mark = if (markRead) GoogleReaderAPI.Stream.Read.tag else null,
+                    unmark = if (!markRead) GoogleReaderAPI.Stream.Read.tag else null,
                 )
             }
     }
 
     override suspend fun syncReadStatus(articleIds: Set<String>, markRead: Boolean): Set<String> {
-        val isUnread = !markRead
         val googleReaderAPI = getGoogleReaderAPI()
         val syncedEntries = mutableSetOf<String>()
         articleIds
@@ -893,8 +892,8 @@ constructor(
                 googleReaderAPI
                     .editTag(
                         itemIds = idList.map { it.dollarLast() },
-                        mark = if (!isUnread) GoogleReaderAPI.Stream.Read.tag else null,
-                        unmark = if (isUnread) GoogleReaderAPI.Stream.Read.tag else null,
+                        mark = if (markRead) GoogleReaderAPI.Stream.Read.tag else null,
+                        unmark = if (!markRead) GoogleReaderAPI.Stream.Read.tag else null,
                     )
                     .onFailure { it.printStackTrace() }
                     .onSuccess {
