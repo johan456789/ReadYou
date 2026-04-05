@@ -278,10 +278,14 @@ constructor(
             val articleMeta = articleDao.queryMetadataAll(accountId)
             for (meta: ArticleMeta in articleMeta) {
                 val articleId = meta.id.dollarLast()
-                val shouldBeUnread = unreadArticleIds?.contains(articleId)
+                val shouldBeRead = unreadArticleIds?.contains(articleId)?.not()
                 val shouldBeStarred = starredArticleIds?.contains(articleId)
-                if ((!meta.isRead) != shouldBeUnread) {
-                    articleDao.markAsReadByArticleId(accountId, meta.id, shouldBeUnread ?: true)
+                if (shouldBeRead != null && meta.isRead != shouldBeRead) {
+                    articleDao.markAsReadByArticleId(
+                        accountId = accountId,
+                        articleId = meta.id,
+                        storedUnread = !shouldBeRead,
+                    )
                 }
                 if (meta.isStarred != shouldBeStarred) {
                     articleDao.markAsStarredByArticleId(
