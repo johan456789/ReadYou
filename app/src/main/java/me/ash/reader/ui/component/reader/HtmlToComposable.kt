@@ -22,6 +22,9 @@ package me.ash.reader.ui.component.reader
 
 import androidx.annotation.DrawableRes
 import androidx.compose.foundation.background
+import androidx.compose.foundation.ScrollState
+import androidx.compose.foundation.gestures.awaitEachGesture
+import androidx.compose.foundation.gestures.awaitFirstDown
 import androidx.compose.foundation.horizontalScroll
 import androidx.compose.foundation.layout.*
 import androidx.compose.foundation.lazy.LazyColumn
@@ -29,9 +32,6 @@ import androidx.compose.foundation.lazy.LazyListScope
 import androidx.compose.foundation.rememberScrollState
 import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.foundation.shape.RoundedCornerShape
-import androidx.compose.ui.input.nestedscroll.NestedScrollConnection
-import androidx.compose.ui.input.nestedscroll.NestedScrollSource
-import androidx.compose.ui.input.nestedscroll.nestedScroll
 import androidx.compose.foundation.text.selection.DisableSelection
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.rounded.PlayArrow
@@ -42,6 +42,9 @@ import androidx.compose.runtime.Composable
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.graphics.Color
+import androidx.compose.ui.geometry.Offset
+import androidx.compose.ui.input.pointer.pointerInput
+import androidx.compose.ui.input.pointer.positionChange
 import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.text.AnnotatedString
 import androidx.compose.ui.text.LinkAnnotation
@@ -54,6 +57,7 @@ import androidx.compose.ui.text.style.TextDecoration
 import androidx.compose.ui.tooling.preview.Preview
 import androidx.compose.ui.unit.dp
 import java.io.InputStream
+import kotlin.math.abs
 import me.ash.reader.R
 import me.ash.reader.infrastructure.preference.LocalReadingImageMaximize
 import me.ash.reader.ui.ext.requiresBidi
@@ -148,30 +152,6 @@ private fun LazyListScope.formatCodeBlock(
         item {
             val contentWidth = LocalTextContentWidth.current
             val scrollState = rememberScrollState()
-            val nestedScrollConnection =
-                object : NestedScrollConnection {
-                    override fun onPreScroll(
-                        available: androidx.compose.ui.geometry.Offset,
-                        source: NestedScrollSource
-                    ): androidx.compose.ui.geometry.Offset {
-                        val canScrollLeft = scrollState.canScrollBackward
-                        val canScrollRight = scrollState.canScrollForward
-                        val horizontalDelta = available.x
-
-                        val consumeHorizontal =
-                            when {
-                                horizontalDelta > 0 && canScrollLeft -> true
-                                horizontalDelta < 0 && canScrollRight -> true
-                                else -> false
-                            }
-
-                        return if (consumeHorizontal) {
-                            androidx.compose.ui.geometry.Offset(available.x, 0f)
-                        } else {
-                            androidx.compose.ui.geometry.Offset.Zero
-                        }
-                    }
-                }
             Spacer(modifier = Modifier.height(8.dp))
             Surface(
                 color = codeBlockBackground(),
@@ -182,8 +162,8 @@ private fun LazyListScope.formatCodeBlock(
                     modifier =
                         Modifier.width(contentWidth)
                             .padding(all = 8.dp)
-                            .nestedScroll(nestedScrollConnection)
                             .horizontalScroll(state = scrollState)
+                            .lockCodeBlockHorizontalDrag(scrollState)
                 ) {
                     Text(
                         text = paragraphBuilder.toAnnotatedString(),
@@ -208,6 +188,51 @@ private fun LazyListScope.formatCodeBlock(
 
     composer.terminateCurrentText()
 }
+
+private fun Modifier.lockCodeBlockHorizontalDrag(scrollState: ScrollState): Modifier =
+    pointerInput(scrollState) {
+        awaitEachGesture {
+            val down = awaitFirstDown(requireUnconsumed = false)
+            if (scrollState.maxValue == 0) return@awaitEachGesture
+
+            var pointerId = down.id
+            var accumulated = Offset.Zero
+            var horizontalDragLocked = false
+            val touchSlop = viewConfiguration.touchSlop
+
+            while (true) {
+                val event = awaitPointerEvent()
+                val change =
+                    event.changes.firstOrNull { it.id == pointerId }
+                        ?: event.changes.firstOrNull { it.pressed }?.also { pointerId = it.id }
+                        ?: break
+
+                if (!change.pressed) break
+
+                val delta = change.positionChange()
+                if (delta == Offset.Zero) continue
+
+                if (!horizontalDragLocked) {
+                    accumulated += delta
+                    val horizontalDistance = abs(accumulated.x)
+                    val verticalDistance = abs(accumulated.y)
+
+                    if (horizontalDistance <= touchSlop && verticalDistance <= touchSlop) {
+                        continue
+                    }
+
+                    if (horizontalDistance < verticalDistance) {
+                        break
+                    }
+
+                    horizontalDragLocked = true
+                }
+
+                change.consume()
+                scrollState.dispatchRawDelta(-delta.x)
+            }
+        }
+    }
 
 private fun TextComposer.appendTextChildren(
     nodes: List<Node>,
