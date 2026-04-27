@@ -29,6 +29,9 @@ import androidx.compose.foundation.lazy.LazyListScope
 import androidx.compose.foundation.rememberScrollState
 import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.foundation.shape.RoundedCornerShape
+import androidx.compose.ui.input.nestedscroll.NestedScrollConnection
+import androidx.compose.ui.input.nestedscroll.NestedScrollSource
+import androidx.compose.ui.input.nestedscroll.nestedScroll
 import androidx.compose.foundation.text.selection.DisableSelection
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.rounded.PlayArrow
@@ -145,6 +148,30 @@ private fun LazyListScope.formatCodeBlock(
         item {
             val contentWidth = LocalTextContentWidth.current
             val scrollState = rememberScrollState()
+            val nestedScrollConnection =
+                object : NestedScrollConnection {
+                    override fun onPreScroll(
+                        available: androidx.compose.ui.geometry.Offset,
+                        source: NestedScrollSource
+                    ): androidx.compose.ui.geometry.Offset {
+                        val canScrollLeft = scrollState.canScrollBackward
+                        val canScrollRight = scrollState.canScrollForward
+                        val horizontalDelta = available.x
+
+                        val consumeHorizontal =
+                            when {
+                                horizontalDelta > 0 && canScrollLeft -> true
+                                horizontalDelta < 0 && canScrollRight -> true
+                                else -> false
+                            }
+
+                        return if (consumeHorizontal) {
+                            androidx.compose.ui.geometry.Offset(available.x, 0f)
+                        } else {
+                            androidx.compose.ui.geometry.Offset.Zero
+                        }
+                    }
+                }
             Spacer(modifier = Modifier.height(8.dp))
             Surface(
                 color = codeBlockBackground(),
@@ -155,6 +182,7 @@ private fun LazyListScope.formatCodeBlock(
                     modifier =
                         Modifier.width(contentWidth)
                             .padding(all = 8.dp)
+                            .nestedScroll(nestedScrollConnection)
                             .horizontalScroll(state = scrollState)
                 ) {
                     Text(
