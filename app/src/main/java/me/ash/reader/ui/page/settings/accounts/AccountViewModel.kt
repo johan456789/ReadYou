@@ -25,6 +25,7 @@ import me.ash.reader.infrastructure.di.ApplicationScope
 import me.ash.reader.infrastructure.di.DefaultDispatcher
 import me.ash.reader.infrastructure.di.IODispatcher
 import me.ash.reader.infrastructure.di.MainDispatcher
+import me.ash.reader.infrastructure.exception.AuthenticationException
 import java.io.IOException
 import javax.inject.Inject
 
@@ -109,18 +110,20 @@ class AccountViewModel @Inject constructor(
             val addAccount = accountService.addAccount(account)
             try {
                 val rssService = rssService.get(addAccount.type.id)
-                if (rssService.validCredentials(account)) {
-                    rssService.doSyncOneTime()
-                    withContext(mainDispatcher) {
-                        callback(addAccount, null)
-                    }
-                } else {
-                    throw Exception(context.getString(R.string.unauthorized))
+                rssService.validCredentials(account)
+                rssService.doSyncOneTime()
+                withContext(mainDispatcher) {
+                    callback(addAccount, null)
                 }
             } catch (e: IOException) {
                 accountService.delete(addAccount.id!!)
                 withContext(mainDispatcher) {
                     callback(null, Exception(context.getString(R.string.server_unreachable)))
+                }
+            } catch (e: AuthenticationException) {
+                accountService.delete(addAccount.id!!)
+                withContext(mainDispatcher) {
+                    callback(null, Exception(context.getString(R.string.unauthorized)))
                 }
             } catch (e: Exception) {
                 accountService.delete(addAccount.id!!)

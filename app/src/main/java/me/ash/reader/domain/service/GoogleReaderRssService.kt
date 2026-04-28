@@ -112,16 +112,14 @@ constructor(
             )
         }
 
-    override suspend fun validCredentials(account: Account): Boolean {
-        return getGoogleReaderAPI().validCredentials().also { success ->
-            if (success)
-                try {
-                    getGoogleReaderAPI().getUserInfo().userName?.let {
-                        accountService.update(account.copy(name = it))
-                    }
-                } catch (ignore: Exception) {
-                    Log.e("RLog", "get user info is failed: ", ignore)
-                }
+    override suspend fun validCredentials(account: Account) {
+        getGoogleReaderAPI().validCredentials()
+        try {
+            getGoogleReaderAPI().getUserInfo().userName?.let {
+                accountService.update(account.copy(name = it))
+            }
+        } catch (ignore: Exception) {
+            Log.e("RLog", "get user info is failed: ", ignore)
         }
     }
 

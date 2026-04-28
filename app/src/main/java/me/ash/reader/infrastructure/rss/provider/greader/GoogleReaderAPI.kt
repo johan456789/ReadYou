@@ -9,6 +9,7 @@ import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.update
 import me.ash.reader.domain.data.SyncLogger
 import me.ash.reader.infrastructure.di.USER_AGENT_STRING
+import me.ash.reader.infrastructure.exception.AuthenticationException
 import me.ash.reader.infrastructure.exception.GoogleReaderAPIException
 import me.ash.reader.infrastructure.exception.RetryException
 import me.ash.reader.infrastructure.net.ApiResult
@@ -69,14 +70,13 @@ private constructor(
             authDataStateFlow.value = value
         }
 
-    suspend fun validCredentials(): Boolean {
-        return when (val result = reAuthenticate()) {
+    suspend fun validCredentials() {
+        when (val result = reAuthenticate()) {
             is ApiResult.Success -> {
                 authData = result.data
-                true
             }
             is ApiResult.NetworkError -> throw result.exception
-            is ApiResult.BizError -> throw result.exception
+            is ApiResult.BizError -> throw AuthenticationException(result.exception.message ?: "Authentication failed")
             is ApiResult.UnknownError -> throw result.throwable
         }
     }

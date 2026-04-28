@@ -84,8 +84,9 @@ constructor(
             )
         }
 
-    override suspend fun validCredentials(account: Account): Boolean =
-        getFeverAPI().validCredentials() > 0
+    override suspend fun validCredentials(account: Account) {
+        getFeverAPI().validCredentials()
+    }
 
     override suspend fun clearAuthorization() {
         FeverAPI.clearInstance()

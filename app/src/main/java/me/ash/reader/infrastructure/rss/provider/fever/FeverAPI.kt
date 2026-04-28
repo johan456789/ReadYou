@@ -1,6 +1,7 @@
 package me.ash.reader.infrastructure.rss.provider.fever
 
 import android.content.Context
+import me.ash.reader.infrastructure.exception.AuthenticationException
 import me.ash.reader.infrastructure.exception.FeverAPIException
 import me.ash.reader.infrastructure.net.RetryConfig
 import me.ash.reader.infrastructure.net.withRetries
@@ -39,7 +40,7 @@ class FeverAPI private constructor(
             .executeAsync()
 
         when (response.code) {
-            401 -> throw FeverAPIException("Invalid credentials")
+            401 -> throw AuthenticationException("Invalid credentials")
             !in 200..299 -> throw FeverAPIException("Server error (${response.code})")
         }
         return try {
@@ -55,10 +56,12 @@ class FeverAPI private constructor(
     private fun checkAuth(authMap: Map<String, Any>): Int = checkAuth(authMap["auth"] as Int?)
 
     private fun checkAuth(auth: Int?): Int =
-        auth?.takeIf { it > 0 } ?: throw FeverAPIException("Invalid credentials")
+        auth?.takeIf { it > 0 } ?: throw AuthenticationException("Invalid credentials")
 
     @Throws
-    suspend fun validCredentials(): Int = checkAuth(postRequest<FeverDTO.Common>(null).auth)
+    suspend fun validCredentials() {
+        checkAuth(postRequest<FeverDTO.Common>(null).auth)
+    }
 
     suspend fun getApiVersion(): Long =
         postRequest<Map<String, Any>>(null)["api_version"] as Long?
