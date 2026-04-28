@@ -156,9 +156,10 @@ fun ReadingPage(
                                     ))
                         },
                         label = "",
-                    ) {
-                        remember { it }
+                    ) { animatedReaderState ->
+                        remember { animatedReaderState }
                             .run {
+                                val displayedReaderState = this
                                 val scrollState = rememberScrollState()
 
                                 val scope = rememberCoroutineScope()
@@ -173,7 +174,9 @@ fun ReadingPage(
                                     }
                                 }
 
-                                LaunchedEffect(scrollState) {
+                                LaunchedEffect(scrollState, displayedReaderState == readerState) {
+                                    if (displayedReaderState != readerState) return@LaunchedEffect
+
                                     var previousScrollValue = scrollState.value
                                     snapshotFlow { scrollState.value }
                                         .collect { currentValue ->
@@ -185,11 +188,14 @@ fun ReadingPage(
                                         }
                                 }
 
-                                showTopDivider =
+                                LaunchedEffect(scrollState, displayedReaderState == readerState) {
+                                    if (displayedReaderState != readerState) return@LaunchedEffect
+
                                     snapshotFlow {
                                             scrollState.value >= 120
                                         }
-                                        .collectAsStateValue(initial = false)
+                                        .collect { showTopDivider = it }
+                                }
 
                                 CompositionLocalProvider(
                                     LocalTextStyle provides
