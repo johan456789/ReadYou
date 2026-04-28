@@ -37,7 +37,6 @@ import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.Immutable
-import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.derivedStateOf
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableStateOf
@@ -61,6 +60,7 @@ import androidx.compose.ui.unit.dp
 import androidx.graphics.shapes.Morph
 import androidx.hilt.lifecycle.viewmodel.compose.hiltViewModel
 import kotlinx.coroutines.launch
+import me.ash.reader.BuildConfig
 import me.ash.reader.R
 import me.ash.reader.infrastructure.preference.OpenLinkPreference
 import me.ash.reader.ui.component.base.FeedbackIconButton
@@ -74,7 +74,8 @@ import me.ash.reader.ui.ext.showToast
 import me.ash.reader.ui.graphics.MorphPolygonShape
 import me.ash.reader.ui.theme.palette.alwaysLight
 import me.ash.reader.ui.theme.palette.onLight
-import me.ash.reader.BuildConfig
+
+private const val UNKNOWN_GIT_COMMIT_HASH = "unknown"
 
 @OptIn(ExperimentalMaterial3ExpressiveApi::class)
 private val ShapeGacha by lazy {
@@ -100,7 +101,14 @@ fun TipsAndSupportPage(
     val context = LocalContext.current
     val view = LocalView.current
     val scope = rememberCoroutineScope()
-    var currentVersion by remember { mutableStateOf("") }
+    val currentVersion = remember(context) {
+        val version = context.getCurrentVersion().toString()
+        if (BuildConfig.GIT_COMMIT_HASH == UNKNOWN_GIT_COMMIT_HASH) {
+            version
+        } else {
+            "$version (${BuildConfig.GIT_COMMIT_HASH})"
+        }
+    }
     var showSponsorDialog by remember { mutableStateOf(false) }
 
     val morphProgress = remember { Animatable(0f) }
@@ -134,10 +142,6 @@ fun TipsAndSupportPage(
 
     val logoBGColor = remember { colorGacha.random() }
 
-
-    LaunchedEffect(Unit) {
-        currentVersion = "${context.getCurrentVersion()} (${BuildConfig.GIT_COMMIT_HASH})"
-    }
 
     RYScaffold(
         containerColor = MaterialTheme.colorScheme.surface onLight MaterialTheme.colorScheme.inverseOnSurface,
