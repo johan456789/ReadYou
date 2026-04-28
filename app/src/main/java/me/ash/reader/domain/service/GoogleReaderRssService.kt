@@ -525,13 +525,17 @@ constructor(
 
             // 8. Remove orphaned groups and feeds, after synchronizing the
             // starred/un-starred
+            val remoteGroupIds = remoteGroupsList.mapTo(mutableSetOf()) { it.id }
+            val remoteFeedIds = remoteFeedsList.mapTo(mutableSetOf()) { it.id }
             groupDao
                 .queryAll(accountId)
-                .filter { it.id !in remoteGroupsList.map { group -> group.id } }
+                .asSequence()
+                .filter { it.id !in remoteGroupIds }
                 .forEach { super.deleteGroup(it, true) }
             feedDao
                 .queryAll(accountId)
-                .filter { it.id !in remoteFeedsList.map { feed -> feed.id } }
+                .asSequence()
+                .filter { it.id !in remoteFeedIds }
                 .forEach { super.deleteFeed(it, true) }
 
             accountService.update(account.copy(updateAt = Date()))
