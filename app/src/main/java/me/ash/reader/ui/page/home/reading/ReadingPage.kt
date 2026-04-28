@@ -12,11 +12,9 @@ import androidx.compose.animation.fadeOut
 import androidx.compose.animation.slideInVertically
 import androidx.compose.animation.slideOutVertically
 import androidx.compose.animation.togetherWith
-import androidx.compose.foundation.ExperimentalFoundationApi
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.rememberScrollState
-import androidx.compose.material.ExperimentalMaterialApi
 import androidx.compose.material3.LocalTextStyle
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.Scaffold
@@ -32,7 +30,6 @@ import androidx.compose.runtime.snapshotFlow
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.platform.LocalContext
-import androidx.compose.ui.platform.LocalHapticFeedback
 import androidx.compose.ui.unit.IntOffset
 import androidx.compose.ui.unit.TextUnit
 import androidx.compose.ui.unit.isSpecified
@@ -41,7 +38,6 @@ import kotlin.math.abs
 import kotlinx.coroutines.launch
 import me.ash.reader.R
 import me.ash.reader.infrastructure.android.TextToSpeechManager
-import me.ash.reader.infrastructure.preference.LocalPullToSwitchArticle
 import me.ash.reader.infrastructure.preference.LocalReadingAutoHideToolbar
 import me.ash.reader.infrastructure.preference.LocalReadingTextLineHeight
 import me.ash.reader.ui.ext.collectAsStateValue
@@ -54,7 +50,6 @@ import me.ash.reader.ui.page.home.reading.tts.TtsButton
 private const val UPWARD = 1
 private const val DOWNWARD = -1
 
-@OptIn(ExperimentalFoundationApi::class, ExperimentalMaterialApi::class)
 @Composable
 fun ReadingPage(
     //    navController: NavHostController,
@@ -65,8 +60,6 @@ fun ReadingPage(
     onNavigateToStylePage: () -> Unit,
 ) {
     val context = LocalContext.current
-    val hapticFeedback = LocalHapticFeedback.current
-    val isPullToSwitchArticleEnabled = LocalPullToSwitchArticle.current.value
     val readingUiState = viewModel.readingUiState.collectAsStateValue()
     val readerState = viewModel.readerStateStateFlow.collectAsStateValue()
 
@@ -110,7 +103,6 @@ fun ReadingPage(
                 }
 
                 val isNextArticleAvailable = readerState.nextArticle != null
-                val isPreviousArticleAvailable = readerState.previousArticle != null
 
                 if (readerState.articleId != null) {
                     // Content
@@ -164,28 +156,10 @@ fun ReadingPage(
                                     ))
                         },
                         label = "",
-                    ) {
-                        remember { it }
+                    ) { animatedReaderState ->
+                        remember { animatedReaderState }
                             .run {
-                                val state =
-                                    rememberPullToLoadState(
-                                        key = content,
-                                        onLoadNext =
-                                            if (isNextArticleAvailable) {
-                                                {
-                                                    val (id, index) = readerState.nextArticle
-                                                    onLoadArticle(id, index)
-                                                }
-                                            } else null,
-                                        onLoadPrevious =
-                                            if (isPreviousArticleAvailable) {
-                                                {
-                                                    val (id, index) = readerState.previousArticle
-                                                    onLoadArticle(id, index)
-                                                }
-                                            } else null,
-                                    )
-
+                                val displayedReaderState = this
                                 val scrollState = rememberScrollState()
 
                                 val scope = rememberCoroutineScope()
@@ -200,11 +174,28 @@ fun ReadingPage(
                                     }
                                 }
 
-                                showTopDivider =
+                                LaunchedEffect(scrollState, displayedReaderState == readerState) {
+                                    if (displayedReaderState != readerState) return@LaunchedEffect
+
+                                    var previousScrollValue = scrollState.value
+                                    snapshotFlow { scrollState.value }
+                                        .collect { currentValue ->
+                                            val delta = currentValue - previousScrollValue
+                                            if (abs(delta) > 2) {
+                                                isReaderScrollingDown = delta > 0
+                                            }
+                                            previousScrollValue = currentValue
+                                        }
+                                }
+
+                                LaunchedEffect(scrollState, displayedReaderState == readerState) {
+                                    if (displayedReaderState != readerState) return@LaunchedEffect
+
                                     snapshotFlow {
                                             scrollState.value >= 120
                                         }
-                                        .collectAsStateValue(initial = false)
+                                        .collect { showTopDivider = it }
+                                }
 
                                 CompositionLocalProvider(
                                     LocalTextStyle provides
@@ -219,40 +210,21 @@ fun ReadingPage(
                                             )
                                         }
                                 ) {
-                                    Box(
-                                        modifier = Modifier.fillMaxSize(),
-                                        contentAlignment = Alignment.Center,
-                                    ) {
-                                        Content(
-                                            modifier =
-                                                Modifier.pullToLoad(
-                                                    state = state,
-                                                    onScroll = { f ->
-                                                        if (abs(f) > 2f)
-                                                            isReaderScrollingDown = f < 0f
-                                                    },
-                                                    enabled = isPullToSwitchArticleEnabled,
-                                                ),
-                                            contentPadding = paddings,
-                                            content = content.text ?: "",
-                                            feedName = feedName,
-                                            title = title.toString(),
-                                            author = author,
-                                            link = link,
-                                            publishedDate = publishedDate,
-                                            isLoading = content is ReaderState.Loading,
-                                            scrollState = scrollState,
-                                            onImageClick = { imgUrl, altText ->
-                                                currentImageData = ImageData(imgUrl, altText)
-                                                showFullScreenImageViewer = true
-                                            },
-                                        )
-                                        PullToLoadIndicator(
-                                            state = state,
-                                            canLoadPrevious = isPreviousArticleAvailable,
-                                            canLoadNext = isNextArticleAvailable,
-                                        )
-                                    }
+                                    Content(
+                                        contentPadding = paddings,
+                                        content = content.text ?: "",
+                                        feedName = feedName,
+                                        title = title.toString(),
+                                        author = author,
+                                        link = link,
+                                        publishedDate = publishedDate,
+                                        isLoading = content is ReaderState.Loading,
+                                        scrollState = scrollState,
+                                        onImageClick = { imgUrl, altText ->
+                                            currentImageData = ImageData(imgUrl, altText)
+                                            showFullScreenImageViewer = true
+                                        },
+                                    )
                                 }
                             }
                     }
