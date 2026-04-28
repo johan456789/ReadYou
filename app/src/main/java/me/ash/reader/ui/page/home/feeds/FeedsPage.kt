@@ -287,6 +287,7 @@ fun FeedsPage(
                                     groupsVisible.getOrPut(group.id, groupListExpand::value)
                                 },
                                 group = group,
+                                importantCount = remember(feeds) { feeds.sumOf { it.important } },
                                 onExpanded = {
                                     groupsVisible[group.id] =
                                         groupsVisible

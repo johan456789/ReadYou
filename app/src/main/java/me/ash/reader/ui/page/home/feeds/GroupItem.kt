@@ -10,6 +10,7 @@ import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.rounded.ExpandLess
 import androidx.compose.material.icons.rounded.ExpandMore
+import androidx.compose.material3.Badge
 import androidx.compose.material3.Icon
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.Text
@@ -36,6 +37,7 @@ fun GroupItem(
     group: Group,
     isExpanded: () -> Boolean,
     groupOptionViewModel: GroupOptionViewModel = hiltViewModel(),
+    importantCount: Int = 0,
     onExpanded: () -> Unit = {},
     onLongClick: () -> Unit = {},
     groupOnClick: () -> Unit = {},
@@ -72,20 +74,37 @@ fun GroupItem(
                 overflow = TextOverflow.Ellipsis,
             )
             Row(
-                modifier = Modifier
-                    .padding(end = 20.dp)
-                    .size(24.dp)
-                    .clip(CircleShape)
-                    .background(MaterialTheme.colorScheme.surfaceContainerHigh)
-                    .clickable { onExpanded() },
-                horizontalArrangement = Arrangement.Center,
+                modifier = Modifier.padding(end = 20.dp),
+                horizontalArrangement = Arrangement.spacedBy(8.dp),
                 verticalAlignment = Alignment.CenterVertically,
             ) {
-                Icon(
-                    imageVector = if (isExpanded()) Icons.Rounded.ExpandLess else Icons.Rounded.ExpandMore,
-                    contentDescription = stringResource(if (isExpanded()) R.string.expand_less else R.string.expand_more),
-                    tint = MaterialTheme.colorScheme.onSecondaryContainer,
-                )
+                if (importantCount > 0) {
+                    Badge(
+                        containerColor = MaterialTheme.colorScheme.surfaceContainerHigh,
+                        contentColor = MaterialTheme.colorScheme.outline,
+                        content = {
+                            Text(
+                                text = importantCount.toString(),
+                                style = MaterialTheme.typography.labelSmall
+                            )
+                        },
+                    )
+                }
+                Row(
+                    modifier = Modifier
+                        .size(24.dp)
+                        .clip(CircleShape)
+                        .background(MaterialTheme.colorScheme.surfaceContainerHigh)
+                        .clickable { onExpanded() },
+                    horizontalArrangement = Arrangement.Center,
+                    verticalAlignment = Alignment.CenterVertically,
+                ) {
+                    Icon(
+                        imageVector = if (isExpanded()) Icons.Rounded.ExpandLess else Icons.Rounded.ExpandMore,
+                        contentDescription = stringResource(if (isExpanded()) R.string.expand_less else R.string.expand_more),
+                        tint = MaterialTheme.colorScheme.onSecondaryContainer,
+                    )
+                }
             }
         }
         Spacer(modifier = Modifier.height(22.dp))
