@@ -70,8 +70,15 @@ private constructor(
         }
 
     suspend fun validCredentials(): Boolean {
-        val result = reAuthenticate().onSuccess { authData = it }
-        return result.isSuccess
+        return when (val result = reAuthenticate()) {
+            is ApiResult.Success -> {
+                authData = result.data
+                true
+            }
+            is ApiResult.NetworkError -> throw result.exception
+            is ApiResult.BizError -> throw result.exception
+            is ApiResult.UnknownError -> throw result.throwable
+        }
     }
 
     suspend fun refreshCredentialsIfNeeded() {
@@ -109,8 +116,8 @@ private constructor(
 
         val clBody = clResponse.body.string()
         when (clResponse.code) {
-            400 -> return ApiResult.BizError(GoogleReaderAPIException("BadRequest for CL Token"))
-            401 -> return ApiResult.BizError(GoogleReaderAPIException("Unauthorized for CL Token"))
+            400 -> return ApiResult.BizError(GoogleReaderAPIException("Bad request"))
+            401 -> return ApiResult.BizError(GoogleReaderAPIException("Invalid credentials"))
             !in 200..299 -> {
                 return ApiResult.BizError(GoogleReaderAPIException(clBody))
             }

@@ -1,8 +1,10 @@
 package me.ash.reader.ui.page.settings.accounts
 
+import android.content.Context
 import androidx.lifecycle.ViewModel
 import androidx.lifecycle.viewModelScope
 import dagger.hilt.android.lifecycle.HiltViewModel
+import dagger.hilt.android.qualifiers.ApplicationContext
 import kotlinx.coroutines.CoroutineDispatcher
 import kotlinx.coroutines.CoroutineScope
 import kotlinx.coroutines.Job
@@ -14,6 +16,7 @@ import kotlinx.coroutines.flow.emptyFlow
 import kotlinx.coroutines.flow.update
 import kotlinx.coroutines.launch
 import kotlinx.coroutines.withContext
+import me.ash.reader.R
 import me.ash.reader.domain.model.account.Account
 import me.ash.reader.domain.service.AccountService
 import me.ash.reader.domain.service.OpmlService
@@ -22,10 +25,12 @@ import me.ash.reader.infrastructure.di.ApplicationScope
 import me.ash.reader.infrastructure.di.DefaultDispatcher
 import me.ash.reader.infrastructure.di.IODispatcher
 import me.ash.reader.infrastructure.di.MainDispatcher
+import java.io.IOException
 import javax.inject.Inject
 
 @HiltViewModel
 class AccountViewModel @Inject constructor(
+    @ApplicationContext private val context: Context,
     private val accountService: AccountService,
     private val rssService: RssService,
     private val opmlService: OpmlService,
@@ -110,7 +115,12 @@ class AccountViewModel @Inject constructor(
                         callback(addAccount, null)
                     }
                 } else {
-                    throw Exception("Unauthorized")
+                    throw Exception(context.getString(R.string.unauthorized))
+                }
+            } catch (e: IOException) {
+                accountService.delete(addAccount.id!!)
+                withContext(mainDispatcher) {
+                    callback(null, Exception(context.getString(R.string.server_unreachable)))
                 }
             } catch (e: Exception) {
                 accountService.delete(addAccount.id!!)

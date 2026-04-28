@@ -21,6 +21,7 @@ class FeverAPI private constructor(
     clientCertificateAlias: String? = null,
 ) : ProviderAPI(context, clientCertificateAlias) {
 
+    @Throws(java.io.IOException::class, FeverAPIException::class)
     private suspend inline fun <reified T> postRequest(query: String?): T {
         val response = client.newCall(
             Request.Builder()
@@ -38,12 +39,14 @@ class FeverAPI private constructor(
             .executeAsync()
 
         when (response.code) {
-            401 -> throw FeverAPIException("Unauthorized")
-            !in 200..299 -> throw FeverAPIException("Forbidden")
+            401 -> throw FeverAPIException("Invalid credentials")
+            !in 200..299 -> throw FeverAPIException("Server error (${response.code})")
         }
         return try {
             val resp = response.body.string()
             toDTO<T>(resp)
+        } catch (e: java.io.IOException) {
+            throw e
         } catch (e: Exception) {
             throw FeverAPIException("Unable to parse response", e)
         }
@@ -52,7 +55,7 @@ class FeverAPI private constructor(
     private fun checkAuth(authMap: Map<String, Any>): Int = checkAuth(authMap["auth"] as Int?)
 
     private fun checkAuth(auth: Int?): Int =
-        auth?.takeIf { it > 0 } ?: throw FeverAPIException("Unauthorized")
+        auth?.takeIf { it > 0 } ?: throw FeverAPIException("Invalid credentials")
 
     @Throws
     suspend fun validCredentials(): Int = checkAuth(postRequest<FeverDTO.Common>(null).auth)
