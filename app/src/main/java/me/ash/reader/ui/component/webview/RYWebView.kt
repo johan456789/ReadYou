@@ -84,6 +84,7 @@ class HorizontalScrollAwareWebView(context: Context) : WebView(context) {
 fun RYWebView(
     modifier: Modifier = Modifier,
     content: String,
+    baseUrl: String? = null,
     refererDomain: String? = null,
     onImageClick: ((imgUrl: String, altText: String) -> Unit)? = null,
 ) {
@@ -173,7 +174,7 @@ fun RYWebView(
                         selectionTextColor = selectionTextColor,
                         selectionBgColor = selectionBgColor,
                     ),
-                    wv.url,
+                    baseUrl.orEmpty(),
                     content,
                     WebViewScript.get(boldCharacters.value),
                 ),
