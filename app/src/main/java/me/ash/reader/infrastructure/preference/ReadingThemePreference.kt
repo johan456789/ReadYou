@@ -55,7 +55,6 @@ sealed class ReadingThemePreference(val value: Int) : Preference() {
                 ReadingImageRoundedCornersPreference.put(context, scope, ReadingImageRoundedCornersPreference.default)
                 ReadingImageHorizontalPaddingPreference.put(context, scope,
                     ReadingImageHorizontalPaddingPreference.default)
-                ReadingImageMaximizePreference.default.put(context, scope)
             }
 
             Reeder -> {
@@ -74,7 +73,6 @@ sealed class ReadingThemePreference(val value: Int) : Preference() {
                 ReadingTextFontSizePreference.put(context, scope, ReadingTextFontSizePreference.default)
                 ReadingImageRoundedCornersPreference.put(context, scope, 0)
                 ReadingImageHorizontalPaddingPreference.put(context, scope, 0)
-                ReadingImageMaximizePreference.default.put(context, scope)
             }
 
             Paper -> {
@@ -94,7 +92,6 @@ sealed class ReadingThemePreference(val value: Int) : Preference() {
                 ReadingImageRoundedCornersPreference.put(context, scope, 0)
                 ReadingImageHorizontalPaddingPreference.put(context, scope,
                     ReadingImageHorizontalPaddingPreference.default)
-                ReadingImageMaximizePreference.default.put(context, scope)
             }
 
             Custom -> {
@@ -114,7 +111,6 @@ sealed class ReadingThemePreference(val value: Int) : Preference() {
                 ReadingImageRoundedCornersPreference.put(context, scope, ReadingImageRoundedCornersPreference.default)
                 ReadingImageHorizontalPaddingPreference.put(context, scope,
                     ReadingImageHorizontalPaddingPreference.default)
-                ReadingImageMaximizePreference.default.put(context, scope)
             }
         }
     }

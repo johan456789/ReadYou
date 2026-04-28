@@ -22,19 +22,13 @@ import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.unit.dp
 import me.ash.reader.R
 import me.ash.reader.infrastructure.preference.LocalReadingImageHorizontalPadding
-import me.ash.reader.infrastructure.preference.LocalReadingImageMaximize
 import me.ash.reader.infrastructure.preference.LocalReadingImageRoundedCorners
-import me.ash.reader.infrastructure.preference.LocalReadingRenderer
-import me.ash.reader.infrastructure.preference.LocalReadingTheme
 import me.ash.reader.infrastructure.preference.ReadingImageHorizontalPaddingPreference
 import me.ash.reader.infrastructure.preference.ReadingImageRoundedCornersPreference
-import me.ash.reader.infrastructure.preference.ReadingRendererPreference
 import me.ash.reader.infrastructure.preference.ReadingThemePreference
-import me.ash.reader.infrastructure.preference.not
 import me.ash.reader.ui.component.base.DisplayText
 import me.ash.reader.ui.component.base.FeedbackIconButton
 import me.ash.reader.ui.component.base.RYScaffold
-import me.ash.reader.ui.component.base.RYSwitch
 import me.ash.reader.ui.component.base.Subtitle
 import me.ash.reader.ui.component.base.TextFieldDialog
 import me.ash.reader.ui.page.settings.SettingItem
@@ -47,11 +41,8 @@ fun ReadingImagePage(
     val context = LocalContext.current
     val scope = rememberCoroutineScope()
 
-    val readingTheme = LocalReadingTheme.current
     val roundedCorners = LocalReadingImageRoundedCorners.current
     val horizontalPadding = LocalReadingImageHorizontalPadding.current
-    val maximize = LocalReadingImageMaximize.current
-    val renderer = LocalReadingRenderer.current
 
     var roundedCornersDialogVisible by remember { mutableStateOf(false) }
     var horizontalPaddingDialogVisible by remember { mutableStateOf(false) }
@@ -117,24 +108,10 @@ fun ReadingImagePage(
                         onClick = { roundedCornersDialogVisible = true },
                     ) {}
                     SettingItem(
-                        enabled = renderer == ReadingRendererPreference.NativeComponent,
                         title = stringResource(R.string.horizontal_padding),
                         desc = "${horizontalPadding}dp",
                         onClick = { horizontalPaddingDialogVisible = true },
                     ) {}
-                    SettingItem(
-                        enabled = renderer == ReadingRendererPreference.NativeComponent,
-                        title = stringResource(R.string.maximize),
-                        onClick = {
-                            (!maximize).put(context, scope)
-                            ReadingThemePreference.Custom.put(context, scope)
-                        },
-                    ) {
-                        RYSwitch(activated = maximize.value) {
-                            (!maximize).put(context, scope)
-                            ReadingThemePreference.Custom.put(context, scope)
-                        }
-                    }
                 }
 
                 item {

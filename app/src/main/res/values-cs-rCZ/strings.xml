@@ -201,7 +201,6 @@
     <string name="text_desc">Velikost písma, odsazení písmen, zarovnání</string>
     <string name="images_desc">Zaoblené rohy, horizontální odsazení</string>
     <string name="videos_desc">Zaoblené rohy, horizontální odsazení</string>
-    <string name="maximize">Maximalizovat</string>
     <string name="empty">Prázdný</string>
     <string name="for_2_days">2 dny</string>
     <string name="every_15_minutes">Každých 15 minut</string>
@@ -306,10 +305,7 @@
     <string name="invalid_json_file_warning">Tento soubor nejspíš není platný soubor JSON. Jeho importováním můžete poškodit aplikaci, což může mít za následek ztrátu aktuálních nastavení. Opravdu chcete pokračovat?</string>
     <string name="unfold_more">Rozbalit vše</string>
     <string name="unfold_less">Sbalit vše</string>
-    <string name="native_component">Nativní komponent</string>
-    <string name="content_renderer">Zobrazovač obsahu</string>
     <string name="read_aloud">Číst nahlas</string>
-    <string name="only_available_on_webview">K dispozici pouze ve WebView</string>
     <string name="about">Informace</string>
     <string name="mark_as_read_on_scroll">Označit jako přečtené při posouvání</string>
     <string name="become_a_sponsor">Staňte se sponzorem</string>

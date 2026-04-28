@@ -196,7 +196,6 @@
     <string name="text_desc">字体大小、字符间距、对齐</string>
     <string name="images_desc">圆角、水平边距</string>
     <string name="videos_desc">圆角、水平边距</string>
-    <string name="maximize">最大化</string>
     <string name="every_15_minutes">每 15 分钟</string>
     <string name="every_30_minutes">每 30 分钟</string>
     <string name="every_1_hour">每 1 小时</string>
@@ -301,9 +300,6 @@
     <string name="unfold_more">全部展开</string>
     <string name="unfold_less">全部折叠</string>
     <string name="read_aloud">大声读出</string>
-    <string name="only_available_on_webview">仅在使用 WebView 内容渲染器时可用</string>
-    <string name="content_renderer">内容渲染器</string>
-    <string name="native_component">原生组件</string>
     <string name="about">关于</string>
     <string name="mark_as_read_on_scroll">滚动时标记为已读</string>
     <string name="become_a_sponsor">成为赞助者</string>

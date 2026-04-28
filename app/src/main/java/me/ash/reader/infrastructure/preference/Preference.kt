@@ -52,7 +52,6 @@ fun Preferences.toSettings(): Settings {
         flowSortUnreadArticles = SortUnreadArticlesPreference.fromPreferences(this),
 
         // Reading page
-        readingRenderer = ReadingRendererPreference.fromPreferences(this),
         readingBoldCharacters = ReadingBoldCharactersPreference.fromPreferences(this),
         readingTheme = ReadingThemePreference.fromPreferences(this),
         readingPageTonalElevation = ReadingPageTonalElevationPreference.fromPreferences(this),
@@ -72,7 +71,6 @@ fun Preferences.toSettings(): Settings {
         readingSubheadUpperCase = ReadingSubheadUpperCasePreference.fromPreferences(this),
         readingImageHorizontalPadding = ReadingImageHorizontalPaddingPreference.fromPreferences(this),
         readingImageRoundedCorners = ReadingImageRoundedCornersPreference.fromPreferences(this),
-        readingImageMaximize = ReadingImageMaximizePreference.fromPreferences(this),
 
         // Interaction
         initialPage = InitialPagePreference.fromPreferences(this),

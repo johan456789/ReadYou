@@ -146,7 +146,6 @@
     <string name="bold">بولد</string>
     <string name="images_desc">زوايا مبرومة، و الإزاحة بال عرض</string>
     <string name="videos_desc">زوايا مبرومة، و الإزاحة بال عرض</string>
-    <string name="maximize">كبّر</string>
     <string name="every_15_minutes">كل 15 ديقة</string>
     <string name="every_30_minutes">كل 30 ديقة</string>
     <string name="every_1_hour">كل ساعة</string>
@@ -304,9 +303,6 @@
     <string name="export_as_json">صدر ك فايل JSON</string>
     <string name="invalid_protobuf_file_warning">شكله هيدا فايل الـprotobuf مش صالح. استرادها يمكن يئدي ل كوراپشن و نزع معلومات الآپ وال تفضيلاتك اللي فيه. متأكد إنو بدك تكفي؟</string>
     <string name="read_aloud">قرا عال عالي</string>
-    <string name="only_available_on_webview">بس موجود بال \"واب-ڤيو\"</string>
-    <string name="native_component">مكون محلي</string>
-    <string name="content_renderer">مقدم المحتوى</string>
     <string name="about">عن</string>
     <string name="toolbars">شريط الأدوات</string>
     <string name="mark_as_read_on_scroll">علّم إنه منرقرا عال تمرير</string>

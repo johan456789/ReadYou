@@ -1,6 +1,5 @@
 <?xml version="1.0" encoding="utf-8"?>
 <resources>
-    <string name="content_renderer">உள்ளடக்க வழங்குனர்</string>
     <string name="read_aloud">உரக்க வாசி</string>
     <string name="become_a_sponsor">ஆதரவாளர் ஆகுக</string>
     <string name="unread">படிக்காதவை</string>
@@ -173,7 +172,6 @@
     <string name="local_desc">இந்த சாதனத்தில்</string>
     <string name="swipe_to_end">வலப்புறம் கீறு</string>
     <string name="line_height_multiple">வரி உயர மடங்கு</string>
-    <string name="only_available_on_webview">வலைகாட்சியில் மட்டும் கிடைக்கும்</string>
     <string name="checking_updates">புதுப்பிக்க சோதிக்கிறது…</string>
     <string name="open_link_something_wrong">ஏதோ தவறு நடந்ததால் \"இணைப்பைத் திற\" அமைப்பு புறக்கணிக்கப்பட்டது.</string>
     <string name="unexpected_error_title">ஐயோ! ஏதோ கோளாரு ஏற்பட்டது…</string>
@@ -183,7 +181,6 @@
     <string name="additional_info_desc">கூடுதல் தகவலில் ஒவ்வொரு ஊட்டத்திற்கும் உள்ளமைவு விருப்பங்கள் அடங்கும், அதாவது அறிவிப்பை அனுமதிக்கலாமா, முழு உள்ளடக்கத்தை அலசவும் போன்றவை. ஏற்றுமதி செய்யப்பட்ட OPML கோப்பை மற்ற வாசகர்களுடன் பயன்படுத்த விரும்பினால், தயவுசெய்து \"விலக்கு\" என்பதைத் தேர்ந்தெடுக்கவும்.</string>
     <string name="unexpected_error_msg">The app encountered an unexpected error and had to close.\n\nTo help us identify and fix this issue quickly, you can %1$s with the error stack trace below.</string>
     <string name="copy_error_report">பிழை அறிக்கையை நகலெடு</string>
-    <string name="native_component">பூர்வீகக் கூறு</string>
     <string name="keep_archived_tips">ஆவணக்கிடங்கிலிடப்பட்ட உருப்படிகள் வாசிக்கப்பட்டவை, விண்மீனிடப்படவில்லை மற்றும் குறியிடப்படவில்லை என்று குறிக்கப்பட்ட கட்டுரைகள். \"ஆவணக்கிடங்கிலிடப்பட்ட கட்டுரைகளை வைத்திரு\" அமைப்பு இந்த சாதனங்களில் மட்டுமே பயனுள்ளதாக இருக்கும். பழைய ஆவணக்கிடங்கிலிடப்பட்ட கட்டுரைகள் இந்த சாதனங்களிலிருந்து அழிக்கப்படும். கட்டுரைகளை அழிக்கப்பட்டதை மீட்க முடியாது.</string>
     <string name="invalid_protobuf_file_warning">இந்தக் கோப்பு செல்லத்தக்க புரோட்டோபஃப் கோப்பாக இல்லாமல் இருக்கலாம். அதை இறக்குமதி செய்வது பயன்பாட்டை சிதைக்கக்கூடும் மற்றும் தற்போதைய விருப்பங்களை இழக்க நேரிடும். நிச்சயமாக தொடர விரும்புகிறீர்களா?</string>
     <string name="tos_tips">தொடர்வதற்கு, தயவுசெய்து Read You\' இன் சேவை விதிமுறைகள் மற்றும் தனியுரிமைக் கொள்கையை படித்து ஒப்புக்கொள்ளுங்கள்.</string>
@@ -279,7 +276,6 @@
     <string name="title_desc">தடிப்பு, பேரெழுத்து, செவ்வணப்பு</string>
     <string name="images_desc">வட்டமான மூலைகள், கிடைமட்ட இடைநிரப்பு</string>
     <string name="videos_desc">வட்டமான மூலைகள், கிடைமட்ட இடைநிரப்பு</string>
-    <string name="maximize">உச்சளவாக்கு</string>
     <string name="every_3_hours">ஒவ்வொரு 3 மணித்தியாலங்கள்</string>
     <string name="for_1_day">1 நாள்</string>
     <string name="for_2_days">2 நாள்கள்</string>

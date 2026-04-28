@@ -204,7 +204,6 @@
     <string name="text_desc">Rozmiar czcionki, odstępy, wyrównanie</string>
     <string name="images_desc">Zaokrąglone rogi, odstęp od krawędzi</string>
     <string name="videos_desc">Zaokrąglone rogi, odstęp od krawędzi</string>
-    <string name="maximize">Maks. powiększenie</string>
     <string name="every_15_minutes">Co 15 minut</string>
     <string name="every_30_minutes">Co 30 minut</string>
     <string name="every_1_hour">Co godzinę</string>
@@ -309,10 +308,7 @@
     <string name="mark_below_as_read">Oznacz poniższe jako przeczytane</string>
     <string name="toolbars">Paski narzędzi</string>
     <string name="open_link_something_wrong">Ustawienie „Otwórz link” zostało zignorowane, ponieważ coś poszło nie tak</string>
-    <string name="native_component">Komponent natywny</string>
-    <string name="content_renderer">Silnik renderujący treść</string>
     <string name="read_aloud">Czytaj na głos</string>
-    <string name="only_available_on_webview">Dostępne tylko podczas korzystania z silnika renderującego treść WebView</string>
     <string name="mark_as_read_on_scroll">Oznacz jako przeczytane podczas przewijania</string>
     <string name="become_a_sponsor">Zostań sponsorem</string>
     <string name="sponsor_desc">Tworzymy i utrzymujemy tę darmową, otwartą aplikację w naszym wolnym czasie. Jeśli Ci się podoba, rozważ wsparcie nas małą darowizną! ☕️</string>

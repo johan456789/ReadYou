@@ -222,7 +222,6 @@
     <string name="text_desc">Betűméret, betűköz, igazítás</string>
     <string name="images_desc">Sarkok lekerekítése, vízszintes térköz</string>
     <string name="videos_desc">Sarkok lekerekítése, vízszintes térköz</string>
-    <string name="maximize">Maximalizálás</string>
     <string name="every_15_minutes">15 percenként</string>
     <string name="every_30_minutes">30 percenként</string>
     <string name="every_1_hour">Óránként</string>
@@ -278,7 +277,6 @@
     <string name="unexpected_error_title">Hoppá! Valami hiba történt…</string>
     <string name="external_links">Külső hivatkozások</string>
     <string name="copy_error_report">Hibajelentés másolása</string>
-    <string name="only_available_on_webview">Csak akkor érhető el, ha a WebView tartalomrenderelő van használatban</string>
     <string name="mark_below_as_read">Lentebbiek megjelölése olvasottként</string>
     <string name="bug_report">Hibajelentés</string>
     <string name="all_read">Összes olvasott</string>
@@ -304,8 +302,6 @@
     <string name="app_preferences">Alkalmazásbeállítások</string>
     <string name="import_from_protobuf_file">Importálás protobuf-fájlból</string>
     <string name="import_from_json">Importálás JSON-fájlból</string>
-    <string name="native_component">Natív összetevő</string>
-    <string name="content_renderer">Tartalomrenderelő</string>
     <string name="invalid_json_file_warning">Ez a fájl lehet, hogy nem egy érvényes JSON-fájl. Az importálása potenciálisan megrongálhatja az alkalmazást, és a jelenlegi beállítások elvesztéséhez vezethet. Biztosan folytatni szeretné?</string>
     <string name="read_aloud">Hangos olvasás</string>
     <string name="about">Névjegy</string>

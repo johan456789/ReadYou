@@ -69,7 +69,6 @@
     <string name="every_2_hours">Сваких 2 сата</string>
     <string name="search_for">Претражите %1$s предмете</string>
     <string name="on">Укључено</string>
-    <string name="maximize">Максимизуј</string>
     <string name="feed_names">Имена фидова</string>
     <string name="amoled_dark_theme">Црна тамна тема</string>
     <string name="for_2_days">2 дана</string>
@@ -306,9 +305,6 @@
     <string name="invalid_json_file_warning">Овај фајл можда није важећи JSON фајл. Увоз би потенцијално могао да оштети апликацију и резултира губитком тренутних преференција. Желите ли заиста да наставите?</string>
     <string name="unfold_more">Прошири све</string>
     <string name="unfold_less">Скупи све</string>
-    <string name="only_available_on_webview">Доступно само када се користи рендерер садржаја WebView</string>
-    <string name="native_component">Изворна компонента</string>
-    <string name="content_renderer">Рендерер садржаја</string>
     <string name="read_aloud">Прочитајте наглас</string>
     <string name="about">О нама</string>
     <string name="mark_as_read_on_scroll">Означи као прочитано при превлачењу</string>

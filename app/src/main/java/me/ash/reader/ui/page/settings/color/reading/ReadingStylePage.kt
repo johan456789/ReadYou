@@ -44,11 +44,9 @@ import me.ash.reader.infrastructure.preference.LocalReadingAutoHideToolbar
 import me.ash.reader.infrastructure.preference.LocalReadingBoldCharacters
 import me.ash.reader.infrastructure.preference.LocalReadingFonts
 import me.ash.reader.infrastructure.preference.LocalReadingPageTonalElevation
-import me.ash.reader.infrastructure.preference.LocalReadingRenderer
 import me.ash.reader.infrastructure.preference.LocalReadingTheme
 import me.ash.reader.infrastructure.preference.ReadingFontsPreference
 import me.ash.reader.infrastructure.preference.ReadingPageTonalElevationPreference
-import me.ash.reader.infrastructure.preference.ReadingRendererPreference
 import me.ash.reader.infrastructure.preference.ReadingThemePreference
 import me.ash.reader.infrastructure.preference.not
 import me.ash.reader.ui.component.ReadingThemePrev
@@ -82,11 +80,9 @@ fun ReadingStylePage(
     val fonts = LocalReadingFonts.current
     val autoHideToolbar = LocalReadingAutoHideToolbar.current
     val pullToSwitchArticle = LocalPullToSwitchArticle.current
-    val renderer = LocalReadingRenderer.current
     val boldCharacters = LocalReadingBoldCharacters.current
 
     var tonalElevationDialogVisible by remember { mutableStateOf(false) }
-    var rendererDialogVisible by remember { mutableStateOf(false) }
     var fontsDialogVisible by remember { mutableStateOf(false) }
 
     val launcher =
@@ -162,25 +158,12 @@ fun ReadingStylePage(
                         text = stringResource(R.string.general)
                     )
                     SettingItem(
-                        title = stringResource(R.string.content_renderer),
-                        desc = renderer.toDesc(context),
-                        onClick = { rendererDialogVisible = true },
-                    ) {}
-                    SettingItem(
                         title = stringResource(R.string.bold_characters),
-                        separatedActions = renderer == ReadingRendererPreference.WebView,
-                        enabled = renderer == ReadingRendererPreference.WebView,
-                        desc = if (renderer == ReadingRendererPreference.WebView) null
-                        else stringResource(R.string.only_available_on_webview),
+                        separatedActions = true,
                         onClick = navigateToReadingBoldCharacters,
                     ) {
-                        if (renderer == ReadingRendererPreference.WebView) {
-                            RYSwitch(
-                                enable = renderer == ReadingRendererPreference.WebView,
-                                activated = boldCharacters.value,
-                            ) {
-                                (!boldCharacters).put(context, scope)
-                            }
+                        RYSwitch(activated = boldCharacters.value) {
+                            (!boldCharacters).put(context, scope)
                         }
                     }
                     SettingItem(
@@ -280,21 +263,6 @@ fun ReadingStylePage(
         }
     ) {
         tonalElevationDialogVisible = false
-    }
-
-    RadioDialog(
-        visible = rendererDialogVisible,
-        title = stringResource(R.string.content_renderer),
-        options = ReadingRendererPreference.values.map {
-            RadioDialogOption(
-                text = it.toDesc(context),
-                selected = it == renderer,
-            ) {
-                it.put(context, scope)
-            }
-        }
-    ) {
-        rendererDialogVisible = false
     }
 
     RadioDialog(

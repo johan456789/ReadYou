@@ -156,7 +156,6 @@
     <string name="images_desc">Закругление, горизонтальный отступ</string>
     <string name="videos_desc">Закругление, горизонтальный отступ</string>
     <string name="dark_reading_theme">Тёмная тема для чтения</string>
-    <string name="maximize">Увеличить до предела</string>
     <string name="justify">Выровнять</string>
     <string name="center_text">По центру</string>
     <string name="align_end">Выровнять конец</string>
@@ -309,11 +308,8 @@
     <string name="line_height_multiple">Межстрочный интервал</string>
     <string name="import_from_json">Импортировать из JSON</string>
     <string name="invalid_protobuf_file_warning">Этот файл не похож на правильный файл protobuf. Его импорт может сломать приложение и сбросить текущие настройки. Вы уверены, что хотите продолжить?</string>
-    <string name="content_renderer">Обработчик содержимого</string>
     <string name="about">Об</string>
-    <string name="only_available_on_webview">Только доступно в WebView</string>
     <string name="read_aloud">Читать вслух</string>
-    <string name="native_component">Изначальный компонент</string>
     <string name="toolbars">Панели инструментов</string>
     <string name="mark_as_read_on_scroll">Отметить как прочитанное при прокрутке</string>
     <string name="become_a_sponsor">Стать спонсором</string>

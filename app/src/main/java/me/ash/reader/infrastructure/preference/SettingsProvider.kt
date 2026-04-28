@@ -104,7 +104,6 @@ class SettingsProvider @Inject constructor(
             LocalSortUnreadArticles provides settings.flowSortUnreadArticles,
 
             // Reading page
-            LocalReadingRenderer provides settings.readingRenderer,
             LocalReadingBoldCharacters provides settings.readingBoldCharacters,
             LocalReadingTheme provides settings.readingTheme,
             LocalReadingPageTonalElevation provides settings.readingPageTonalElevation,
@@ -124,7 +123,6 @@ class SettingsProvider @Inject constructor(
             LocalReadingSubheadUpperCase provides settings.readingSubheadUpperCase,
             LocalReadingImageHorizontalPadding provides settings.readingImageHorizontalPadding,
             LocalReadingImageRoundedCorners provides settings.readingImageRoundedCorners,
-            LocalReadingImageMaximize provides settings.readingImageMaximize,
 
             // Interaction
             LocalInitialPage provides settings.initialPage,

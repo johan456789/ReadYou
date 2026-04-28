@@ -227,7 +227,6 @@
     <string name="text_desc">Font size, letter spacing, alignment</string>
     <string name="images_desc">Rounded corners, horizontal padding</string>
     <string name="videos_desc">Rounded corners, horizontal padding</string>
-    <string name="maximize">Maximize</string>
     <string name="every_15_minutes">Every 15 minutes</string>
     <string name="every_30_minutes">Every 30 minutes</string>
     <string name="every_1_hour">Every hour</string>
@@ -341,10 +340,7 @@
     <string name="export_as_json">Export as JSON</string>
     <string name="invalid_json_file_warning">This file may not be a valid JSON file. Importing it could potentially corrupt the app and result in the loss of current preferences. Are you sure you want to proceed?</string>
     <string name="webview" translatable="false">WebView</string>
-    <string name="native_component">Native component</string>
-    <string name="content_renderer">Content renderer</string>
     <string name="read_aloud">Read aloud</string>
-    <string name="only_available_on_webview">Only available when using the WebView content renderer</string>
     <string name="about">About</string>
     <string name="mark_as_read_on_scroll">Mark as read on scroll</string>
     <string name="hide_empty_groups">Hide empty groups</string>

@@ -85,7 +85,6 @@
     <string name="text_desc">גודל גופן, ריווח אותיות, יישור</string>
     <string name="images_desc">פינות מעוגלות, ריפוד אופקי</string>
     <string name="videos_desc">פינות מעוגלות, ריפוד אופקי</string>
-    <string name="maximize">הגדלה</string>
     <string name="every_15_minutes">כל רבע שעה</string>
     <string name="every_30_minutes">כל חצי שעה</string>
     <string name="every_1_hour">כל שעה</string>
@@ -252,7 +251,6 @@
     <string name="line_height_multiple">מכפלת גובה שורה</string>
     <string name="export">ייצוא</string>
     <string name="pull_to_switch_article">יש למשוך כדי להחליף כתבה</string>
-    <string name="only_available_on_webview">זמין רק בעת שימוש בעיבוד תוכן דרך WebView</string>
     <string name="about">על אודות</string>
     <string name="client_certificate">אישור לקוח (רשות)</string>
     <string name="image_saved">התמונה נשמרה</string>
@@ -269,7 +267,6 @@
     <string name="exclude">החרגה</string>
     <string name="app_preferences">העדפות היישומון</string>
     <string name="export_as_json">ייצוא ל־JSON</string>
-    <string name="native_component">רכיב טבעי</string>
     <string name="use_bold_characters">להשתמש באותיות מודגשות</string>
     <string name="hide_empty_groups">הסתרת קבוצות ריקות</string>
     <string name="toolbars">סרגלי כלים</string>
@@ -290,7 +287,6 @@
     <string name="troubleshooting_desc">דיווח על תקלות, העדפות היישומון</string>
     <string name="bug_report">דיווח על תקלה</string>
     <string name="import_from_json">ייבוא מ־JSON</string>
-    <string name="content_renderer">מעבד תוכן</string>
     <string name="read_aloud">לקרוא בקול</string>
     <string name="bold_characters_preview">להדגיש כמה מהמילים הראשונות בכתבות</string>
     <string name="permission_denied">ההרשאה נדחתה</string>

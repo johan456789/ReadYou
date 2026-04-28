@@ -217,7 +217,6 @@
     <string name="external_fonts">Externe lettertypen</string>
     <string name="title">Titel</string>
     <string name="videos_desc">Afgeronde hoeken, horizontale vulling</string>
-    <string name="maximize">Maximaliseren</string>
     <string name="every_2_hours">Elke 2 uur</string>
     <string name="every_3_hours">Elke 3 uur</string>
     <string name="sponsor">Sponsor</string>
@@ -292,7 +291,6 @@
     <string name="import_from_json">Importeer uit JSON</string>
     <string name="export_as_json">Exporteer als JSON</string>
     <string name="read_aloud">Hardop voorlezen</string>
-    <string name="only_available_on_webview">Alleen beschikbaar in de WebView-weergave</string>
     <string name="about">Over</string>
     <string name="shared_content">Gedeelde inhoud</string>
     <string name="swipe_to_end">Veeg naar rechts</string>
@@ -311,8 +309,6 @@
     <string name="line_height_multiple">Regelhoogte meervoud</string>
     <string name="invalid_protobuf_file_warning">Dit bestand is mogelijk geen geldig protobuf-bestand. Het importeren ervan kan mogelijk de app corrupt maken en leiden tot het verlies van de huidige voorkeuren. Weet je zeker dat je door wilt gaan?</string>
     <string name="invalid_json_file_warning">Dit bestand is mogelijk geen geldig JSON-bestand. Het importeren ervan kan mogelijk de app corrupt maken en leiden tot het verlies van de huidige voorkeuren. Weet je zeker dat je door wilt gaan?</string>
-    <string name="native_component">Native onderdeel</string>
-    <string name="content_renderer">Inhoudsrenderer</string>
     <string name="mark_as_read_on_scroll">Markeer als gelezen bij scrollen</string>
     <string name="hide_empty_groups">Lege groepen verbergen</string>
     <string name="become_a_sponsor">Wordt een sponsor</string>

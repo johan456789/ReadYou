@@ -36,11 +36,8 @@ import androidx.compose.ui.unit.dp
 import androidx.compose.ui.zIndex
 import me.ash.reader.R
 import me.ash.reader.infrastructure.preference.LocalReadingPageTonalElevation
-import me.ash.reader.infrastructure.preference.LocalReadingRenderer
 import me.ash.reader.infrastructure.preference.ReadingPageTonalElevationPreference
-import me.ash.reader.infrastructure.preference.ReadingRendererPreference
 import me.ash.reader.ui.component.base.CanBeDisabledIconButton
-import me.ash.reader.ui.component.webview.BoldCharactersIcon
 
 private val sizeSpec = spring<IntSize>(stiffness = 700f)
 
@@ -51,18 +48,14 @@ fun BottomBar(
     isStarred: Boolean,
     isNextArticleAvailable: Boolean,
     isFullContent: Boolean,
-    isBoldCharacters: Boolean,
     ttsButton: @Composable () -> Unit,
     onRead: (markRead: Boolean) -> Unit = {},
     onStarred: (isStarred: Boolean) -> Unit = {},
     onNextArticle: () -> Unit = {},
     onFullContent: (isFullContent: Boolean) -> Unit = {},
-    onBoldCharacters: () -> Unit = {},
-    onReadAloud: () -> Unit = {},
 ) {
     val tonalElevation = LocalReadingPageTonalElevation.current
     val isOutlined = tonalElevation == ReadingPageTonalElevationPreference.Outlined
-    val renderer = LocalReadingRenderer.current
 
     Box(
         modifier = Modifier

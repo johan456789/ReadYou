@@ -126,7 +126,6 @@
     <string name="text_desc">글자 크기, 글자 간격, 정렬</string>
     <string name="images_desc">둥근 모서리, 좌우 여백</string>
     <string name="videos_desc">둥근 모서리, 좌우 여백</string>
-    <string name="maximize">늘리기</string>
     <string name="letter_spacing">글자 간격</string>
     <string name="alignment">정렬</string>
     <string name="general">일반</string>

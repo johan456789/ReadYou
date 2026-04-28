@@ -203,7 +203,6 @@
     <string name="text_desc">Tamaño de la fuente, espaciado de letras, alineación</string>
     <string name="images_desc">Esquinas redondeadas, espaciado horizontal</string>
     <string name="videos_desc">Esquinas redondeadas, espaciado horizontal</string>
-    <string name="maximize">Maximizar</string>
     <string name="every_15_minutes">Cada 15 minutos</string>
     <string name="every_30_minutes">Cada 30 minutos</string>
     <string name="every_1_hour">Cada hora</string>
@@ -308,10 +307,7 @@
     <string name="invalid_json_file_warning">Es posible que este archivo no sea un archivo JSON válido. Importarlo podría dañar la aplicación y provocar la pérdida de las preferencias actuales. ¿Estas seguro que deseas continuar?</string>
     <string name="unfold_less">Contraer todo</string>
     <string name="unfold_more">Expandir todo</string>
-    <string name="native_component">Componente nativo</string>
-    <string name="content_renderer">Procesador de contenido</string>
     <string name="read_aloud">Lectura mediante la voz</string>
-    <string name="only_available_on_webview">Solo disponible cuando se usa el renderizador de contenido WebView</string>
     <string name="about">Acerca de</string>
     <string name="mark_as_read_on_scroll">Marcar como leído al desplazarse</string>
     <string name="become_a_sponsor">Conviértete en patrocinador</string>

@@ -167,7 +167,6 @@
     <string name="title_desc">پررنگ، حروف بزرگ، تراز</string>
     <string name="text_desc">اندازه فونت، فاصله حروف، تراز</string>
     <string name="videos_desc">گوشه های گرد، لایه افقی</string>
-    <string name="maximize">حداکثر کردن</string>
     <string name="refresh">تازه کردن</string>
     <string name="add_to_group">افزودن به گروه</string>
     <string name="all_allow_notification_tips">به همه حوراک‌های گروه %1$s اجازه دهید اعلان ارسال کنند</string>
@@ -308,10 +307,7 @@
     <string name="all_open_in_browser_toast">باز کردن همه ی همه ی مقاله ها در گروه \"%1$s\" از طریق مرورگر پیش فرض مجاز است</string>
     <string name="all_deny_open_in_browser_toast">باز کردن همه ی مقاله ها در گروه \"%1$s\" در مرورگر پیش فرض مچار نیست</string>
     <string name="client_certificate">گواهی مشتری (اختیاری)</string>
-    <string name="native_component">عنصر بومی</string>
-    <string name="content_renderer">ارائه دهنده محتوا</string>
     <string name="read_aloud">بلند بخوان</string>
-    <string name="only_available_on_webview">فقط موجود است وقتی از ارائه دهنده ی محتوا وب ویو استفاده کنید</string>
     <string name="about">درباره</string>
     <string name="mark_as_read_on_scroll">گذاشتن علامت خوانده شده وقتی پایین فهرست می روید</string>
     <string name="hide_empty_groups">قایم کردن گروه های خالی</string>
