@@ -51,6 +51,12 @@ android {
             "\"ReadYou/${versionName}(${versionCode})\"",
         )
 
+        buildConfigField(
+            "String",
+            "GIT_COMMIT_HASH",
+            "\"${gitCommitHash}\"",
+        )
+
         testInstrumentationRunner = "androidx.test.runner.AndroidJUnitRunner"
         vectorDrawables.useSupportLibrary = true
 

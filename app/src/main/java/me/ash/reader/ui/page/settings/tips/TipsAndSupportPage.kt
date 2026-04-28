@@ -74,6 +74,7 @@ import me.ash.reader.ui.ext.showToast
 import me.ash.reader.ui.graphics.MorphPolygonShape
 import me.ash.reader.ui.theme.palette.alwaysLight
 import me.ash.reader.ui.theme.palette.onLight
+import me.ash.reader.BuildConfig
 
 @OptIn(ExperimentalMaterial3ExpressiveApi::class)
 private val ShapeGacha by lazy {
@@ -135,7 +136,7 @@ fun TipsAndSupportPage(
 
 
     LaunchedEffect(Unit) {
-        currentVersion = context.getCurrentVersion().toString()
+        currentVersion = "${context.getCurrentVersion()} (${BuildConfig.GIT_COMMIT_HASH})"
     }
 
     RYScaffold(
