@@ -68,25 +68,22 @@ fun Content(
                     .padding(top = contentPadding.calculateTopPadding())
                     .fillMaxSize()
                     .drawVerticalScrollIndicator(scrollState)
+                    .verticalScroll(scrollState),
+            horizontalAlignment = Alignment.CenterHorizontally,
         ) {
-            Column(
-                modifier = Modifier.fillMaxSize().verticalScroll(scrollState),
-                horizontalAlignment = Alignment.CenterHorizontally,
-            ) {
-                Column(modifier = Modifier.then(maxWidthModifier)) {
-                    Spacer(modifier = Modifier.height(64.dp))
-                    headline()
+            Column(modifier = Modifier.then(maxWidthModifier)) {
+                Spacer(modifier = Modifier.height(64.dp))
+                headline()
 
-                    RYWebView(
-                        modifier = Modifier.fillMaxSize(),
-                        content = content,
-                        baseUrl = link,
-                        refererDomain = link.extractDomain(),
-                        onImageClick = onImageClick,
-                    )
-                    Spacer(modifier = Modifier.height(128.dp))
-                    Spacer(modifier = Modifier.height(contentPadding.calculateBottomPadding()))
-                }
+                RYWebView(
+                    modifier = Modifier.fillMaxSize(),
+                    content = content,
+                    baseUrl = link,
+                    refererDomain = link.extractDomain(),
+                    onImageClick = onImageClick,
+                )
+                Spacer(modifier = Modifier.height(128.dp))
+                Spacer(modifier = Modifier.height(contentPadding.calculateBottomPadding()))
             }
         }
     }
