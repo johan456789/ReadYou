@@ -4,9 +4,14 @@ import android.content.Context
 import android.content.Intent
 import android.os.Looper
 import android.util.Log
-import me.ash.reader.infrastructure.exception.BusinessException
+import me.ash.reader.R
 import me.ash.reader.ui.ext.showToastLong
 import java.lang.Thread.UncaughtExceptionHandler
+import java.net.ConnectException
+import java.net.NoRouteToHostException
+import java.net.SocketException
+import java.net.SocketTimeoutException
+import java.net.UnknownHostException
 
 /**
  * The uncaught exception handler for the application.
@@ -24,21 +29,39 @@ class CrashHandler(private val context: Context) : UncaughtExceptionHandler {
         val causeMessage = getCauseMessage(p1)
         Log.e("RLog", "uncaughtException: $causeMessage", p1)
 
-        when (p1) {
-            is BusinessException -> {
-                context.startActivity(Intent(context, CrashReportActivity::class.java).apply {
-                    flags = Intent.FLAG_ACTIVITY_NEW_TASK
-                    putExtra(CrashReportActivity.ERROR_REPORT_KEY, p1.stackTraceToString())
-                })
-            }
+        val rootCause = getRootCause(p1)
+        if (isNetworkException(rootCause)) {
+            showToastOnMainThread(context.getString(R.string.server_unreachable))
+            return
+        }
 
-            else -> {
-                context.startActivity(Intent(context, CrashReportActivity::class.java).apply {
-                    flags = Intent.FLAG_ACTIVITY_NEW_TASK
-                    putExtra(CrashReportActivity.ERROR_REPORT_KEY, p1.stackTraceToString())
-                })
+        context.startActivity(Intent(context, CrashReportActivity::class.java).apply {
+            flags = Intent.FLAG_ACTIVITY_NEW_TASK
+            putExtra(CrashReportActivity.ERROR_REPORT_KEY, p1.stackTraceToString())
+        })
+    }
+
+    private fun isNetworkException(throwable: Throwable): Boolean {
+        return throwable is ConnectException ||
+                throwable is UnknownHostException ||
+                throwable is SocketTimeoutException ||
+                throwable is SocketException ||
+                throwable is NoRouteToHostException
+    }
+
+    private fun showToastOnMainThread(message: String) {
+        if (Looper.myLooper() == Looper.getMainLooper()) {
+            context.showToastLong(message)
+        } else {
+            android.os.Handler(Looper.getMainLooper()).post {
+                context.showToastLong(message)
             }
         }
+    }
+
+    private tailrec fun getRootCause(throwable: Throwable): Throwable {
+        val cause = throwable.cause
+        return if (cause == null) throwable else getRootCause(cause)
     }
 
     private fun getCauseMessage(e: Throwable?): String? {
