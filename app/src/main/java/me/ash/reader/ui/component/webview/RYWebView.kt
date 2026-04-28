@@ -141,6 +141,7 @@ fun RYWebView(
         else if (readingFonts is ReadingFontsPreference.GoogleSans) {
             "/android_res/font/google_sans_flex.ttf"
         } else null
+    val htmlBaseUrl = baseUrl ?: "about:blank"
 
     AndroidView(
         modifier = modifier,
@@ -151,7 +152,7 @@ fun RYWebView(
             Log.i("RLog", "CustomWebView: ${content}")
             wv.settings.defaultFontSize = fontSize
             wv.loadDataWithBaseURL(
-                null,
+                htmlBaseUrl,
                 WebViewHtml.HTML.format(
                     WebViewStyle.get(
                         fontSize = fontSize,
@@ -174,7 +175,7 @@ fun RYWebView(
                         selectionTextColor = selectionTextColor,
                         selectionBgColor = selectionBgColor,
                     ),
-                    baseUrl.orEmpty(),
+                    htmlBaseUrl,
                     content,
                     WebViewScript.get(boldCharacters.value),
                 ),
