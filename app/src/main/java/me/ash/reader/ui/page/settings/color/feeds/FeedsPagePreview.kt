@@ -88,6 +88,7 @@ fun FeedsPagePreview(
             GroupItem(
                 isExpanded = { groupListExpand.value },
                 group = generateGroupPreview(),
+                importantCount = 100,
             )
             FeedItemExpandSwitcher(
                 isExpanded = groupListExpand.value
