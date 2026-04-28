@@ -187,7 +187,6 @@
     <string name="bold">太字</string>
     <string name="advanced">高度な設定</string>
     <string name="title_desc">太字、大文字、配置</string>
-    <string name="maximize">最大化</string>
     <string name="every_15_minutes">15分ごと</string>
     <string name="every_2_hours">2時間ごと</string>
     <string name="every_3_hours">3時間ごと</string>
@@ -296,7 +295,6 @@
     <string name="export_as_json">JSONにエクスポート</string>
     <string name="invalid_json_file_warning">これは正常なJSONファイルでないかもしれません。インポートするとアプリが破損し設定が失われる可能性があります。続行しますか？</string>
     <string name="read_aloud">読み上げ</string>
-    <string name="only_available_on_webview">WebViewレンダラーの利用時のみ利用可能</string>
     <string name="mark_as_read_on_scroll">スクロールした際に既読にする</string>
     <string name="hide_empty_groups">空のグループを隠す</string>
     <string name="become_a_sponsor">スポンサーになる</string>

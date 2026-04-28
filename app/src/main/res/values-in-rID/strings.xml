@@ -195,7 +195,6 @@
     <string name="text_desc">Ukuran fon, jarak antar kata, kesejajaran</string>
     <string name="images_desc">Sudut membulat, padding horizontal</string>
     <string name="videos_desc">Sudut membulat, padding horizontal</string>
-    <string name="maximize">Perbesar</string>
     <string name="block_list">Daftar blokir</string>
     <string name="every_2_hours">Setiap 2 jam</string>
     <string name="more">Lebih banyak</string>
@@ -291,7 +290,6 @@
     <string name="unfold_more">Buka semua</string>
     <string name="unfold_less">Tutup semua</string>
     <string name="invalid_protobuf_file_warning">Berkas ini mungkin bukan berkas protobuf yang valid. Mengimpornya berpotensi merusak aplikasi dan mengakibatkan hilangnya preferensi saat ini. Apakah Anda yakin ingin melanjutkan?</string>
-    <string name="content_renderer">Perender konten</string>
     <string name="read_aloud">Baca dengan lantang</string>
     <string name="about">Tentang</string>
     <string name="troubleshooting">Pemecahan Masalah</string>
@@ -303,8 +301,6 @@
     <string name="import_from_json">Impor dari JSON</string>
     <string name="export_as_json">Ekspor sebagai JSON</string>
     <string name="invalid_json_file_warning">Berkas ini mungkin bukan berkas JSON yang valid. Mengimpornya berpotensi merusak aplikasi dan mengakibatkan hilangnya preferensi saat ini. Apakah Anda yakin ingin melanjutkan?</string>
-    <string name="native_component">Komponen Asli</string>
-    <string name="only_available_on_webview">Hanya tersedia saat menggunakan renderer konten webview</string>
     <string name="mark_as_read_on_scroll">Baca sebagai dibaca saat digulir</string>
     <string name="become_a_sponsor">Jadilah sponsor</string>
     <string name="toolbars">Bilah alat</string>

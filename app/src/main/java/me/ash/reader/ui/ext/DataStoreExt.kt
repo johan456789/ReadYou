@@ -167,7 +167,6 @@ sealed interface PreferencesKey {
         const val flowSortUnreadArticles = "flowArticleListSortUnreadArticles"
 
         // Reading page
-        const val readingRenderer = "readingRender"
         const val readingBoldCharacters = "readingBoldCharacters"
         const val readingPageTonalElevation = "readingPageTonalElevation"
         const val readingTextFontSize = "readingTextFontSize"
@@ -185,7 +184,6 @@ sealed interface PreferencesKey {
         const val readingSubheadBold = "readingSubheadBold"
         const val readingTitleUpperCase = "readingTitleUpperCase"
         const val readingSubheadUpperCase = "readingSubheadUpperCase"
-        const val readingImageMaximize = "readingImageMaximize"
         const val readingImageHorizontalPadding = "readingImageHorizontalPadding"
         const val readingImageRoundedCorners = "readingImageRoundedCorners"
 
@@ -244,7 +242,6 @@ sealed interface PreferencesKey {
                 IntKey(flowArticleListReadIndicator),
                 BooleanKey(flowSortUnreadArticles),
                 // Reading page
-                IntKey(readingRenderer),
                 BooleanKey(readingBoldCharacters),
                 IntKey(readingPageTonalElevation),
                 IntKey(readingTextFontSize),
@@ -262,7 +259,6 @@ sealed interface PreferencesKey {
                 BooleanKey(readingSubheadBold),
                 BooleanKey(readingTitleUpperCase),
                 BooleanKey(readingSubheadUpperCase),
-                BooleanKey(readingImageMaximize),
                 IntKey(readingImageHorizontalPadding),
                 IntKey(readingImageRoundedCorners),
                 // Interaction

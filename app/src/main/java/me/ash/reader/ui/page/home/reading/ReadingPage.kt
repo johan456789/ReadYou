@@ -15,7 +15,6 @@ import androidx.compose.animation.togetherWith
 import androidx.compose.foundation.ExperimentalFoundationApi
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.fillMaxSize
-import androidx.compose.foundation.lazy.LazyListState
 import androidx.compose.foundation.rememberScrollState
 import androidx.compose.material.ExperimentalMaterialApi
 import androidx.compose.material3.LocalTextStyle
@@ -28,7 +27,6 @@ import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
 import androidx.compose.runtime.rememberCoroutineScope
-import androidx.compose.runtime.saveable.rememberSaveable
 import androidx.compose.runtime.setValue
 import androidx.compose.runtime.snapshotFlow
 import androidx.compose.ui.Alignment
@@ -45,9 +43,7 @@ import me.ash.reader.R
 import me.ash.reader.infrastructure.android.TextToSpeechManager
 import me.ash.reader.infrastructure.preference.LocalPullToSwitchArticle
 import me.ash.reader.infrastructure.preference.LocalReadingAutoHideToolbar
-import me.ash.reader.infrastructure.preference.LocalReadingBoldCharacters
 import me.ash.reader.infrastructure.preference.LocalReadingTextLineHeight
-import me.ash.reader.infrastructure.preference.not
 import me.ash.reader.ui.ext.collectAsStateValue
 import me.ash.reader.ui.ext.showToast
 import me.ash.reader.ui.page.adaptive.ArticleListReaderViewModel
@@ -73,8 +69,6 @@ fun ReadingPage(
     val isPullToSwitchArticleEnabled = LocalPullToSwitchArticle.current.value
     val readingUiState = viewModel.readingUiState.collectAsStateValue()
     val readerState = viewModel.readerStateStateFlow.collectAsStateValue()
-    val boldCharacters = LocalReadingBoldCharacters.current
-    val coroutineScope = rememberCoroutineScope()
 
     var isReaderScrollingDown by remember { mutableStateOf(false) }
     var showFullScreenImageViewer by remember { mutableStateOf(false) }
@@ -192,14 +186,6 @@ fun ReadingPage(
                                             } else null,
                                     )
 
-                                val listState =
-                                    rememberSaveable(
-                                        inputs = arrayOf(content),
-                                        saver = LazyListState.Saver,
-                                    ) {
-                                        LazyListState()
-                                    }
-
                                 val scrollState = rememberScrollState()
 
                                 val scope = rememberCoroutineScope()
@@ -208,11 +194,7 @@ fun ReadingPage(
                                     if (bringToTop) {
                                         scope
                                             .launch {
-                                                if (scrollState.value != 0) {
-                                                    scrollState.animateScrollTo(0)
-                                                } else if (listState.firstVisibleItemIndex != 0) {
-                                                    listState.animateScrollToItem(0)
-                                                }
+                                                scrollState.animateScrollTo(0)
                                             }
                                             .invokeOnCompletion { bringToTop = false }
                                     }
@@ -220,8 +202,7 @@ fun ReadingPage(
 
                                 showTopDivider =
                                     snapshotFlow {
-                                            scrollState.value >= 120 ||
-                                                listState.firstVisibleItemIndex != 0
+                                            scrollState.value >= 120
                                         }
                                         .collectAsStateValue(initial = false)
 
@@ -261,7 +242,6 @@ fun ReadingPage(
                                             publishedDate = publishedDate,
                                             isLoading = content is ReaderState.Loading,
                                             scrollState = scrollState,
-                                            listState = listState,
                                             onImageClick = { imgUrl, altText ->
                                                 currentImageData = ImageData(imgUrl, altText)
                                                 showFullScreenImageViewer = true
@@ -287,7 +267,6 @@ fun ReadingPage(
                         isFullContent =
                             readerState.content is ReaderState.FullContent ||
                                 readerState.content is ReaderState.Error,
-                        isBoldCharacters = boldCharacters.value,
                         onRead = { viewModel.updateReadStatus(it) },
                         onStarred = { viewModel.updateStarredStatus(it) },
                         onNextArticle = {
@@ -299,12 +278,6 @@ fun ReadingPage(
                         onFullContent = {
                             if (it) viewModel.renderFullContent()
                             else viewModel.renderDescriptionContent()
-                        },
-                        onBoldCharacters = { (!boldCharacters).put(context, coroutineScope) },
-                        onReadAloud = {
-                            viewModel.textToSpeechManager.readHtml(
-                                readerState.content.text ?: return@BottomBar
-                            )
                         },
                         ttsButton = {
                             TtsButton(

@@ -201,7 +201,6 @@
     <string name="text_desc">Taille de police, espacement des lettres, alignement</string>
     <string name="images_desc">Coins arrondis, rembourrage horizontal</string>
     <string name="videos_desc">Coins arrondis, rembourrage horizontal</string>
-    <string name="maximize">Maximiser</string>
     <string name="synchronous_tips">Un redémarrage est requis pour que les changements prennent effet</string>
     <string name="delete_account">Supprimer le compte</string>
     <string name="clear_all_articles_tips">Êtes-vous sûr de vouloir effacer les listes d’article pour ce compte \?</string>
@@ -306,10 +305,7 @@
     <string name="invalid_json_file_warning">Ce fichier n\'est peut-être pas un fichier JSON valide. L\'importer pourrait potentiellement corrompre l\'application et entraîner la perte des préférences actuelles. Êtes-vous sur de vouloir continuer ?</string>
     <string name="unfold_less">Réduire tout</string>
     <string name="unfold_more">Développer tout</string>
-    <string name="native_component">Composant natif</string>
-    <string name="content_renderer">Rendement de contenu</string>
     <string name="read_aloud">Lecture à voix haute</string>
-    <string name="only_available_on_webview">Uniquement disponible en utilisant le rendement de contenu WebView</string>
     <string name="about">À Propos</string>
     <string name="hide_empty_groups">Masquer les groupes vides</string>
     <string name="all_open_in_browser_tips">Ouvrir tous les articles du groupe « %1$s » à l\'aide du navigateur</string>

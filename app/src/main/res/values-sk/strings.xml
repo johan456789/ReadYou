@@ -274,7 +274,6 @@
     <string name="justify">Zarovnať</string>
     <string name="use_app_theme">Použiť tému aplikácie</string>
     <string name="advanced">Pokročilé</string>
-    <string name="maximize">Maximalizovať</string>
     <string name="auto_customtabs">Auto (preferovať vlastné karty)</string>
     <string name="auto_default_browser">Auto (preferovať predvolený prehliadač)</string>
     <string name="swipe_to_start">Potiahnutie doľava</string>
@@ -306,11 +305,8 @@
     <string name="invalid_json_file_warning">Tento súbor nemusí byť platným súborom JSON. Jeho importovanie môže spôsobiť poškodenie aplikácie a stratu aktuálnych predvolieb. Ste si istí, že chcete pokračovať?</string>
     <string name="unfold_more">Rozbaliť všetko</string>
     <string name="unfold_less">Zbaliť všetko</string>
-    <string name="native_component">Natívny komponent</string>
     <string name="read_aloud">Čítať nahlas</string>
     <string name="about">Informácie</string>
-    <string name="content_renderer">Zobrazovač obsahu</string>
-    <string name="only_available_on_webview">Dostupné len vo WebView</string>
     <string name="mark_as_read_on_scroll">Označiť ako prečítané pri posúvaní</string>
     <string name="toolbars">Panely nástrojov</string>
     <string name="sponsor_desc">Túto bezplatnú aplikáciu s otvoreným zdrojovým kódom vytvárame a spravujeme vo voľnom čase. Ak sa vám páči, zvážte, či nás podporíte malým darom! ☕️</string>

@@ -196,7 +196,6 @@
     <string name="text_desc">Tamany de font, espaiat de lletra, alineament</string>
     <string name="images_desc">Cantonades rodones, farcit horitzontal</string>
     <string name="videos_desc">Cantonades rodones, farcit horitzontal</string>
-    <string name="maximize">Maximitzar</string>
     <string name="every_15_minutes">Cada 15 minuts</string>
     <string name="every_30_minutes">Cada 30 minuts</string>
     <string name="every_1_hour">Cada hora</string>

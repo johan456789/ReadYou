@@ -195,7 +195,6 @@
     <string name="text_desc">字型大小、字元間距、對齊</string>
     <string name="images_desc">圓角、水平邊距</string>
     <string name="videos_desc">圓角、水平邊距</string>
-    <string name="maximize">最大化</string>
     <string name="only_when_charging">僅限充電時</string>
     <string name="must_have_an_account">至少須有一帳戶</string>
     <string name="for_1_month">1 個月</string>
@@ -300,10 +299,7 @@
     <string name="invalid_json_file_warning">此檔案可能不是有效的 JSON 檔案。匯入它可能會損壞應用程式並導致目前的偏好設定遺失。你確定要繼續嗎？</string>
     <string name="unfold_more">全部展開</string>
     <string name="unfold_less">全部收合</string>
-    <string name="native_component">原生元件</string>
-    <string name="content_renderer">內容繪製器</string>
     <string name="read_aloud">朗讀</string>
-    <string name="only_available_on_webview">僅限於 WebView</string>
     <string name="about">關於</string>
     <string name="toolbars">工具列</string>
     <string name="mark_as_read_on_scroll">捲動時標記為已讀</string>

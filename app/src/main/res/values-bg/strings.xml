@@ -204,7 +204,6 @@
     <string name="subhead">Подзаглавие</string>
     <string name="upper_case">Главни букви</string>
     <string name="every_3_hours">На всеки 3 часа</string>
-    <string name="maximize">Максимално</string>
     <string name="every_15_minutes">На всеки 15 минути</string>
     <string name="every_6_hours">На всеки 6 часа</string>
     <string name="top_bar">Горна лента</string>
@@ -299,15 +298,12 @@
     <string name="unexpected_error_msg">Приложението срещна неочаквана грешка и се затвори.\n\nЗа да ни помогнете бързо да идентифицираме и отстраним този проблем, можете да %1$s използвате трасирането на стека по-долу.</string>
     <string name="next_article">Следваща статия</string>
     <string name="open_link_ask_dialog_title">Отвори с…</string>
-    <string name="content_renderer">Рендеринг на съдържание</string>
     <string name="read_aloud">Прочитане на глас</string>
     <string name="about">Относно</string>
     <string name="save">Запази</string>
     <string name="tips_group_list_tonal_elevation">Цветовото отстъпление за списъка с групи е налично само в светла тема</string>
     <string name="server_url">Сървър URL</string>
     <string name="include_additional_info">Включи допълнителна информация</string>
-    <string name="only_available_on_webview">Налично само при използване на визуализатора на съдържание WebView</string>
-    <string name="native_component">Собствен компонент</string>
     <string name="mark_as_read_on_scroll">Маркирай като прочетено при превъртане</string>
     <string name="become_a_sponsor">Станете спонсор</string>
     <string name="sponsor_desc">Ние изграждаме и поддържаме това безплатно приложение с отворен код в свободното си време. Ако ви харесва, моля, помислете дали да ни подкрепите с малко дарение!! ☕️</string>

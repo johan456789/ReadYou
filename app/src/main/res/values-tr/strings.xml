@@ -134,7 +134,6 @@
     <string name="text_desc">Yazı tipi boyutu, harf aralığı, hizalama</string>
     <string name="images_desc">Yuvarlatılmış köşeler, yatay dolgu</string>
     <string name="videos_desc">Yuvarlatılmış köşeler, yatay dolgu</string>
-    <string name="maximize">Büyüt</string>
     <string name="defaults">Varsayılan</string>
     <string name="search">Ara</string>
     <string name="deny">Reddet</string>
@@ -304,7 +303,6 @@
     <string name="unfold_more">Tümünü genişlet</string>
     <string name="unfold_less">Tümünü daralt</string>
     <string name="read_aloud">Yüksek sesle oku</string>
-    <string name="native_component">Yerel bileşen</string>
     <string name="hide_empty_groups">Boş grupları gizle</string>
     <string name="about">Hakkında</string>
     <string name="latest">En son</string>
@@ -327,7 +325,5 @@
     <string name="notifications">Bildirimler</string>
     <string name="all_deny_open_in_browser_toast">\"%1$s\" grubundaki tüm makaleleri varsayılan tarayıcıda açma işlemi engellendi.</string>
     <string name="client_certificate">İstemci sertifikası (isteğe bağlı)</string>
-    <string name="content_renderer">İçerik Oluşturucu</string>
-    <string name="only_available_on_webview">Yalnızca WebView içerik işleyicisi kullanılırken kullanılabilir</string>
     <string name="mark_as_read_on_scroll">Kaydırınca okundu olarak işaretle</string>
 </resources>

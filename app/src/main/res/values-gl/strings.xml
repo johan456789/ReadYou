@@ -162,7 +162,6 @@
     <string name="text_desc">Tamaño de letra, espaciado e aliñamento</string>
     <string name="images_desc">Esquinas arredondadas e espaciado horizontal</string>
     <string name="videos_desc">Esquinas arredondadas e espaciado horizontal</string>
-    <string name="maximize">Maximizar</string>
     <string name="every_15_minutes">Cada 15 minutos</string>
     <string name="every_30_minutes">Cada 30 minutos</string>
     <string name="every_1_hour">Cada hora</string>
@@ -308,10 +307,7 @@
     <string name="import_from_json">Importar desde JSON</string>
     <string name="export_as_json">Exportar como JSON</string>
     <string name="invalid_json_file_warning">Este ficheiro pode non ser un ficheiro JSON válido. Importalo podería chegar a corromper a aplicación e conlevar a perda da configuración actual. Queres proceder?</string>
-    <string name="native_component">Compoñente nativo</string>
-    <string name="content_renderer">Renderizador de contido</string>
     <string name="read_aloud">Ler en voz alta</string>
-    <string name="only_available_on_webview">Só dispoñible cando se usa o renderizador de contido WebView</string>
     <string name="about">Acerca de</string>
     <string name="hide_empty_groups">Agochar grupos baleiros</string>
     <string name="become_a_sponsor">Volverse un patrocinador</string>

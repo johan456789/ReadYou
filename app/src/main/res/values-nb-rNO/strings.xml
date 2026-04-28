@@ -122,7 +122,6 @@
     <string name="subhead">Undertittel</string>
     <string name="use_app_theme">Ifør programdrakt</string>
     <string name="advanced">Avansert</string>
-    <string name="maximize">Maksimer</string>
     <string name="all_parse_full_content_tips">Full innholdsfortokning a alle artikler i «%1$s»-gruppen.</string>
     <string name="open_with">Åpne %1$s</string>
     <string name="accounts_desc">Lokal, FreshRSS</string>

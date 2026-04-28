@@ -144,5 +144,4 @@
     <string name="export_as_json">Exportar como JSON</string>
     <string name="export_as_protobuf_file">Exportar como file protobuf</string>
     <string name="about">A proposito de</string>
-    <string name="only_available_on_webview">Solmente disponibile sur WebView</string>
 </resources>

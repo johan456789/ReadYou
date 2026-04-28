@@ -240,7 +240,6 @@
     <string name="dark_reading_theme">Malhela legada haŭto</string>
     <string name="title_desc">Grasa, majuskla, vicigo</string>
     <string name="videos_desc">Rondigitaj anguloj, horizontala remburaĵo</string>
-    <string name="maximize">Maksimumigi</string>
     <string name="every_30_minutes">Ĉiujn 30 minutojn</string>
     <string name="every_12_hours">Ĉiujn 12 horojn</string>
     <string name="local_desc">En ĉi tiu aparato</string>
@@ -269,7 +268,6 @@
     <string name="mark_above_as_read">Marki suprajn kiel legitajn</string>
     <string name="import_from_json">Importi el JSON</string>
     <string name="export_as_json">Eksporti kiel JSON</string>
-    <string name="content_renderer">Enhava bildigilo</string>
     <string name="toolbars">Ilobretoj</string>
     <string name="pull_to_switch_feed">Tiri por ŝarĝi sekvan fluon</string>
     <string name="image_saved">Bildo savita</string>
@@ -300,7 +298,6 @@
     <string name="troubleshooting_desc">Cimraporto, apaj perferoj</string>
     <string name="permission_denied">Permeso rifuzita</string>
     <string name="about">Pri</string>
-    <string name="only_available_on_webview">Nur disponebla uzante la WebView enhava bildigilo</string>
     <string name="mark_as_read_on_scroll">Marki kiel legitan je rulumado</string>
     <string name="hide_empty_groups">Kaŝi senhavajn grupojn</string>
     <string name="become_a_sponsor">Iĝi sponsoro</string>

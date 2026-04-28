@@ -216,7 +216,6 @@
     <string name="advanced">Avançado</string>
     <string name="dark_reading_theme">Tema escuro durante a leitura</string>
     <string name="videos_desc">Cantos arredondados, espaçamento horizontal</string>
-    <string name="maximize">Maximizar</string>
     <string name="every_15_minutes">A cada 15 minutos</string>
     <string name="every_30_minutes">A cada 30 minutos</string>
     <string name="every_1_hour">A cada hora</string>
@@ -306,10 +305,7 @@
     <string name="unfold_less">Ocultar tudo</string>
     <string name="import_from_json">Importar de JSON</string>
     <string name="export_as_json">Exportar de JSON</string>
-    <string name="native_component">Componente nativo</string>
-    <string name="content_renderer">Renderizador de conteúdo</string>
     <string name="read_aloud">Ler em voz alta</string>
-    <string name="only_available_on_webview">Disponível apenas usando o renderizador de conteúdo do WebView</string>
     <string name="about">Sobre</string>
     <string name="mark_as_read_on_scroll">Marcar como lido na rolagem</string>
     <string name="toolbars">Barras de ferramentas</string>

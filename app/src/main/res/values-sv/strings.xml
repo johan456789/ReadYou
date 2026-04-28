@@ -169,7 +169,6 @@
     <string name="text_desc">Teckenstorlek, ordmellanrum, rättningslinje</string>
     <string name="images_desc">Rundade hörn, horisontell utfyllnad</string>
     <string name="videos_desc">Rundade hörn, horisontell utfyllnad</string>
-    <string name="maximize">Maximera</string>
     <string name="unread">Oläst</string>
     <plurals name="starred_desc">
         <item quantity="one">%1$d Stjärnmärkt artikel</item>

@@ -213,7 +213,6 @@
     <string name="title_desc">Жирний, верхній регістр, вирівнювання</string>
     <string name="images_desc">Заокруглені кути, горизонтальні відступи</string>
     <string name="videos_desc">Заокруглені кути, горизонтальні відступи</string>
-    <string name="maximize">Збільшити</string>
     <string name="every_1_hour">Кожну годину</string>
     <string name="every_2_hours">Кожні 2 години</string>
     <string name="for_1_day">1 день</string>
@@ -309,10 +308,7 @@
     <string name="invalid_json_file_warning">Цей файл може бути недійсним файлом JSON. Імпорт може потенційно пошкодити застосунок і призвести до втрати поточних налаштувань. Ви впевнені, що хочете продовжити?</string>
     <string name="unfold_more">Розгорнути все</string>
     <string name="unfold_less">Згорнути все</string>
-    <string name="native_component">Рідний компонент</string>
-    <string name="content_renderer">Обробник вмісту</string>
     <string name="read_aloud">Читати вголос</string>
-    <string name="only_available_on_webview">Доступно лише під час використання рендерера контенту WebView</string>
     <string name="about">Про застосунок</string>
     <string name="mark_as_read_on_scroll">Позначити як прочитане при прокручуванні</string>
     <string name="become_a_sponsor">Стати спонсором</string>

@@ -233,7 +233,6 @@
     <string name="only_when_charging">Vaid, siis kui laadija on ühendatud</string>
     <string name="add">Lisa</string>
     <string name="only_on_wifi">Vaid WiFi võrgus</string>
-    <string name="maximize">Täisvaatesse</string>
     <string name="local">Kohalik</string>
     <string name="tips_top_bar_tonal_elevation">Ülemise riba eristamine värvitooniga on saadaval vaid kerimisel</string>
     <string name="tips_group_list_tonal_elevation">Gruppide loendi eristamine värvitooniga on saadaval vaid heledas kujunduses</string>
@@ -246,7 +245,6 @@
     <string name="copy_error_report">Kopeeri veaaruanne</string>
     <string name="bug_report">Veateated</string>
     <string name="troubleshooting">Veaotsing</string>
-    <string name="native_component">Rakenduse oma teek</string>
     <string name="client_certificate">Kliendisertifikaat (valikuline)</string>
     <string name="connection">Ühendus</string>
     <string name="custom_tabs">Sunni kasutama kohandatud vahekaarte</string>
@@ -278,8 +276,6 @@
     <string name="save">Salvesta</string>
     <string name="import_from_protobuf_file">Impordi protobufi failist</string>
     <string name="export_as_protobuf_file">Ekspordi protobufi faili</string>
-    <string name="content_renderer">Sisu kuvamismootor</string>
-    <string name="only_available_on_webview">Kasutatav vaid, siis kui WebView renderdab sisu</string>
     <string name="read_aloud">Loe valjult ette</string>
     <string name="about">Teave</string>
     <string name="for_2_weeks">2 nädalat</string>

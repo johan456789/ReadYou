@@ -45,7 +45,6 @@ data class Settings(
     val flowSortUnreadArticles: SortUnreadArticlesPreference = SortUnreadArticlesPreference.default,
 
     // Reading page
-    val readingRenderer: ReadingRendererPreference = ReadingRendererPreference.default,
     val readingBoldCharacters: ReadingBoldCharactersPreference = ReadingBoldCharactersPreference.default,
     val readingTheme: ReadingThemePreference = ReadingThemePreference.default,
     val readingPageTonalElevation: ReadingPageTonalElevationPreference = ReadingPageTonalElevationPreference.default,
@@ -65,7 +64,6 @@ data class Settings(
     val readingSubheadUpperCase: ReadingSubheadUpperCasePreference = ReadingSubheadUpperCasePreference.default,
     val readingImageHorizontalPadding: Int = ReadingImageHorizontalPaddingPreference.default,
     val readingImageRoundedCorners: Int = ReadingImageRoundedCornersPreference.default,
-    val readingImageMaximize: ReadingImageMaximizePreference = ReadingImageMaximizePreference.default,
 
     // Interaction
     val initialPage: InitialPagePreference = InitialPagePreference.default,
@@ -83,4 +81,3 @@ data class Settings(
     // Languages
     val languages: LanguagesPreference = LanguagesPreference.default,
 )
-

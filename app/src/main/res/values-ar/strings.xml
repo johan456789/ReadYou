@@ -214,7 +214,6 @@
     <string name="videos_desc">الزوايا المقوَّسة، الإزاحة الأفقيَّة</string>
     <string name="feed_favicons">الأيقونات المفضَّلة للتلقيمات</string>
     <string name="filter_bar">شريط التصفية</string>
-    <string name="maximize">كبِّر</string>
     <string name="checking_updates">قيد البحث عن التحديثات…</string>
     <string name="download_failure">تعذَّر تنزيل التحديثات</string>
     <string name="preview_article_title">اختُتمت رواية «سيِّد الخفايا» أخيرًا</string>
@@ -316,10 +315,7 @@
     <string name="unfold_more">وسِّع الكل</string>
     <string name="unfold_less">اطوِ الكل</string>
     <string name="read_aloud">اقرأ بصوت</string>
-    <string name="only_available_on_webview">متاح فقط عند استخدام عارض محتوى WebView</string>
     <string name="about">حول التطبيق</string>
-    <string name="native_component">المكون الأصلي</string>
-    <string name="content_renderer">مسجل المحتوى</string>
     <string name="mark_as_read_on_scroll">وضع علامة مقروء على التمرير</string>
     <string name="become_a_sponsor">كن داعما</string>
     <string name="sponsor_desc">نحن نبني ونطور هذا التطبيق المجاني مفتوح المصدر في وقت فراغنا. إذا أعجبك، يُرجى التفكير في دعمنا بتبرع بسيط! ☕️</string>
