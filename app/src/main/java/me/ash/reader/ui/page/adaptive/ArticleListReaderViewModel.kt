@@ -457,7 +457,7 @@ data class ReadingUiState(
     fun withReadState(isRead: Boolean): ReadingUiState =
         copy(
             articleWithFeed =
-                articleWithFeed?.copy(article = articleWithFeed.article.copy(isUnread = !isRead)),
+                articleWithFeed?.copy(article = articleWithFeed.article.copy(isRead = isRead)),
             isRead = isRead,
         )
 }

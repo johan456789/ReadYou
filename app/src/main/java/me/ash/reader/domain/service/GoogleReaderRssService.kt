@@ -387,7 +387,7 @@ constructor(
                     articleDao.markAsReadByIdSet(
                         accountId = accountId,
                         ids = it.toSet(),
-                        storedUnread = false,
+                        isRead = true,
                     )
                 }
             }
@@ -407,7 +407,7 @@ constructor(
                     articleDao.markAsReadByIdSet(
                         accountId = accountId,
                         ids = it.toSet(),
-                        storedUnread = true,
+                        isRead = false,
                     )
                 }
             }
@@ -569,19 +569,19 @@ constructor(
 
             val localStarredIds =
                 articleDao
-                    .queryMetadataByFeedId(accountId, feedId, isUnread = true)
+                    .queryMetadataByFeedId(accountId, feedId, isRead = false)
                     .map { it.id.remoteId }
                     .toSet()
 
             val localUnreadIds =
                 articleDao
-                    .queryMetadataByFeedId(accountId, feedId, isUnread = true)
+                    .queryMetadataByFeedId(accountId, feedId, isRead = false)
                     .map { it.id.remoteId }
                     .toSet()
 
             val localReadIds =
                 articleDao
-                    .queryMetadataByFeedId(accountId, feedId, isUnread = false)
+                    .queryMetadataByFeedId(accountId, feedId, isRead = true)
                     .map { it.id.remoteId }
                     .toSet()
 
@@ -651,7 +651,7 @@ constructor(
                         articleDao.markAsReadByIdSet(
                             accountId = accountId,
                             ids = it.toSet(),
-                            storedUnread = false,
+                            isRead = true,
                         )
                     }
             }
@@ -673,7 +673,7 @@ constructor(
                         articleDao.markAsReadByIdSet(
                             accountId = accountId,
                             ids = it.toSet(),
-                            storedUnread = true,
+                            isRead = false,
                         )
                     }
             }
@@ -773,7 +773,7 @@ constructor(
                                         it.origin?.streamId?.ofFeedStreamIdToId()!!
                                     ),
                                 accountId = accountId,
-                                isUnread = unreadIds.contains(articleId),
+                                isRead = !unreadIds.contains(articleId),
                                 isStarred = starredIds.contains(articleId),
                                 updateAt =
                                     updated?.let { Date(updated * 1000L) }
@@ -819,7 +819,6 @@ constructor(
         before: Date?,
         markRead: Boolean,
     ) {
-        val storedUnread = !markRead
         val accountId = accountService.getCurrentAccountId()
         val googleReaderAPI = getGoogleReaderAPI()
         val markList: List<String> =
@@ -829,13 +828,13 @@ constructor(
                             articleDao.queryMetadataByGroupIdWhenIsUnread(
                                 accountId,
                                 groupId,
-                                isUnread = !storedUnread,
+                                isRead = !markRead,
                             )
                         } else {
                             articleDao.queryMetadataByGroupIdWhenIsUnread(
                                 accountId,
                                 groupId,
-                                isUnread = !storedUnread,
+                                isRead = !markRead,
                                 before = before,
                             )
                         }
@@ -844,9 +843,9 @@ constructor(
 
                 feedId != null -> {
                     if (before == null) {
-                            articleDao.queryMetadataByFeedId(accountId, feedId, isUnread = !storedUnread)
+                            articleDao.queryMetadataByFeedId(accountId, feedId, isRead = !markRead)
                         } else {
-                            articleDao.queryMetadataByFeedId(accountId, feedId, isUnread = !storedUnread, before = before)
+                            articleDao.queryMetadataByFeedId(accountId, feedId, isRead = !markRead, before = before)
                         }
                         .map { it.id.dollarLast() }
                 }
@@ -857,9 +856,9 @@ constructor(
 
                 else -> {
                     if (before == null) {
-                            articleDao.queryMetadataAll(accountId, isUnread = !storedUnread)
+                            articleDao.queryMetadataAll(accountId, isRead = !markRead)
                         } else {
-                            articleDao.queryMetadataAll(accountId, isUnread = !storedUnread, before = before)
+                            articleDao.queryMetadataAll(accountId, isRead = !markRead, before = before)
                         }
                         .map { it.id.dollarLast() }
                 }

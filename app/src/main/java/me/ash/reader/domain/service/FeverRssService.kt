@@ -245,7 +245,7 @@ constructor(
                             link = item.url ?: "",
                             feedId = accountId.spacerDollar(item.feed_id!!),
                             accountId = accountId,
-                            isUnread = (item.is_read ?: 0) <= 0,
+                            isRead = (item.is_read ?: 0) > 0,
                             isStarred = (item.is_saved ?: 0) > 0,
                             updateAt = preDate,
                         )
@@ -284,7 +284,7 @@ constructor(
                     articleDao.markAsReadByArticleId(
                         accountId = accountId,
                         articleId = meta.id,
-                        storedUnread = !shouldBeRead,
+                        isRead = shouldBeRead,
                     )
                 }
                 if (meta.isStarred != shouldBeStarred) {
