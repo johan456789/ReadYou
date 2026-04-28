@@ -58,8 +58,11 @@ class AccountViewModel @Inject constructor(
 
     fun update(accountId: Int, block: Account.() -> Account) {
         applicationScope.launch(ioDispatcher) {
-            accountService.update(accountId, block)
-            rssService.get(accountId).clearAuthorization()
+            accountService.getAccountById(accountId)?.let { account ->
+                val updatedAccount = account.run(block)
+                accountService.update(updatedAccount)
+                rssService.get(updatedAccount.type.id).clearAuthorization()
+            }
         }
     }
 
