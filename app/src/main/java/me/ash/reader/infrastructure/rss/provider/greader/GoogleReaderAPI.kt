@@ -9,6 +9,7 @@ import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.update
 import me.ash.reader.domain.data.SyncLogger
 import me.ash.reader.infrastructure.di.USER_AGENT_STRING
+import me.ash.reader.infrastructure.exception.AuthenticationException
 import me.ash.reader.infrastructure.exception.GoogleReaderAPIException
 import me.ash.reader.infrastructure.exception.RetryException
 import me.ash.reader.infrastructure.net.ApiResult
@@ -69,9 +70,15 @@ private constructor(
             authDataStateFlow.value = value
         }
 
-    suspend fun validCredentials(): Boolean {
-        val result = reAuthenticate().onSuccess { authData = it }
-        return result.isSuccess
+    suspend fun validCredentials() {
+        when (val result = reAuthenticate()) {
+            is ApiResult.Success -> {
+                authData = result.data
+            }
+            is ApiResult.NetworkError -> throw result.exception
+            is ApiResult.BizError -> throw AuthenticationException(result.exception.message ?: "Authentication failed")
+            is ApiResult.UnknownError -> throw result.throwable
+        }
     }
 
     suspend fun refreshCredentialsIfNeeded() {
@@ -109,8 +116,8 @@ private constructor(
 
         val clBody = clResponse.body.string()
         when (clResponse.code) {
-            400 -> return ApiResult.BizError(GoogleReaderAPIException("BadRequest for CL Token"))
-            401 -> return ApiResult.BizError(GoogleReaderAPIException("Unauthorized for CL Token"))
+            400 -> return ApiResult.BizError(GoogleReaderAPIException("Bad request"))
+            401 -> return ApiResult.BizError(GoogleReaderAPIException("Invalid credentials"))
             !in 200..299 -> {
                 return ApiResult.BizError(GoogleReaderAPIException(clBody))
             }

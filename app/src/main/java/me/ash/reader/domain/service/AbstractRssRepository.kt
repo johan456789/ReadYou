@@ -47,7 +47,7 @@ abstract class AbstractRssRepository(
     open val deleteSubscription: Boolean = true
     open val updateSubscription: Boolean = true
 
-    open suspend fun validCredentials(account: Account): Boolean = true
+    open suspend fun validCredentials(account: Account) {}
 
     open suspend fun clearAuthorization() {}
 

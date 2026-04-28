@@ -382,4 +382,6 @@
     <string name="parse_full_content_desc">Fetch full articles from webpages</string>
     <string name="enable">Enable</string>
     <string name="disable">Disable</string>
+    <string name="server_unreachable">Server unreachable. Check your network connection and server URL.</string>
+    <string name="unauthorized">Invalid credentials</string>
 </resources>
