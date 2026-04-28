@@ -4,7 +4,6 @@ import android.annotation.SuppressLint
 import android.content.Context
 import android.graphics.Color
 import android.webkit.JavascriptInterface
-import android.webkit.WebView
 import me.ash.reader.infrastructure.preference.ReadingFontsPreference
 
 object WebViewLayout {
@@ -15,8 +14,8 @@ object WebViewLayout {
         readingFontsPreference: ReadingFontsPreference,
         webViewClient: WebViewClient,
         onImageClick: ((imgUrl: String, altText: String) -> Unit)? = null,
-    ) =
-        WebView(context).apply {
+    ): HorizontalScrollAwareWebView {
+        return HorizontalScrollAwareWebView(context).apply {
             this.webViewClient = webViewClient
             scrollBarSize = 0
             isHorizontalScrollBarEnabled = false
@@ -61,4 +60,5 @@ object WebViewLayout {
                 }
             }
         }
+    }
 }
