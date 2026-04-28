@@ -16,11 +16,17 @@ plugins {
 }
 
 fun fetchGitCommitHash(): String {
-    val process =
-        ProcessBuilder("git", "rev-parse", "--verify", "--short", "HEAD")
-            .redirectErrorStream(true)
-            .start()
-    return process.inputStream.bufferedReader().use { it.readText().trim() }
+    val unknownCommitHash = "unknown"
+    return runCatching {
+        val process =
+            ProcessBuilder("git", "rev-parse", "--verify", "--short", "HEAD")
+                .redirectErrorStream(true)
+                .start()
+        val output = process.inputStream.bufferedReader().use { it.readText().trim() }
+        val exitCode = process.waitFor()
+
+        output.takeIf { exitCode == 0 && it.matches(Regex("[0-9a-fA-F]+")) }
+    }.getOrNull() ?: unknownCommitHash
 }
 
 val gitCommitHash = fetchGitCommitHash()
@@ -50,6 +56,12 @@ android {
             "String",
             "USER_AGENT_STRING",
             "\"ReadYou/${versionName}(${versionCode})\"",
+        )
+
+        buildConfigField(
+            "String",
+            "GIT_COMMIT_HASH",
+            "\"${gitCommitHash}\"",
         )
 
         testInstrumentationRunner = "androidx.test.runner.AndroidJUnitRunner"
