@@ -1,6 +1,11 @@
 package me.ash.reader.ui.component.webview
 
+import android.annotation.SuppressLint
+import android.content.Context
 import android.util.Log
+import android.view.MotionEvent
+import android.view.ViewConfiguration
+import android.webkit.WebView
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.getValue
@@ -13,6 +18,7 @@ import androidx.compose.ui.platform.LocalConfiguration
 import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.viewinterop.AndroidView
+import kotlin.math.abs
 import me.ash.reader.infrastructure.preference.LocalOpenLink
 import me.ash.reader.infrastructure.preference.LocalOpenLinkSpecificBrowser
 import me.ash.reader.infrastructure.preference.LocalReadingBoldCharacters
@@ -34,10 +40,51 @@ import me.ash.reader.ui.ext.openURL
 import me.ash.reader.ui.ext.surfaceColorAtElevation
 import me.ash.reader.ui.theme.palette.alwaysLight
 
+/**
+ * Custom WebView that detects horizontal gestures and tells parent views not to intercept.
+ * This allows horizontal scrolling in code blocks to work smoothly without triggering
+ * parent vertical scroll or page navigation.
+ */
+class HorizontalScrollAwareWebView(context: Context) : WebView(context) {
+    private var startX = 0f
+    private var startY = 0f
+    private var isHorizontalGesture: Boolean? = null
+    private val touchSlop = ViewConfiguration.get(context).scaledTouchSlop.toFloat()
+
+    @SuppressLint("ClickableViewAccessibility")
+    override fun dispatchTouchEvent(event: MotionEvent): Boolean {
+        when (event.actionMasked) {
+            MotionEvent.ACTION_DOWN -> {
+                startX = event.x
+                startY = event.y
+                isHorizontalGesture = null
+            }
+            MotionEvent.ACTION_MOVE -> {
+                if (isHorizontalGesture == null) {
+                    val dx = abs(event.x - startX)
+                    val dy = abs(event.y - startY)
+                    if (dx > touchSlop || dy > touchSlop) {
+                        isHorizontalGesture = dx > dy
+                        if (isHorizontalGesture == true) {
+                            // For horizontal gestures, tell parents not to intercept
+                            parent?.requestDisallowInterceptTouchEvent(true)
+                        }
+                    }
+                }
+            }
+            MotionEvent.ACTION_UP, MotionEvent.ACTION_CANCEL -> {
+                isHorizontalGesture = null
+            }
+        }
+        return super.dispatchTouchEvent(event)
+    }
+}
+
 @Composable
 fun RYWebView(
     modifier: Modifier = Modifier,
     content: String,
+    baseUrl: String? = null,
     refererDomain: String? = null,
     onImageClick: ((imgUrl: String, altText: String) -> Unit)? = null,
 ) {
@@ -94,49 +141,48 @@ fun RYWebView(
         else if (readingFonts is ReadingFontsPreference.GoogleSans) {
             "/android_res/font/google_sans_flex.ttf"
         } else null
+    val htmlBaseUrl = baseUrl ?: "about:blank"
 
     AndroidView(
         modifier = modifier,
         factory = { webView },
-        update = {
-            it.apply {
-                Log.i("RLog", "maxWidth: ${maxWidth}")
-                Log.i("RLog", "readingFont: ${context.filesDir.absolutePath}")
-                Log.i("RLog", "CustomWebView: ${content}")
-                settings.defaultFontSize = fontSize
-                loadDataWithBaseURL(
-                    null,
-                    WebViewHtml.HTML.format(
-                        WebViewStyle.get(
-                            fontSize = fontSize,
-                            fontPath = fontPath,
-                            lineHeight = lineHeight,
-                            letterSpacing = letterSpacing,
-                            textMargin = textMargin,
-                            textColor = textColor,
-                            textBold = textBold,
-                            textAlign = textAlign,
-                            boldTextColor = boldTextColor,
-                            subheadBold = subheadBold,
-                            subheadUpperCase = subheadUpperCase,
-                            imgMargin = imgMargin,
-                            imgBorderRadius = imgBorderRadius,
-                            linkTextColor = linkTextColor,
-                            codeTextColor = codeTextColor,
-                            codeBgColor = codeBgColor,
-                            tableMargin = textMargin,
-                            selectionTextColor = selectionTextColor,
-                            selectionBgColor = selectionBgColor,
-                        ),
-                        url,
-                        content,
-                        WebViewScript.get(boldCharacters.value),
+        update = { wv ->
+            Log.i("RLog", "maxWidth: ${maxWidth}")
+            Log.i("RLog", "readingFont: ${context.filesDir.absolutePath}")
+            Log.i("RLog", "CustomWebView: ${content}")
+            wv.settings.defaultFontSize = fontSize
+            wv.loadDataWithBaseURL(
+                htmlBaseUrl,
+                WebViewHtml.HTML.format(
+                    WebViewStyle.get(
+                        fontSize = fontSize,
+                        fontPath = fontPath,
+                        lineHeight = lineHeight,
+                        letterSpacing = letterSpacing,
+                        textMargin = textMargin,
+                        textColor = textColor,
+                        textBold = textBold,
+                        textAlign = textAlign,
+                        boldTextColor = boldTextColor,
+                        subheadBold = subheadBold,
+                        subheadUpperCase = subheadUpperCase,
+                        imgMargin = imgMargin,
+                        imgBorderRadius = imgBorderRadius,
+                        linkTextColor = linkTextColor,
+                        codeTextColor = codeTextColor,
+                        codeBgColor = codeBgColor,
+                        tableMargin = textMargin,
+                        selectionTextColor = selectionTextColor,
+                        selectionBgColor = selectionBgColor,
                     ),
-                    "text/HTML",
-                    "UTF-8",
-                    null,
-                )
-            }
+                    htmlBaseUrl,
+                    content,
+                    WebViewScript.get(boldCharacters.value),
+                ),
+                "text/HTML",
+                "UTF-8",
+                null,
+            )
         },
     )
 }
