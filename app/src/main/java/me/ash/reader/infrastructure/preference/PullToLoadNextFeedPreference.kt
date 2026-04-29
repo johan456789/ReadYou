@@ -39,7 +39,7 @@ sealed class PullToLoadNextFeedPreference(val value: Int) : Preference() {
     }
 
     companion object {
-        val default = LoadNextFeed
+        val default = None
         val values = arrayOf(
             None, LoadNextFeed, MarkAsReadAndLoadNextFeed
         )
