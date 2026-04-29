@@ -85,10 +85,14 @@ class GroupWithFeedsListUseCase @Inject constructor(
                     val feedList = it.feeds.map { feed ->
                         feed.copy(important = articleCountMap[feed.id] ?: 0)
                     }
-                    it.copy(feeds = feedList.toMutableList())
+                    val sortedFeedList = if (useSortOrder) {
+                        sortFeedsBySortOrder(feedList)
+                    } else {
+                        sortFeedsAlphabetically(feedList)
+                    }
+                    it.copy(feeds = sortedFeedList.toMutableList())
                 })
-            }.map { sortGroupWithFeedsList(it, useSortOrder) }
-                .flowOn(ioDispatcher).collect { _groupWithFeedsListFlow.value = it }
+            }.flowOn(ioDispatcher).collect { _groupWithFeedsListFlow.value = it }
 
         }
     }
@@ -119,12 +123,11 @@ class GroupWithFeedsListUseCase @Inject constructor(
                     }
 
                     if (groupItem.group.id != defaultGroupId || groupItem.feeds.isNotEmpty()) {
-                        result.add(groupItem)
+                        result.add(sortGroupWithFeeds(groupItem, useSortOrder))
                     }
                 }
                 result
-            }.map { sortGroupWithFeedsList(it, useSortOrder) }
-                .flowOn(ioDispatcher).collect {
+            }.flowOn(ioDispatcher).collect {
                 _groupWithFeedsListFlow.value = it
             }
         }
@@ -163,13 +166,13 @@ class GroupWithFeedsListUseCase @Inject constructor(
                     }
 
                     if (groupItem.group.id != defaultGroupId || groupItem.feeds.isNotEmpty()) {
-                        result.add(groupItem)
+                        result.add(sortGroupWithFeeds(groupItem, useSortOrder))
                     }
 
                 }
                 result
-            }.debounce(200L).map { sortGroupWithFeedsList(it, useSortOrder) }
-                .flowOn(ioDispatcher).collect { _groupWithFeedsListFlow.value = it }
+            }.debounce(200L).flowOn(ioDispatcher)
+                .collect { _groupWithFeedsListFlow.value = it }
         }
     }
 
