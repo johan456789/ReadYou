@@ -50,13 +50,13 @@ class GroupWithFeedsListUseCase @Inject constructor(
         applicationScope.launch {
             filterStateUseCase.filterStateFlow.map { it.filter }
                 .combine(accountFlow) { filter, account ->
-                    filter
+                    filter to (account.type.id == AccountType.FreshRSS.id)
                 }.collectLatest {
                     currentJob?.cancel()
-                    currentJob = when (it) {
-                        Filter.Unread -> pullUnreadFeeds()
-                        Filter.Starred -> pullStarredFeeds()
-                        else -> pullAllFeeds()
+                    currentJob = when (it.first) {
+                        Filter.Unread -> pullUnreadFeeds(useSortOrder = it.second)
+                        Filter.Starred -> pullStarredFeeds(useSortOrder = it.second)
+                        else -> pullAllFeeds(useSortOrder = it.second)
                     }
                 }
         }
@@ -72,11 +72,8 @@ class GroupWithFeedsListUseCase @Inject constructor(
 
     private val hideEmptyGroups get() = settingsProvider.settings.hideEmptyGroups.value
 
-    private val useSortOrder: Boolean
-        get() = accountService.getCurrentAccount()?.type == AccountType.FreshRSS
-
     @OptIn(ExperimentalCoroutinesApi::class)
-    private fun pullAllFeeds(): Job {
+    private fun pullAllFeeds(useSortOrder: Boolean): Job {
         val articleCountMapFlow =
             rssService.get().pullImportant(isStarred = false, isUnread = false)
 
@@ -96,7 +93,7 @@ class GroupWithFeedsListUseCase @Inject constructor(
         }
     }
 
-    private fun pullStarredFeeds(): Job {
+    private fun pullStarredFeeds(useSortOrder: Boolean): Job {
         val starredCountMap = rssService.get().pullImportant(isStarred = true, isUnread = false)
 
         return applicationScope.launch {
@@ -134,7 +131,7 @@ class GroupWithFeedsListUseCase @Inject constructor(
     }
 
     @OptIn(FlowPreview::class)
-    private fun pullUnreadFeeds(): Job {
+    private fun pullUnreadFeeds(useSortOrder: Boolean): Job {
         val unreadCountMapFlow = rssService.get().pullImportant(isStarred = false, isUnread = true)
         return applicationScope.launch {
             combine(
