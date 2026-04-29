@@ -16,6 +16,7 @@ import kotlinx.coroutines.flow.flowOn
 import kotlinx.coroutines.flow.map
 import kotlinx.coroutines.flow.mapNotNull
 import kotlinx.coroutines.launch
+import me.ash.reader.domain.model.account.AccountType
 import me.ash.reader.domain.model.general.Filter
 import me.ash.reader.domain.model.group.GroupWithFeed
 import me.ash.reader.domain.service.AccountService
@@ -71,6 +72,9 @@ class GroupWithFeedsListUseCase @Inject constructor(
 
     private val hideEmptyGroups get() = settingsProvider.settings.hideEmptyGroups.value
 
+    private val useSortOrder: Boolean
+        get() = accountService.getCurrentAccount()?.type == AccountType.FreshRSS
+
     @OptIn(ExperimentalCoroutinesApi::class)
     private fun pullAllFeeds(): Job {
         val articleCountMapFlow =
@@ -86,7 +90,8 @@ class GroupWithFeedsListUseCase @Inject constructor(
                     }
                     it.copy(feeds = feedList.toMutableList())
                 })
-            }.flowOn(ioDispatcher).collect { _groupWithFeedsListFlow.value = it }
+            }.map { sortGroupWithFeedsList(it, useSortOrder) }
+                .flowOn(ioDispatcher).collect { _groupWithFeedsListFlow.value = it }
 
         }
     }
@@ -121,7 +126,8 @@ class GroupWithFeedsListUseCase @Inject constructor(
                     }
                 }
                 result
-            }.flowOn(ioDispatcher).collect {
+            }.map { sortGroupWithFeedsList(it, useSortOrder) }
+                .flowOn(ioDispatcher).collect {
                 _groupWithFeedsListFlow.value = it
             }
         }
@@ -165,7 +171,8 @@ class GroupWithFeedsListUseCase @Inject constructor(
 
                 }
                 result
-            }.debounce(200L).flowOn(ioDispatcher).collect { _groupWithFeedsListFlow.value = it }
+            }.map { sortGroupWithFeedsList(it, useSortOrder) }
+                .debounce(200L).flowOn(ioDispatcher).collect { _groupWithFeedsListFlow.value = it }
         }
     }
 
