@@ -23,7 +23,7 @@ class PullToSwitchArticlePreference(val value: Boolean) : Preference() {
         PullToSwitchArticlePreference(!value).put(context, scope)
 
     companion object {
-        val default = PullToSwitchArticlePreference(true)
+        val default = PullToSwitchArticlePreference(false)
         fun fromPreference(preference: Preferences): PullToSwitchArticlePreference {
             return PullToSwitchArticlePreference(
                 preference[PreferencesKey.keys[pullToSwitchArticle]?.key as Preferences.Key<Boolean>] ?: return default
