@@ -171,8 +171,8 @@ class GroupWithFeedsListUseCase @Inject constructor(
 
                 }
                 result
-            }.map { sortGroupWithFeedsList(it, useSortOrder) }
-                .debounce(200L).flowOn(ioDispatcher).collect { _groupWithFeedsListFlow.value = it }
+            }.debounce(200L).map { sortGroupWithFeedsList(it, useSortOrder) }
+                .flowOn(ioDispatcher).collect { _groupWithFeedsListFlow.value = it }
         }
     }
 
