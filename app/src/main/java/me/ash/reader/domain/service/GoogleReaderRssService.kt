@@ -454,7 +454,7 @@ constructor(
                                 groupId = group.id,
                                 accountId = accountId,
                                 icon = normalizeFreshRssIconUrl(it.iconUrl, normalizedIconBaseUrl),
-                                sortOrder = it.sortid?.toIntOrNull(),
+                                sortOrder = it.sortid?.toLongOrNull(16),
                             )
                         }
                     }
