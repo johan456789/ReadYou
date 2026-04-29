@@ -9,7 +9,7 @@ fun sortFeedsAlphabetically(feeds: List<Feed>): List<Feed> {
 
 fun sortFeedsBySortOrder(feeds: List<Feed>): List<Feed> {
     return feeds.sortedWith(
-        compareBy<Feed> { it.sortOrder ?: 0 }
+        compareBy<Feed> { it.sortOrder ?: 0L }
             .thenBy(String.CASE_INSENSITIVE_ORDER) { it.name }
     )
 }
