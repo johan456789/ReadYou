@@ -195,7 +195,7 @@ constructor(
                 )
             hideDrawer()
             if (service.syncAfterSubscribe) {
-                service.doSyncOneTime(feedId = feedId)
+                service.syncFeedAsync(feedId)
             }
         }
     }

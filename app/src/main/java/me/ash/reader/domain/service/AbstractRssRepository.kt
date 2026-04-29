@@ -192,6 +192,15 @@ abstract class AbstractRssRepository(
         )
     }
 
+    fun syncFeedAsync(feedId: String) {
+        val inputData =
+            workDataOf(
+                "accountId" to accountService.getCurrentAccountId(),
+                "feedId" to feedId,
+            )
+        SyncWorker.enqueueOneTimeWorkForFeed(workManager, inputData, feedId)
+    }
+
     fun initSync() {
         accountService.getCurrentAccount().let {
             val syncOnStart = it.syncOnStart.value

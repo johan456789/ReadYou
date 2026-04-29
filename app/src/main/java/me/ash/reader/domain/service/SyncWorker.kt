@@ -97,6 +97,20 @@ constructor(
                 .enqueue()
         }
 
+        fun enqueueOneTimeWorkForFeed(workManager: WorkManager, inputData: Data, feedId: String) {
+            workManager
+                .beginUniqueWork(
+                    "SYNC_FEED_$feedId",
+                    ExistingWorkPolicy.KEEP,
+                    OneTimeWorkRequestBuilder<SyncWorker>()
+                        .addTag(SYNC_TAG)
+                        .addTag(ONETIME_WORK_TAG)
+                        .setInputData(inputData)
+                        .build(),
+                )
+                .enqueue()
+        }
+
         fun enqueuePeriodicWork(account: Account, workManager: WorkManager) {
             val syncInterval = account.syncInterval
             val syncOnlyWhenCharging = account.syncOnlyWhenCharging
