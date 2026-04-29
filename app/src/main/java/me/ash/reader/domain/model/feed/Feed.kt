@@ -36,7 +36,7 @@ data class Feed(
     @field:ColumnInfo(defaultValue = "0")
     val isBrowser: Boolean = false,
     @field:ColumnInfo(defaultValue = "NULL")
-    val sortOrder: Long? = null,
+    val sortOrder: Int? = null,
     @Ignore val important: Int = 0
 ) {
     constructor(
@@ -49,7 +49,7 @@ data class Feed(
         isNotification: Boolean,
         isFullContent: Boolean,
         isBrowser: Boolean,
-        sortOrder: Long?
+        sortOrder: Int?
     ) : this(
         id = id,
         name = name,

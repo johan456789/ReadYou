@@ -148,7 +148,7 @@ class FeedSortingTest {
     private fun testFeed(
         id: String,
         name: String = "Test Feed",
-        sortOrder: Long? = null,
+        sortOrder: Int? = null,
         groupId: String = "1\$Defaults",
         accountId: Int = 1,
     ) = Feed(
