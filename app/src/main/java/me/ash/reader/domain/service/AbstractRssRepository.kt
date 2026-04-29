@@ -46,6 +46,7 @@ abstract class AbstractRssRepository(
     open val moveSubscription: Boolean = true
     open val deleteSubscription: Boolean = true
     open val updateSubscription: Boolean = true
+    open val syncAfterSubscribe: Boolean = true
 
     open suspend fun validCredentials(account: Account) {}
 
@@ -60,7 +61,7 @@ abstract class AbstractRssRepository(
         isNotification: Boolean,
         isFullContent: Boolean,
         isBrowser: Boolean,
-    ) {
+    ): String {
         val accountId = accountService.getCurrentAccountId()
         val feed =
             Feed(
@@ -78,6 +79,7 @@ abstract class AbstractRssRepository(
             searchedFeed.entries.map { rssHelper.buildArticleFromSyndEntry(feed, accountId, it) }
         feedDao.insert(feed)
         articleDao.insertList(articles.map { it.copy(feedId = feed.id) })
+        return feed.id
     }
 
     open suspend fun addGroup(destFeed: Feed?, newGroupName: String): String {
@@ -188,6 +190,15 @@ abstract class AbstractRssRepository(
             workManager,
             workDataOf("accountId" to accountId, "feedId" to feedId, "groupId" to groupId),
         )
+    }
+
+    fun syncFeedAsync(feedId: String) {
+        val inputData =
+            workDataOf(
+                "accountId" to accountService.getCurrentAccountId(),
+                "feedId" to feedId,
+            )
+        SyncWorker.enqueueOneTimeWorkForFeed(workManager, inputData, feedId)
     }
 
     fun initSync() {

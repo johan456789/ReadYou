@@ -183,9 +183,9 @@ constructor(
 
         applicationScope.launch {
             val searchedFeed = state.searchedFeed
-            rssService
-                .get()
-                .subscribe(
+            val service = rssService.get()
+            val feedId =
+                service.subscribe(
                     searchedFeed = searchedFeed,
                     feedLink = state.feedLink,
                     groupId = state.selectedGroupId,
@@ -194,6 +194,9 @@ constructor(
                     isBrowser = state.browser,
                 )
             hideDrawer()
+            if (service.syncAfterSubscribe) {
+                service.syncFeedAsync(feedId)
+            }
         }
     }
 
