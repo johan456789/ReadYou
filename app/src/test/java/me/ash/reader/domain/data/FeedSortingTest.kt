@@ -70,7 +70,7 @@ class FeedSortingTest {
     }
 
     @Test
-    fun sortFeedsBySortOrder_handlesNullSortOrder_byTreatingAsZero() {
+    fun sortFeedsBySortOrder_placesNullSortOrder_afterExplicitSortOrder() {
         val feeds = mutableListOf(
             testFeed(id = "1", name = "Feed B", sortOrder = null),
             testFeed(id = "2", name = "Feed A", sortOrder = 10),
@@ -79,7 +79,7 @@ class FeedSortingTest {
         val sorted = sortFeedsBySortOrder(feeds)
 
         assertEquals(
-            listOf("Feed B", "Feed A"),
+            listOf("Feed A", "Feed B"),
             sorted.map { it.name }
         )
     }
