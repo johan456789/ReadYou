@@ -16,6 +16,7 @@ import kotlinx.coroutines.flow.flowOn
 import kotlinx.coroutines.flow.map
 import kotlinx.coroutines.flow.mapNotNull
 import kotlinx.coroutines.launch
+import me.ash.reader.domain.model.account.AccountType
 import me.ash.reader.domain.model.general.Filter
 import me.ash.reader.domain.model.group.GroupWithFeed
 import me.ash.reader.domain.service.AccountService
@@ -49,13 +50,13 @@ class GroupWithFeedsListUseCase @Inject constructor(
         applicationScope.launch {
             filterStateUseCase.filterStateFlow.map { it.filter }
                 .combine(accountFlow) { filter, account ->
-                    filter
+                    filter to (account.type.id == AccountType.FreshRSS.id)
                 }.collectLatest {
                     currentJob?.cancel()
-                    currentJob = when (it) {
-                        Filter.Unread -> pullUnreadFeeds()
-                        Filter.Starred -> pullStarredFeeds()
-                        else -> pullAllFeeds()
+                    currentJob = when (it.first) {
+                        Filter.Unread -> pullUnreadFeeds(useSortOrder = it.second)
+                        Filter.Starred -> pullStarredFeeds(useSortOrder = it.second)
+                        else -> pullAllFeeds(useSortOrder = it.second)
                     }
                 }
         }
@@ -72,7 +73,7 @@ class GroupWithFeedsListUseCase @Inject constructor(
     private val hideEmptyGroups get() = settingsProvider.settings.hideEmptyGroups.value
 
     @OptIn(ExperimentalCoroutinesApi::class)
-    private fun pullAllFeeds(): Job {
+    private fun pullAllFeeds(useSortOrder: Boolean): Job {
         val articleCountMapFlow =
             rssService.get().pullImportant(isStarred = false, isUnread = false)
 
@@ -84,14 +85,19 @@ class GroupWithFeedsListUseCase @Inject constructor(
                     val feedList = it.feeds.map { feed ->
                         feed.copy(important = articleCountMap[feed.id] ?: 0)
                     }
-                    it.copy(feeds = feedList.toMutableList())
+                    val sortedFeedList = if (useSortOrder) {
+                        sortFeedsBySortOrder(feedList)
+                    } else {
+                        sortFeedsAlphabetically(feedList)
+                    }
+                    it.copy(feeds = sortedFeedList.toMutableList())
                 })
             }.flowOn(ioDispatcher).collect { _groupWithFeedsListFlow.value = it }
 
         }
     }
 
-    private fun pullStarredFeeds(): Job {
+    private fun pullStarredFeeds(useSortOrder: Boolean): Job {
         val starredCountMap = rssService.get().pullImportant(isStarred = true, isUnread = false)
 
         return applicationScope.launch {
@@ -117,7 +123,7 @@ class GroupWithFeedsListUseCase @Inject constructor(
                     }
 
                     if (groupItem.group.id != defaultGroupId || groupItem.feeds.isNotEmpty()) {
-                        result.add(groupItem)
+                        result.add(sortGroupWithFeeds(groupItem, useSortOrder))
                     }
                 }
                 result
@@ -128,7 +134,7 @@ class GroupWithFeedsListUseCase @Inject constructor(
     }
 
     @OptIn(FlowPreview::class)
-    private fun pullUnreadFeeds(): Job {
+    private fun pullUnreadFeeds(useSortOrder: Boolean): Job {
         val unreadCountMapFlow = rssService.get().pullImportant(isStarred = false, isUnread = true)
         return applicationScope.launch {
             combine(
@@ -160,12 +166,13 @@ class GroupWithFeedsListUseCase @Inject constructor(
                     }
 
                     if (groupItem.group.id != defaultGroupId || groupItem.feeds.isNotEmpty()) {
-                        result.add(groupItem)
+                        result.add(sortGroupWithFeeds(groupItem, useSortOrder))
                     }
 
                 }
                 result
-            }.debounce(200L).flowOn(ioDispatcher).collect { _groupWithFeedsListFlow.value = it }
+            }.debounce(200L).flowOn(ioDispatcher)
+                .collect { _groupWithFeedsListFlow.value = it }
         }
     }
 

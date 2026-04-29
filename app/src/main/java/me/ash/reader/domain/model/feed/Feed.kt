@@ -35,6 +35,8 @@ data class Feed(
     val isFullContent: Boolean = false,
     @field:ColumnInfo(defaultValue = "0")
     val isBrowser: Boolean = false,
+    @field:ColumnInfo(defaultValue = "NULL")
+    val sortOrder: Int? = null,
     @Ignore val important: Int = 0
 ) {
     constructor(
@@ -46,7 +48,8 @@ data class Feed(
         accountId: Int,
         isNotification: Boolean,
         isFullContent: Boolean,
-        isBrowser: Boolean
+        isBrowser: Boolean,
+        sortOrder: Int?
     ) : this(
         id = id,
         name = name,
@@ -57,6 +60,7 @@ data class Feed(
         isNotification = isNotification,
         isFullContent = isFullContent,
         isBrowser = isBrowser,
+        sortOrder = sortOrder,
         important = 0
     )
 }
