@@ -99,7 +99,7 @@ constructor(
         isNotification: Boolean,
         isFullContent: Boolean,
         isBrowser: Boolean,
-    ) {
+    ): String {
         throw FeverAPIException("Unsupported")
     }
 

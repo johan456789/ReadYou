@@ -153,7 +153,7 @@ constructor(
         isNotification: Boolean,
         isFullContent: Boolean,
         isBrowser: Boolean,
-    ) {
+    ): String {
         val accountId = accountService.getCurrentAccountId()
         val quickAdd = getGoogleReaderAPI().subscriptionQuickAdd(feedLink)
         val feedId = quickAdd.streamId?.ofFeedStreamIdToId()
@@ -167,9 +167,10 @@ constructor(
                 destCategoryId = groupId.dollarLast(),
                 destFeedName = feedTitle,
             )
+        val localFeedId = accountId.spacerDollar(feedId)
         feedDao.insert(
             Feed(
-                id = accountId.spacerDollar(feedId),
+                id = localFeedId,
                 name = feedTitle,
                 url = feedLink,
                 groupId = groupId,
@@ -179,10 +180,7 @@ constructor(
                 isBrowser = isBrowser,
             )
         )
-        // TODO: When users need to subscribe to multiple feeds continuously, this makes them
-        // uncomfortable.
-        //  It is necessary to make syncWork support synchronizing individual specified feeds.
-        // super.doSyncOneTime()
+        return localFeedId
     }
 
     override suspend fun addGroup(destFeed: Feed?, newGroupName: String): String {

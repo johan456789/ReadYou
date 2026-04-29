@@ -55,6 +55,8 @@ constructor(
         accountService,
     ) {
 
+    override val syncAfterSubscribe: Boolean = false
+
     override suspend fun sync(
         accountId: Int,
         feedId: String?,
