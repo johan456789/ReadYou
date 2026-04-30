@@ -103,6 +103,9 @@ class DiffMapHolder @Inject constructor(
     private fun cleanup(@Suppress("UNUSED_PARAMETER") previousAccount: Account) {
         remoteJob?.cancel()
         diffMap.clear()
+        synchronized(deferredDiffs) {
+            deferredDiffs.clear()
+        }
         pendingSyncDiffs.clear()
         syncedDiffs.clear()
     }
@@ -256,6 +259,9 @@ class DiffMapHolder @Inject constructor(
             currentDiffs = diffMap,
             appliedDiffs = diffsToCommit,
         )
+        synchronized(deferredDiffs) {
+            deferredDiffs.keys.removeAll(diffsToCommit.keys)
+        }
     }
 
     suspend fun prepareReadStateForSync(accountId: Int): Set<String> {
