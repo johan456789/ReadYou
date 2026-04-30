@@ -45,7 +45,6 @@ import androidx.compose.material3.Text
 import androidx.compose.material3.TopAppBarDefaults
 import androidx.compose.material3.rememberTopAppBarState
 import androidx.compose.runtime.Composable
-import androidx.compose.runtime.DisposableEffect
 import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableStateOf
@@ -227,15 +226,9 @@ fun FlowPage(
         }
     }
 
-    DisposableEffect(filterUiState.filter) {
+    LaunchedEffect(filterUiState.filter) {
         val isUnread = filterUiState.filter.isUnread()
         viewModel.setDeferDbCommits(isUnread)
-        onDispose {
-            if (isUnread) {
-                viewModel.setDeferDbCommits(false)
-                viewModel.flushDeferredDiffs()
-            }
-        }
     }
 
     val topAppBarState = rememberTopAppBarState()
@@ -385,6 +378,10 @@ fun FlowPage(
                                 tint = MaterialTheme.colorScheme.onSurface,
                             ) {
                                 onSearch = false
+                                if (filterUiState.filter.isUnread()) {
+                                    viewModel.setDeferDbCommits(false)
+                                    viewModel.flushDeferredDiffs()
+                                }
                                 onNavigateUp()
                             }
                         },
