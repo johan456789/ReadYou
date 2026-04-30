@@ -50,6 +50,7 @@ class DiffMapHolder @Inject constructor(
      * disappearing from the list when marked as read. The UI uses diffMap for
      * visual state (grayed out), while DB updates are batched until this is set to false.
      */
+    @Volatile
     var deferDbCommits: Boolean = false
 
     private val deferredDiffs = mutableMapOf<String, Diff>()
