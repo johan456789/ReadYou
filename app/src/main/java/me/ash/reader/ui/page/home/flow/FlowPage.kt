@@ -226,6 +226,10 @@ fun FlowPage(
         }
     }
 
+    LaunchedEffect(filterUiState.filter) {
+        viewModel.setDeferDbCommits(filterUiState.filter.isUnread())
+    }
+
     val topAppBarState = rememberTopAppBarState()
 
     val scrollBehavior = TopAppBarDefaults.exitUntilCollapsedScrollBehavior(topAppBarState)
@@ -373,6 +377,8 @@ fun FlowPage(
                                 tint = MaterialTheme.colorScheme.onSurface,
                             ) {
                                 onSearch = false
+                                viewModel.setDeferDbCommits(false)
+                                viewModel.flushDeferredDiffs()
                                 onNavigateUp()
                             }
                         },

@@ -211,6 +211,7 @@ constructor(
     }
 
     fun sync() {
+        diffMapHolder.flushDeferredDiffs()
         viewModelScope.launch {
             _isSyncingFlow.value = true
             val isSyncing = syncWorkerStatusFlow.value
@@ -246,11 +247,32 @@ constructor(
         filterStateUseCase.updateFilterState(feed = null, group = null, searchContent = null)
 
     fun changeFilter(filterState: FilterState) {
+        val currentFilter = filterStateUseCase.filterStateFlow.value.filter
+        val newFilter = filterState.filter
+        if (currentFilter.isUnread() && !newFilter.isUnread()) {
+            diffMapHolder.flushDeferredDiffs()
+        }
         filterStateUseCase.updateFilterState(
             filterState.feed,
             filterState.group,
             filterState.filter,
         )
+    }
+
+    /**
+     * Enables deferred DB commits for read state changes.
+     * This prevents articles from immediately disappearing in the Unread filter view.
+     */
+    fun setDeferDbCommits(defer: Boolean) {
+        android.util.Log.d("ArticleListReaderVM", "setDeferDbCommits($defer)")
+        diffMapHolder.deferDbCommits = defer
+    }
+
+    /**
+     * Flushes any pending deferred DB commits. Call this when leaving the flow page.
+     */
+    fun flushDeferredDiffs() {
+        diffMapHolder.flushDeferredDiffs()
     }
 
     fun inputSearchContent(content: String? = null) {

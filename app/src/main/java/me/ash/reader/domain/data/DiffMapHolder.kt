@@ -44,6 +44,16 @@ class DiffMapHolder @Inject constructor(
 ) {
     val diffMap = mutableStateMapOf<String, Diff>()
 
+    /**
+     * When true, DB commits for read state changes are deferred.
+     * This is used in the Unread filter view to prevent articles from immediately
+     * disappearing from the list when marked as read. The UI uses diffMap for
+     * visual state (grayed out), while DB updates are batched until this is set to false.
+     */
+    var deferDbCommits: Boolean = false
+
+    private val deferredDiffs = mutableMapOf<String, Diff>()
+
     private val pendingSyncDiffs = mutableStateMapOf<String, Diff>()
     private val syncedDiffs = mutableMapOf<String, Diff>()
     private val pendingSyncMutex = Mutex()
@@ -183,8 +193,38 @@ class DiffMapHolder @Inject constructor(
                 appendDiffToSync(it)
             }
         }
+
+        android.util.Log.d("DiffMapHolder", "updateDiff: deferDbCommits=$deferDbCommits, appliedDiffs=${appliedDiffs.map { it.articleId }}")
+        if (deferDbCommits) {
+            android.util.Log.d("DiffMapHolder", "Deferring DB commits for ${appliedDiffs.size} articles")
+            synchronized(deferredDiffs) {
+                appliedDiffs.forEach { deferredDiffs[it.articleId] = it }
+            }
+        } else {
+            android.util.Log.d("DiffMapHolder", "Immediately committing ${appliedDiffs.size} articles to DB")
+            applicationScope.launch(ioDispatcher) {
+                commitAppliedDiffsToDb(appliedDiffs.associateBy { it.articleId })
+            }
+        }
+    }
+
+    /**
+     * Flushes any deferred DB commits. Call this when exiting the Unread filter view,
+     * starting a sync, or when the user navigates away from the flow page.
+     */
+    fun flushDeferredDiffs() {
+        val diffsToCommit: Map<String, Diff>
+        synchronized(deferredDiffs) {
+            if (deferredDiffs.isEmpty()) {
+                android.util.Log.d("DiffMapHolder", "flushDeferredDiffs: nothing to flush")
+                return
+            }
+            diffsToCommit = deferredDiffs.toMap()
+            deferredDiffs.clear()
+        }
+        android.util.Log.d("DiffMapHolder", "flushDeferredDiffs: flushing ${diffsToCommit.size} articles")
         applicationScope.launch(ioDispatcher) {
-            commitAppliedDiffsToDb(appliedDiffs.associateBy { it.articleId })
+            commitAppliedDiffsToDb(diffsToCommit)
         }
     }
 
