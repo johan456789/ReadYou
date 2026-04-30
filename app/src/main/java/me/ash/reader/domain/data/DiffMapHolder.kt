@@ -198,7 +198,7 @@ class DiffMapHolder @Inject constructor(
             }
         }
 
-        android.util.Log.d("DiffMapHolder", "updateDiff: deferDbCommits=$deferDbCommits, appliedDiffs=${appliedDiffs.map { it.articleId }}")
+        android.util.Log.d("DiffMapHolder", "updateDiff: deferDbCommits=$deferDbCommits, appliedDiffsCount=${appliedDiffs.size}")
         if (deferDbCommits) {
             android.util.Log.d("DiffMapHolder", "Deferring DB commits for ${appliedDiffs.size} articles")
             synchronized(deferredDiffs) {
