@@ -95,6 +95,9 @@ class DiffMapHolder @Inject constructor(
 
     private fun init(account: Account) {
         userCacheDir = cacheDir.resolve(account.id.toString())
+        if (account.type == AccountType.Local) {
+            commitLocalPendingReadStateOps(account.id)
+        }
         commitDiffsFromCache()
         if (account.type != AccountType.Local) {
             syncOnChange()
@@ -211,6 +214,11 @@ class DiffMapHolder @Inject constructor(
                 if (deferDbCommits) {
                     android.util.Log.d("DiffMapHolder", "Deferring DB commits for ${appliedDiffs.size} articles")
                     appliedDiffs.forEach { deferredDiffs[it.articleId] = it }
+                    if (!shouldSyncWithRemote) {
+                        applicationScope.launch(ioDispatcher) {
+                            persistPendingReadStateOps(appliedDiffs)
+                        }
+                    }
                     null
                 } else {
                     appliedDiffs.associateBy { it.articleId }
@@ -331,6 +339,19 @@ class DiffMapHolder @Inject constructor(
         }
     }
 
+    private fun commitLocalPendingReadStateOps(accountId: Int) {
+        applicationScope.launch(ioDispatcher) {
+            val queuedOps = pendingReadStateOpDao.queryByAccountId(accountId)
+            if (queuedOps.isEmpty()) return@launch
+
+            val markAsReadArticles = queuedOps.filter { it.isRead }.map { it.articleId }.toSet()
+            val markAsUnreadArticles = queuedOps.filter { !it.isRead }.map { it.articleId }.toSet()
+            rssService.get().batchMarkAsRead(articleIds = markAsReadArticles, markRead = true)
+            rssService.get().batchMarkAsRead(articleIds = markAsUnreadArticles, markRead = false)
+            pendingReadStateOpDao.deleteByArticleIds(queuedOps.map { it.articleId }.toSet())
+        }
+    }
+
     private suspend fun flushPendingReadStateQueue(accountId: Int) {
         val queuedOps = pendingReadStateOpDao.queryByAccountId(accountId)
         if (queuedOps.isEmpty()) return
@@ -370,7 +391,7 @@ class DiffMapHolder @Inject constructor(
     }
 
     private suspend fun persistPendingReadStateOps(diffs: Collection<Diff>) {
-        if (!shouldSyncWithRemote || diffs.isEmpty()) return
+        if (diffs.isEmpty()) return
         val ops = diffs.mapNotNull(::toPendingReadStateOp)
         if (ops.isNotEmpty()) {
             pendingReadStateOpDao.upsertAll(ops)
