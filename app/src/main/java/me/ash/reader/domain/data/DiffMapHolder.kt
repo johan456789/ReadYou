@@ -281,7 +281,10 @@ class DiffMapHolder @Inject constructor(
             appliedDiffs = diffsToCommit,
         )
         synchronized(deferredDiffs) {
-            deferredDiffs.keys.removeAll(diffsToCommit.keys)
+            ReadStateDiffApplier.removeMatchingDiffs(
+                currentDiffs = deferredDiffs,
+                appliedDiffs = diffsToCommit,
+            )
         }
     }
 
