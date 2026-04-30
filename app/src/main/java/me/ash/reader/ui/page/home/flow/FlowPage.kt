@@ -385,8 +385,6 @@ fun FlowPage(
                                 tint = MaterialTheme.colorScheme.onSurface,
                             ) {
                                 onSearch = false
-                                viewModel.setDeferDbCommits(false)
-                                viewModel.flushDeferredDiffs()
                                 onNavigateUp()
                             }
                         },
