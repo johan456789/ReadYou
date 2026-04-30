@@ -44,6 +44,17 @@ class DiffMapHolder @Inject constructor(
 ) {
     val diffMap = mutableStateMapOf<String, Diff>()
 
+    /**
+     * When true, DB commits for read state changes are deferred.
+     * This is used in the Unread filter view to prevent articles from immediately
+     * disappearing from the list when marked as read. The UI uses diffMap for
+     * visual state (grayed out), while DB updates are batched until this is set to false.
+     */
+    @Volatile
+    var deferDbCommits: Boolean = false
+
+    private val deferredDiffs = mutableMapOf<String, Diff>()
+
     private val pendingSyncDiffs = mutableStateMapOf<String, Diff>()
     private val syncedDiffs = mutableMapOf<String, Diff>()
     private val pendingSyncMutex = Mutex()
@@ -84,14 +95,27 @@ class DiffMapHolder @Inject constructor(
 
     private fun init(account: Account) {
         userCacheDir = cacheDir.resolve(account.id.toString())
+        if (account.type == AccountType.Local) {
+            commitLocalPendingReadStateOps(account.id)
+        }
         commitDiffsFromCache()
         if (account.type != AccountType.Local) {
             syncOnChange()
         }
     }
 
-    private fun cleanup(@Suppress("UNUSED_PARAMETER") previousAccount: Account) {
+    private suspend fun cleanup(@Suppress("UNUSED_PARAMETER") previousAccount: Account) {
         remoteJob?.cancel()
+        val deferredToCommit: Map<String, Diff> =
+            synchronized(deferredDiffs) {
+                val snapshot = deferredDiffs.toMap()
+                deferredDiffs.clear()
+                snapshot
+            }
+        if (deferredToCommit.isNotEmpty()) {
+            commitAppliedDiffsToDb(deferredToCommit)
+        }
+        commitDiffsToDb()
         diffMap.clear()
         pendingSyncDiffs.clear()
         syncedDiffs.clear()
@@ -183,8 +207,48 @@ class DiffMapHolder @Inject constructor(
                 appendDiffToSync(it)
             }
         }
+
+        android.util.Log.d("DiffMapHolder", "updateDiff: deferDbCommits=$deferDbCommits, appliedDiffsCount=${appliedDiffs.size}")
+        val diffsToCommitNow: Map<String, Diff>? =
+            synchronized(deferredDiffs) {
+                if (deferDbCommits) {
+                    android.util.Log.d("DiffMapHolder", "Deferring DB commits for ${appliedDiffs.size} articles")
+                    appliedDiffs.forEach { deferredDiffs[it.articleId] = it }
+                    if (!shouldSyncWithRemote) {
+                        applicationScope.launch(ioDispatcher) {
+                            persistPendingReadStateOps(appliedDiffs)
+                        }
+                    }
+                    null
+                } else {
+                    appliedDiffs.associateBy { it.articleId }
+                }
+            }
+        if (diffsToCommitNow != null) {
+            android.util.Log.d("DiffMapHolder", "Immediately committing ${diffsToCommitNow.size} articles to DB")
+            applicationScope.launch(ioDispatcher) {
+                commitAppliedDiffsToDb(diffsToCommitNow)
+            }
+        }
+    }
+
+    /**
+     * Flushes any deferred DB commits. Call this when exiting the Unread filter view,
+     * starting a sync, or when the user navigates away from the flow page.
+     */
+    fun flushDeferredDiffs() {
+        val diffsToCommit: Map<String, Diff>
+        synchronized(deferredDiffs) {
+            if (deferredDiffs.isEmpty()) {
+                android.util.Log.d("DiffMapHolder", "flushDeferredDiffs: nothing to flush")
+                return
+            }
+            diffsToCommit = deferredDiffs.toMap()
+            deferredDiffs.clear()
+        }
+        android.util.Log.d("DiffMapHolder", "flushDeferredDiffs: flushing ${diffsToCommit.size} articles")
         applicationScope.launch(ioDispatcher) {
-            commitAppliedDiffsToDb(appliedDiffs.associateBy { it.articleId })
+            commitAppliedDiffsToDb(diffsToCommit)
         }
     }
 
@@ -216,6 +280,12 @@ class DiffMapHolder @Inject constructor(
             currentDiffs = diffMap,
             appliedDiffs = diffsToCommit,
         )
+        synchronized(deferredDiffs) {
+            ReadStateDiffApplier.removeMatchingDiffs(
+                currentDiffs = deferredDiffs,
+                appliedDiffs = diffsToCommit,
+            )
+        }
     }
 
     suspend fun prepareReadStateForSync(accountId: Int): Set<String> {
@@ -272,6 +342,19 @@ class DiffMapHolder @Inject constructor(
         }
     }
 
+    private fun commitLocalPendingReadStateOps(accountId: Int) {
+        applicationScope.launch(ioDispatcher) {
+            val queuedOps = pendingReadStateOpDao.queryByAccountId(accountId)
+            if (queuedOps.isEmpty()) return@launch
+
+            val markAsReadArticles = queuedOps.filter { it.isRead }.map { it.articleId }.toSet()
+            val markAsUnreadArticles = queuedOps.filter { !it.isRead }.map { it.articleId }.toSet()
+            rssService.get().batchMarkAsRead(articleIds = markAsReadArticles, markRead = true)
+            rssService.get().batchMarkAsRead(articleIds = markAsUnreadArticles, markRead = false)
+            pendingReadStateOpDao.deleteByArticleIds(queuedOps.map { it.articleId }.toSet())
+        }
+    }
+
     private suspend fun flushPendingReadStateQueue(accountId: Int) {
         val queuedOps = pendingReadStateOpDao.queryByAccountId(accountId)
         if (queuedOps.isEmpty()) return
@@ -311,7 +394,7 @@ class DiffMapHolder @Inject constructor(
     }
 
     private suspend fun persistPendingReadStateOps(diffs: Collection<Diff>) {
-        if (!shouldSyncWithRemote || diffs.isEmpty()) return
+        if (diffs.isEmpty()) return
         val ops = diffs.mapNotNull(::toPendingReadStateOp)
         if (ops.isNotEmpty()) {
             pendingReadStateOpDao.upsertAll(ops)
