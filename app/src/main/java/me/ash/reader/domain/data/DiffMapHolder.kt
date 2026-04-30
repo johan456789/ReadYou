@@ -96,7 +96,7 @@ class DiffMapHolder @Inject constructor(
     private fun init(account: Account) {
         userCacheDir = cacheDir.resolve(account.id.toString())
         if (account.type == AccountType.Local) {
-            commitLocalPendingReadStateOps(account.id)
+            account.id?.let(::commitLocalPendingReadStateOps)
         }
         commitDiffsFromCache()
         if (account.type != AccountType.Local) {
