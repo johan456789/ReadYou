@@ -199,15 +199,20 @@ class DiffMapHolder @Inject constructor(
         }
 
         android.util.Log.d("DiffMapHolder", "updateDiff: deferDbCommits=$deferDbCommits, appliedDiffsCount=${appliedDiffs.size}")
-        if (deferDbCommits) {
-            android.util.Log.d("DiffMapHolder", "Deferring DB commits for ${appliedDiffs.size} articles")
+        val diffsToCommitNow: Map<String, Diff>? =
             synchronized(deferredDiffs) {
-                appliedDiffs.forEach { deferredDiffs[it.articleId] = it }
+                if (deferDbCommits) {
+                    android.util.Log.d("DiffMapHolder", "Deferring DB commits for ${appliedDiffs.size} articles")
+                    appliedDiffs.forEach { deferredDiffs[it.articleId] = it }
+                    null
+                } else {
+                    appliedDiffs.associateBy { it.articleId }
+                }
             }
-        } else {
-            android.util.Log.d("DiffMapHolder", "Immediately committing ${appliedDiffs.size} articles to DB")
+        if (diffsToCommitNow != null) {
+            android.util.Log.d("DiffMapHolder", "Immediately committing ${diffsToCommitNow.size} articles to DB")
             applicationScope.launch(ioDispatcher) {
-                commitAppliedDiffsToDb(appliedDiffs.associateBy { it.articleId })
+                commitAppliedDiffsToDb(diffsToCommitNow)
             }
         }
     }
