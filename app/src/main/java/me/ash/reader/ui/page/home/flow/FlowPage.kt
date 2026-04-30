@@ -231,6 +231,15 @@ fun FlowPage(
         viewModel.setDeferDbCommits(isUnread)
     }
 
+    val navigateUpWithFlushIfUnread = {
+        onSearch = false
+        if (filterUiState.filter.isUnread()) {
+            viewModel.setDeferDbCommits(false)
+            viewModel.flushDeferredDiffs()
+        }
+        onNavigateUp()
+    }
+
     val topAppBarState = rememberTopAppBarState()
 
     val scrollBehavior = TopAppBarDefaults.exitUntilCollapsedScrollBehavior(topAppBarState)
@@ -377,12 +386,7 @@ fun FlowPage(
                                 contentDescription = stringResource(R.string.back),
                                 tint = MaterialTheme.colorScheme.onSurface,
                             ) {
-                                onSearch = false
-                                if (filterUiState.filter.isUnread()) {
-                                    viewModel.setDeferDbCommits(false)
-                                    viewModel.flushDeferredDiffs()
-                                }
-                                onNavigateUp()
+                                navigateUpWithFlushIfUnread()
                             }
                         },
                         actions = {
@@ -451,6 +455,8 @@ fun FlowPage(
                 }
             },
             content = {
+                BackHandler(enabled = !onSearch && !markAsRead) { navigateUpWithFlushIfUnread() }
+
                 RYExtensibleVisibility(modifier = Modifier.zIndex(1f), visible = onSearch) {
                     BackHandler(onSearch) { onSearch = false }
                     SearchBar(
