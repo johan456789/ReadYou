@@ -101,12 +101,19 @@ class DiffMapHolder @Inject constructor(
         }
     }
 
-    private fun cleanup(@Suppress("UNUSED_PARAMETER") previousAccount: Account) {
+    private suspend fun cleanup(@Suppress("UNUSED_PARAMETER") previousAccount: Account) {
         remoteJob?.cancel()
-        diffMap.clear()
-        synchronized(deferredDiffs) {
-            deferredDiffs.clear()
+        val deferredToCommit: Map<String, Diff> =
+            synchronized(deferredDiffs) {
+                val snapshot = deferredDiffs.toMap()
+                deferredDiffs.clear()
+                snapshot
+            }
+        if (deferredToCommit.isNotEmpty()) {
+            commitAppliedDiffsToDb(deferredToCommit)
         }
+        commitDiffsToDb()
+        diffMap.clear()
         pendingSyncDiffs.clear()
         syncedDiffs.clear()
     }
