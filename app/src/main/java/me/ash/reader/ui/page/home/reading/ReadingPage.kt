@@ -91,8 +91,6 @@ fun ReadingPage(
     // Handle back press when video is fullscreen
     BackHandler(enabled = isVideoFullscreen) {
         fullscreenVideoCallback?.onCustomViewHidden()
-        fullscreenVideoView = null
-        fullscreenVideoCallback = null
     }
 
     val isShowToolBar =
