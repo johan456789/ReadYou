@@ -39,15 +39,19 @@ class RYWebChromeClient(
         }
 
         Log.i("RYWebChromeClient", "Hiding fullscreen view")
-        customViewCallback?.onCustomViewHidden()
-        customView = null
-        customViewCallback = null
+        clearCustomView()
         onHideCustomViewCallback()
     }
 
     fun isShowingCustomView(): Boolean = customView != null
 
     fun releaseCustomView() {
+        if (customView == null) return
+        clearCustomView()
+        onHideCustomViewCallback()
+    }
+
+    private fun clearCustomView() {
         customViewCallback?.onCustomViewHidden()
         customView = null
         customViewCallback = null
