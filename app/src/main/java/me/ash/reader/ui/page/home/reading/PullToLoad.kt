@@ -8,6 +8,7 @@ import androidx.compose.animation.core.animate
 import androidx.compose.animation.core.animateDecay
 import androidx.compose.animation.core.spring
 import androidx.compose.foundation.MutatorMutex
+import androidx.compose.foundation.ScrollState
 import androidx.compose.foundation.layout.offset
 import androidx.compose.material.ExperimentalMaterialApi
 import androidx.compose.runtime.Composable
@@ -39,22 +40,20 @@ import me.ash.reader.ui.page.home.reading.PullToLoadDefaults.ContentOffsetMultip
 import kotlin.math.abs
 import kotlin.math.sign
 
-private const val TAG = "PullToLoad"
-
 /**
  * A [NestedScrollConnection] that provides scroll events to a hoisted [state].
  *
- * Note that this modifier must be added above a scrolling container using [Modifier.nestedScroll],
- * such as a lazy column, in order to receive scroll events.
- *
- * And you should manually handle the offset of components
- * with [PullToLoadState.absProgress] or [PullToLoadState.offsetFraction]
+ * This connection tracks pull-to-load state for article switching while allowing
+ * the native Android 12+ overscroll stretch effect to handle visual feedback.
+ * It does NOT consume scroll events at boundaries to let the native overscroll work.
  *
  * @param enabled If not enabled, all scroll delta and fling velocity will be ignored.
+ * @param scrollState The ScrollState of the content, used to detect boundaries.
  * @param onScroll Used for detecting if the reader is scrolling down
  */
 private class ReaderNestedScrollConnection(
     private val enabled: Boolean,
+    private val scrollState: ScrollState?,
     private val onPreScroll: (Float) -> Float,
     private val onPostScroll: (Float) -> Float,
     private val onRelease: () -> Unit,
@@ -65,28 +64,39 @@ private class ReaderNestedScrollConnection(
         available: Offset, source: NestedScrollSource
     ): Offset {
         onScroll?.invoke(available.y)
-        return when {
-            !enabled || available.y == 0f -> Offset.Zero
-
-            // Scroll down to reduce the progress when the offset is currently pulled up, same for the opposite
-            source == NestedScrollSource.UserInput -> {
-                Offset(0f, onPreScroll(available.y))
-            }
-
-            else -> Offset.Zero
+        
+        if (!enabled || available.y == 0f) return Offset.Zero
+        if (source != NestedScrollSource.UserInput) return Offset.Zero
+        
+        // Let the state handle any pull-back (reducing existing offset)
+        // This is needed for pull-to-load indicator to retract properly
+        val consumed = onPreScroll(available.y)
+        if (consumed != 0f) {
+            return Offset(0f, consumed)
         }
-
+        
+        // Don't consume scroll events here - let them pass through to 
+        // the scrollable content and then to native overscroll
+        return Offset.Zero
     }
 
     override fun onPostScroll(
         consumed: Offset, available: Offset, source: NestedScrollSource
-    ): Offset = when {
-        !enabled -> Offset.Zero
-        source == NestedScrollSource.UserInput -> Offset(
-            0f,
-            onPostScroll(available.y)
-        ) // Pull to load
-        else -> Offset.Zero
+    ): Offset {
+        if (!enabled) return Offset.Zero
+        if (source != NestedScrollSource.UserInput) return Offset.Zero
+        
+        // Track pull state for pull-to-load indicator, but DON'T consume
+        // the scroll delta - return Offset.Zero so native overscroll can work
+        val delta = available.y
+        if (delta != 0f) {
+            // Update the pull state (for pull-to-load indicator)
+            onPostScroll(delta)
+            // Return Zero to NOT consume - let native overscroll handle visual feedback
+            return Offset.Zero
+        }
+        
+        return Offset.Zero
     }
 
     override suspend fun onPreFling(available: Velocity): Velocity {
@@ -223,11 +233,6 @@ class PullToLoadState internal constructor(
         } else {
             pullDelta
         }
-        /*
-                Log.d(
-                    TAG,
-                    "onPull: currentOffset = $offsetPulled, pullDelta = $pullDelta, consumed = $consumed"
-                )*/
         offsetPulled += consumed
         return consumed
     }
@@ -325,7 +330,10 @@ private fun Float.signOpposites(f: Float): Boolean = this.sign * f.sign < 0f
  * Default parameter values for [rememberPullToLoadState].
  */
 object PullToLoadDefaults {
-    const val ContentOffsetMultiple = 60
+    /**
+     * Multiplier for content offset during pull. Used by FlowPage for pull-to-sync visual feedback.
+     */
+    const val ContentOffsetMultiple = 100
 
     /**
      * If the indicator is below this threshold offset when it is released, the load action
@@ -343,25 +351,44 @@ object PullToLoadDefaults {
 
 }
 
+/**
+ * A modifier that tracks pull-to-load state and optionally applies content offset.
+ * 
+ * For the reading page, pass [contentOffsetY] = null to disable content offset and
+ * let the native Android 12+ overscroll stretch effect handle visual feedback.
+ * 
+ * For FlowPage (article list), pass a custom [contentOffsetY] function to apply
+ * pull-to-sync visual feedback.
+ *
+ * @param state The [PullToLoadState] to track pull progress.
+ * @param scrollState Optional [ScrollState] for boundary detection.
+ * @param contentOffsetY Optional function to calculate content Y offset from fraction.
+ *        Pass null to disable offset (for reading page with native overscroll).
+ * @param onScroll Callback for scroll events.
+ * @param enabled Whether pull-to-load is enabled.
+ */
 fun Modifier.pullToLoad(
     state: PullToLoadState,
-    contentOffsetY: Density.(Float) -> Int = { fraction ->
+    scrollState: ScrollState? = null,
+    contentOffsetY: (Density.(Float) -> Int)? = { fraction ->
         (ContentOffsetMultiple.dp * fraction).roundToPx()
     },
     onScroll: ((Float) -> Unit)? = null,
     enabled: Boolean = true,
-): Modifier =
-    nestedScroll(
+): Modifier {
+    val base = nestedScroll(
         ReaderNestedScrollConnection(
             enabled = enabled,
+            scrollState = scrollState,
             onPreScroll = state::onPullBack,
             onPostScroll = state::onPull,
             onRelease = state::onRelease,
             onScroll = onScroll
         )
-    ).then(
-        if (enabled) Modifier.offset {
-            IntOffset(x = 0, y = contentOffsetY(state.offsetFraction))
-        }
-        else this
     )
+    return if (contentOffsetY != null) {
+        base.offset { IntOffset(x = 0, y = contentOffsetY(state.offsetFraction)) }
+    } else {
+        base
+    }
+}
