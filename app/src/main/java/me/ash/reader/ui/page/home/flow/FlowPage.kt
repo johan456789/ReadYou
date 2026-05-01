@@ -455,7 +455,9 @@ fun FlowPage(
                 }
             },
             content = {
-                BackHandler(enabled = !onSearch && !markAsRead) { navigateUpWithFlushIfUnread() }
+                BackHandler(enabled = !isTwoPane && !onSearch && !markAsRead) {
+                    navigateUpWithFlushIfUnread()
+                }
 
                 RYExtensibleVisibility(modifier = Modifier.zIndex(1f), visible = onSearch) {
                     BackHandler(onSearch) { onSearch = false }
