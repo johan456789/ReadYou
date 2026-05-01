@@ -1,5 +1,7 @@
 package me.ash.reader.ui.page.home.reading
 
+import android.view.View
+import android.webkit.WebChromeClient
 import androidx.compose.foundation.ScrollState
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.PaddingValues
@@ -39,6 +41,8 @@ fun Content(
     isLoading: Boolean,
     contentPadding: PaddingValues = PaddingValues(),
     onImageClick: ((imgUrl: String, altText: String) -> Unit)? = null,
+    onShowCustomView: ((View, WebChromeClient.CustomViewCallback) -> Unit)? = null,
+    onHideCustomView: (() -> Unit)? = null,
 ) {
     val textContentWidth = LocalTextContentWidth.current
     val maxWidthModifier = Modifier.widthIn(max = textContentWidth)
@@ -53,7 +57,6 @@ fun Content(
                         title = title,
                         author = author,
                         publishedDate = publishedDate,
-                        modifier = Modifier.roundClick { link?.let { uriHandler.openUri(it) } },
                     )
                 }
             }
@@ -81,6 +84,8 @@ fun Content(
                     baseUrl = link,
                     refererDomain = link.extractDomain(),
                     onImageClick = onImageClick,
+                    onShowCustomView = onShowCustomView,
+                    onHideCustomView = onHideCustomView,
                 )
                 Spacer(modifier = Modifier.height(128.dp))
                 Spacer(modifier = Modifier.height(contentPadding.calculateBottomPadding()))

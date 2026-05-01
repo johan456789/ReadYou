@@ -66,6 +66,18 @@ class WebViewClient(
     override fun shouldOverrideUrlLoading(view: WebView?, request: WebResourceRequest?): Boolean {
         if (null == request?.url) return false
         val url = request.url.toString()
+        
+        // Don't intercept video/media URLs - let the WebView handle them natively
+        val lowerUrl = url.lowercase()
+        if (lowerUrl.endsWith(".mp4") || 
+            lowerUrl.endsWith(".webm") ||
+            lowerUrl.endsWith(".m3u8") ||
+            lowerUrl.endsWith(".ogg") ||
+            lowerUrl.contains("video") ||
+            lowerUrl.contains("stream")) {
+            return false
+        }
+        
         if (url.isNotEmpty()) onOpenLink(url)
         return true
     }

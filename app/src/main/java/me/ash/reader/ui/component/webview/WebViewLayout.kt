@@ -3,6 +3,7 @@ package me.ash.reader.ui.component.webview
 import android.annotation.SuppressLint
 import android.content.Context
 import android.graphics.Color
+import android.util.Log
 import android.webkit.JavascriptInterface
 import me.ash.reader.infrastructure.preference.ReadingFontsPreference
 
@@ -13,10 +14,16 @@ object WebViewLayout {
         context: Context,
         readingFontsPreference: ReadingFontsPreference,
         webViewClient: WebViewClient,
+        webChromeClient: RYWebChromeClient? = null,
         onImageClick: ((imgUrl: String, altText: String) -> Unit)? = null,
     ): HorizontalScrollAwareWebView {
+        Log.d("WebViewLayout", "Creating WebView with webChromeClient=$webChromeClient")
         return HorizontalScrollAwareWebView(context).apply {
             this.webViewClient = webViewClient
+            webChromeClient?.let { 
+                Log.d("WebViewLayout", "Setting webChromeClient: $it")
+                this.webChromeClient = it 
+            } ?: Log.d("WebViewLayout", "webChromeClient is null, not setting")
             scrollBarSize = 0
             isHorizontalScrollBarEnabled = false
             isVerticalScrollBarEnabled = true
@@ -43,6 +50,7 @@ object WebViewLayout {
                     }
                 domStorageEnabled = true
                 javaScriptEnabled = true
+                mediaPlaybackRequiresUserGesture = false
                 addJavascriptInterface(
                     object : JavaScriptInterface {
                         @JavascriptInterface

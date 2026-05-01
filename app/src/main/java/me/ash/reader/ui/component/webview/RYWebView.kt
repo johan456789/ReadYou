@@ -4,7 +4,9 @@ import android.annotation.SuppressLint
 import android.content.Context
 import android.util.Log
 import android.view.MotionEvent
+import android.view.View
 import android.view.ViewConfiguration
+import android.webkit.WebChromeClient
 import android.webkit.WebView
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.runtime.Composable
@@ -87,6 +89,8 @@ fun RYWebView(
     baseUrl: String? = null,
     refererDomain: String? = null,
     onImageClick: ((imgUrl: String, altText: String) -> Unit)? = null,
+    onShowCustomView: ((View, WebChromeClient.CustomViewCallback) -> Unit)? = null,
+    onHideCustomView: (() -> Unit)? = null,
 ) {
     val context = LocalContext.current
     val maxWidth = LocalConfiguration.current.screenWidthDp.dp.value
@@ -116,8 +120,17 @@ fun RYWebView(
         MaterialTheme.colorScheme.surfaceColorAtElevation((tonalElevation.value + 6).dp).toArgb()
     val boldCharacters = LocalReadingBoldCharacters.current
 
+    val webChromeClient = remember(onShowCustomView, onHideCustomView) {
+        if (onShowCustomView != null && onHideCustomView != null) {
+            RYWebChromeClient(
+                onShowCustomViewCallback = onShowCustomView,
+                onHideCustomViewCallback = onHideCustomView,
+            )
+        } else null
+    }
+
     val webView by
-        remember(backgroundColor) {
+        remember(backgroundColor, webChromeClient) {
             mutableStateOf(
                 WebViewLayout.get(
                     context = context,
@@ -130,6 +143,7 @@ fun RYWebView(
                                 context.openURL(url, openLink, openLinkSpecificBrowser)
                             },
                         ),
+                    webChromeClient = webChromeClient,
                     onImageClick = onImageClick,
                 )
             )

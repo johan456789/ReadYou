@@ -1,5 +1,8 @@
 package me.ash.reader.ui.page.home.reading
 
+import android.view.View
+import android.webkit.WebChromeClient
+import androidx.activity.compose.BackHandler
 import androidx.compose.animation.AnimatedContent
 import androidx.compose.animation.core.FastOutLinearInEasing
 import androidx.compose.animation.core.LinearOutSlowInEasing
@@ -13,6 +16,7 @@ import androidx.compose.animation.slideInVertically
 import androidx.compose.animation.slideOutVertically
 import androidx.compose.animation.togetherWith
 import androidx.compose.foundation.ExperimentalFoundationApi
+import androidx.compose.foundation.background
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.rememberScrollState
@@ -22,6 +26,7 @@ import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.Scaffold
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.CompositionLocalProvider
+import androidx.compose.runtime.DisposableEffect
 import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableStateOf
@@ -31,12 +36,15 @@ import androidx.compose.runtime.setValue
 import androidx.compose.runtime.snapshotFlow
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
+import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.platform.LocalHapticFeedback
 import androidx.compose.ui.unit.IntOffset
 import androidx.compose.ui.unit.TextUnit
 import androidx.compose.ui.unit.isSpecified
 import androidx.compose.ui.unit.sp
+import androidx.compose.ui.viewinterop.AndroidView
+import android.widget.FrameLayout
 import kotlin.math.abs
 import kotlinx.coroutines.launch
 import me.ash.reader.R
@@ -75,6 +83,18 @@ fun ReadingPage(
 
     var currentImageData by remember { mutableStateOf(ImageData()) }
 
+    // Video fullscreen state
+    var fullscreenVideoView by remember { mutableStateOf<View?>(null) }
+    var fullscreenVideoCallback by remember { mutableStateOf<WebChromeClient.CustomViewCallback?>(null) }
+    val isVideoFullscreen = fullscreenVideoView != null
+
+    // Handle back press when video is fullscreen
+    BackHandler(enabled = isVideoFullscreen) {
+        fullscreenVideoCallback?.onCustomViewHidden()
+        fullscreenVideoView = null
+        fullscreenVideoCallback = null
+    }
+
     val isShowToolBar =
         if (LocalReadingAutoHideToolbar.current.value) {
             readerState.articleId != null && !isReaderScrollingDown
@@ -92,10 +112,11 @@ fun ReadingPage(
 
     var bringToTop by remember { mutableStateOf(false) }
 
-    Scaffold(
-        containerColor = MaterialTheme.colorScheme.surface,
-        content = { paddings ->
-            Box(modifier = Modifier.fillMaxSize()) {
+    Box(modifier = Modifier.fillMaxSize()) {
+        Scaffold(
+            containerColor = MaterialTheme.colorScheme.surface,
+            content = { paddings ->
+                Box(modifier = Modifier.fillMaxSize()) {
                 if (readerState.articleId != null) {
                     TopBar(
                         isShow = isShowToolBar,
@@ -246,6 +267,15 @@ fun ReadingPage(
                                                 currentImageData = ImageData(imgUrl, altText)
                                                 showFullScreenImageViewer = true
                                             },
+                                            onShowCustomView = { view, callback ->
+                                                android.util.Log.d("ReadingPage", "onShowCustomView lambda called with view=$view")
+                                                fullscreenVideoView = view
+                                                fullscreenVideoCallback = callback
+                                            },
+                                            onHideCustomView = {
+                                                fullscreenVideoView = null
+                                                fullscreenVideoCallback = null
+                                            },
                                         )
                                         PullToLoadIndicator(
                                             state = state,
@@ -308,25 +338,59 @@ fun ReadingPage(
                         },
                     )
                 }
-            }
-        },
-    )
-    if (showFullScreenImageViewer) {
-
-        ReaderImageViewer(
-            imageData = currentImageData,
-            onDownloadImage = {
-                viewModel.downloadImage(
-                    it,
-                    onSuccess = { context.showToast(context.getString(R.string.image_saved)) },
-                    onFailure = {
-                        // FIXME: crash the app for error report
-                        th ->
-                        throw th
-                    },
-                )
+                }
             },
-            onDismissRequest = { showFullScreenImageViewer = false },
         )
+
+        if (showFullScreenImageViewer) {
+            ReaderImageViewer(
+                imageData = currentImageData,
+                onDownloadImage = {
+                    viewModel.downloadImage(
+                        it,
+                        onSuccess = { context.showToast(context.getString(R.string.image_saved)) },
+                        onFailure = {
+                            // FIXME: crash the app for error report
+                            th ->
+                            throw th
+                        },
+                    )
+                },
+                onDismissRequest = { showFullScreenImageViewer = false },
+            )
+        }
+
+        // Fullscreen video overlay
+        android.util.Log.d("ReadingPage", "Checking fullscreen: isVideoFullscreen=$isVideoFullscreen, view=${fullscreenVideoView}")
+        if (isVideoFullscreen) {
+            android.util.Log.d("ReadingPage", "Rendering fullscreen overlay NOW")
+            Box(
+                modifier = Modifier
+                    .fillMaxSize()
+                    .background(Color.Black),
+                contentAlignment = Alignment.Center,
+            ) {
+                fullscreenVideoView?.let { view ->
+                    AndroidView(
+                        modifier = Modifier.fillMaxSize(),
+                        factory = { ctx ->
+                            FrameLayout(ctx).apply {
+                                addView(
+                                    view,
+                                    FrameLayout.LayoutParams(
+                                        FrameLayout.LayoutParams.MATCH_PARENT,
+                                        FrameLayout.LayoutParams.MATCH_PARENT
+                                    )
+                                )
+                            }
+                        },
+                        update = { },
+                        onRelease = { container ->
+                            (container as? FrameLayout)?.removeAllViews()
+                        }
+                    )
+                }
+            }
+        }
     }
 }
