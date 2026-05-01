@@ -147,8 +147,15 @@ fun FlowPage(
 
     val filterUiState = pagerData.filterState
 
-    val listStateKey = "${filterUiState.filter}|${filterUiState.group?.id}|${filterUiState.feed?.id}"
-    val listState = rememberSaveable(listStateKey, saver = LazyListState.Saver) { LazyListState(0, 0) }
+    val listState =
+        rememberSaveable(
+            filterUiState.filter,
+            filterUiState.group?.id,
+            filterUiState.feed?.id,
+            saver = LazyListState.Saver,
+        ) {
+            LazyListState(0, 0)
+        }
 
     val isTopBarElevated = topBarTonalElevation.value > 0
     val scrolledTopBarContainerColor =
