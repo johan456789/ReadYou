@@ -1,223 +1,132 @@
 package me.ash.reader.domain.data
 
+import android.content.Context
+import java.nio.file.Files
 import java.util.Date
+import kotlinx.coroutines.CoroutineScope
+import kotlinx.coroutines.Dispatchers
+import kotlinx.coroutines.SupervisorJob
+import kotlinx.coroutines.flow.MutableStateFlow
+import kotlinx.coroutines.runBlocking
+import me.ash.reader.domain.model.account.Account
+import me.ash.reader.domain.model.account.AccountType
 import me.ash.reader.domain.model.article.Article
 import me.ash.reader.domain.model.article.ArticleWithFeed
+import me.ash.reader.domain.model.article.PendingReadStateOp
 import me.ash.reader.domain.model.feed.Feed
+import me.ash.reader.domain.repository.PendingReadStateOpDao
+import me.ash.reader.domain.service.AbstractRssRepository
+import me.ash.reader.domain.service.AccountService
+import me.ash.reader.domain.service.RssService
 import org.junit.Assert.assertFalse
 import org.junit.Assert.assertTrue
 import org.junit.Test
+import org.mockito.kotlin.eq
+import org.mockito.kotlin.mock
+import org.mockito.kotlin.whenever
 
-/**
- * Tests for DiffMapHolder.updateDiffInternal logic extracted into a testable helper.
- *
- * These tests verify the read state toggle behavior, particularly the scenario
- * where an article is opened (marked read via diff), then the user taps
- * the unread button to mark it unread again.
- */
 class DiffMapHolderUpdateDiffTest {
 
     @Test
-    fun `checkIfRead returns diffMap isRead when diff exists`() {
+    fun `checkIfRead returns diff value when diff exists`() {
+        val holder = createHolder()
         val article = unreadArticle()
-        val diffMap = mutableMapOf(article.article.id to Diff(isRead = true, article))
 
-        val result = checkIfRead(diffMap, article)
+        invokeUpdateDiffInternal(holder, article, markRead = true)
 
-        assertTrue("Should return diffMap's isRead=true", result)
+        assertTrue(holder.checkIfRead(article))
     }
 
     @Test
-    fun `checkIfRead returns article isRead when no diff exists`() {
-        val article = unreadArticle()
-        val diffMap = mutableMapOf<String, Diff>()
-
-        val result = checkIfRead(diffMap, article)
-
-        assertFalse("Should return article's isRead=false", result)
-    }
-
-    @Test
-    fun `updateDiff with markRead=true on unread article adds diff`() {
-        val article = unreadArticle()
-        val diffMap = mutableMapOf<String, Diff>()
-
-        updateDiffInternalBuggy(diffMap, article, markRead = true)
-
-        assertTrue("Diff should exist with isRead=true", diffMap[article.article.id]?.isRead == true)
-    }
-
-    @Test
-    fun `BUGGY - updateDiff with markRead=false after markRead=true removes diff instead of updating`() {
-        // This demonstrates the bug scenario from GitHub issue #57:
-        // 1. Article is originally unread (isUnread=true in DB)
-        // 2. User opens article -> markRead=true adds diff with isRead=true
-        //    The UI also updates articleWithFeed.article.isRead to true via withReadState()
-        // 3. User taps unread button -> markRead=false should result in isRead=false
-        //    But the buggy code REMOVES the diff, causing checkIfRead to fall back to
-        //    articleWithFeed.article.isRead which is now TRUE!
-        
+    fun `explicit mark unread after open keeps unread state even if UI article was changed to read`() {
+        val holder = createHolder()
         val originalArticle = unreadArticle()
-        val diffMap = mutableMapOf<String, Diff>()
 
-        // Step 1: Open article, mark as read
-        updateDiffInternalBuggy(diffMap, originalArticle, markRead = true)
-        assertTrue("After opening, checkIfRead should be true", checkIfRead(diffMap, originalArticle))
-        
-        // Simulate what the UI does: update the articleWithFeed.article.isRead to match
-        // This is what ReadingUiState.withReadState() does
+        invokeUpdateDiffInternal(holder, originalArticle, markRead = true)
+        assertTrue(holder.checkIfRead(originalArticle))
+
         val articleAfterWithReadState = originalArticle.copy(
-            article = originalArticle.article.copy(isUnread = false)  // isRead = true
+            article = originalArticle.article.copy(isUnread = false)
         )
+        invokeUpdateDiffInternal(holder, articleAfterWithReadState, markRead = false)
 
-        // Step 2: Tap unread button - using the MODIFIED articleWithFeed
-        updateDiffInternalBuggy(diffMap, articleAfterWithReadState, markRead = false)
-
-        // BUG: The buggy code removes the diff, so checkIfRead falls back to
-        // articleAfterWithReadState.article.isRead which is TRUE (not the desired FALSE)
-        // This assertion PASSES with buggy code but shows the wrong behavior!
-        assertTrue("BUG: checkIfRead returns true instead of false", 
-            checkIfRead(diffMap, articleAfterWithReadState))
+        assertFalse(holder.checkIfRead(articleAfterWithReadState))
     }
 
     @Test
-    fun `FIXED - updateDiff with markRead=false after markRead=true should update diff to unread`() {
-        // Same scenario as above but with the fixed implementation
-        val originalArticle = unreadArticle()
-        val diffMap = mutableMapOf<String, Diff>()
+    fun `explicit mark returning to baseline removes stale diff`() {
+        val holder = createHolder()
+        val originallyReadArticle = readArticle()
 
-        // Step 1: Open article, mark as read
-        updateDiffInternalFixed(diffMap, originalArticle, markRead = true)
-        assertTrue("After opening, checkIfRead should be true", checkIfRead(diffMap, originalArticle))
-        
-        // Simulate what the UI does: update the articleWithFeed
-        val articleAfterWithReadState = originalArticle.copy(
-            article = originalArticle.article.copy(isUnread = false)  // isRead = true
+        invokeUpdateDiffInternal(holder, originallyReadArticle, markRead = false)
+        assertFalse(holder.checkIfRead(originallyReadArticle))
+
+        invokeUpdateDiffInternal(holder, originallyReadArticle, markRead = true)
+
+        assertTrue(holder.checkIfRead(originallyReadArticle))
+        assertFalse(holder.diffMap.containsKey(originallyReadArticle.article.id))
+    }
+
+    @Test
+    fun `toggle twice returns to original state`() {
+        val holder = createHolder()
+        val article = unreadArticle()
+
+        invokeUpdateDiffInternal(holder, article, markRead = null)
+        assertTrue(holder.checkIfRead(article))
+
+        invokeUpdateDiffInternal(holder, article, markRead = null)
+        assertFalse(holder.checkIfRead(article))
+    }
+
+    private fun createHolder(): DiffMapHolder {
+        val context = mock<Context>()
+        whenever(context.cacheDir).thenReturn(Files.createTempDirectory("diff-map-holder-test").toFile())
+
+        val localAccountFlow = MutableStateFlow(
+            Account(
+                id = 1,
+                name = "Local",
+                type = AccountType.Local,
+            )
         )
+        val accountService = mock<AccountService>()
+        whenever(accountService.currentAccountFlow).thenReturn(localAccountFlow)
 
-        // Step 2: Tap unread button
-        updateDiffInternalFixed(diffMap, articleAfterWithReadState, markRead = false)
-
-        // With fix: diff is UPDATED (not removed), so checkIfRead returns the correct value
-        assertFalse("After tapping unread, checkIfRead should be false", 
-            checkIfRead(diffMap, articleAfterWithReadState))
-    }
-
-    @Test
-    fun `updateDiff with markRead=false on originally unread article removes diff`() {
-        // If article was originally unread (DB state), and we explicitly mark it unread,
-        // no diff is needed because it matches the DB state
-        val article = unreadArticle()
-        val diffMap = mutableMapOf<String, Diff>()
-
-        updateDiffInternalBuggy(diffMap, article, markRead = false)
-
-        assertTrue("No diff needed when marking unread article as unread", diffMap.isEmpty())
-    }
-
-    @Test
-    fun `updateDiff with markRead=true on originally read article does nothing`() {
-        val article = readArticle()
-        val diffMap = mutableMapOf<String, Diff>()
-
-        updateDiffInternalBuggy(diffMap, article, markRead = true)
-
-        assertTrue("No diff needed when marking read article as read", diffMap.isEmpty())
-    }
-
-    @Test
-    fun `toggle twice returns to original state when article was originally unread`() {
-        val article = unreadArticle()
-        val diffMap = mutableMapOf<String, Diff>()
-
-        // Toggle to read
-        updateDiffInternalBuggy(diffMap, article, markRead = null)
-        assertTrue("First toggle should mark as read", checkIfRead(diffMap, article))
-
-        // Toggle back to unread
-        updateDiffInternalBuggy(diffMap, article, markRead = null)
-        assertFalse("Second toggle should mark as unread", checkIfRead(diffMap, article))
-    }
-
-    // Helper functions that mirror DiffMapHolder logic for isolated testing
-
-    private fun checkIfRead(diffMap: Map<String, Diff>, articleWithFeed: ArticleWithFeed): Boolean {
-        return diffMap[articleWithFeed.article.id]?.isRead ?: articleWithFeed.article.isRead
-    }
-
-    /**
-     * Original buggy implementation from DiffMapHolder.
-     * When markRead is explicit and differs from current diff, it removes the diff
-     * instead of updating it.
-     */
-    private fun updateDiffInternalBuggy(
-        diffMap: MutableMap<String, Diff>,
-        articleWithFeed: ArticleWithFeed,
-        markRead: Boolean? = null
-    ): Diff? {
-        val articleId = articleWithFeed.article.id
-        val diff = diffMap[articleId]
-
-        if (diff == null) {
-            val isRead = markRead ?: !articleWithFeed.article.isRead
-            if (isRead == articleWithFeed.article.isRead) {
-                return null
-            }
-            val newDiff = Diff(isRead = isRead, articleWithFeed = articleWithFeed)
-            diffMap[articleId] = newDiff
-            return newDiff
-        } else {
-            if (markRead == null || diff.isRead != markRead) {
-                // BUG IS HERE: When markRead is explicit (not null) and differs from current diff,
-                // we should UPDATE the diff, not REMOVE it.
-                val removedDiff = diffMap.remove(articleId)
-                return removedDiff?.copy(isRead = !removedDiff.isRead)
-            }
+        val pendingReadStateOpDao = mock<PendingReadStateOpDao>()
+        runBlocking {
+            whenever(pendingReadStateOpDao.queryByAccountId(eq(1))).thenReturn(emptyList<PendingReadStateOp>())
         }
-        return null
+
+        val rssRepository = mock<AbstractRssRepository>()
+        val rssService = mock<RssService>()
+        whenever(rssService.get()).thenReturn(rssRepository)
+
+        return DiffMapHolder(
+            context = context,
+            applicationScope = CoroutineScope(SupervisorJob() + Dispatchers.Unconfined),
+            ioDispatcher = Dispatchers.Unconfined,
+            accountService = accountService,
+            rssService = rssService,
+            pendingReadStateOpDao = pendingReadStateOpDao,
+        ).apply {
+            deferDbCommits = true
+        }
     }
 
-    /**
-     * Fixed implementation that handles explicit markRead correctly.
-     * When markRead is explicit, update the diff to the new state rather than removing it.
-     */
-    private fun updateDiffInternalFixed(
-        diffMap: MutableMap<String, Diff>,
+    private fun invokeUpdateDiffInternal(
+        holder: DiffMapHolder,
         articleWithFeed: ArticleWithFeed,
-        markRead: Boolean? = null
+        markRead: Boolean?,
     ): Diff? {
-        val articleId = articleWithFeed.article.id
-        val diff = diffMap[articleId]
-
-        if (diff == null) {
-            val isRead = markRead ?: !articleWithFeed.article.isRead
-            if (isRead == articleWithFeed.article.isRead) {
-                return null
-            }
-            val newDiff = Diff(isRead = isRead, articleWithFeed = articleWithFeed)
-            diffMap[articleId] = newDiff
-            return newDiff
-        } else {
-            // FIX: When markRead is explicit (not null), update the diff to the desired state
-            // Only remove the diff when toggling (markRead == null)
-            if (markRead == null) {
-                // Toggle: remove diff, article reverts to DB state
-                val removedDiff = diffMap.remove(articleId)
-                return removedDiff?.copy(isRead = !removedDiff.isRead)
-            } else if (diff.isRead != markRead) {
-                // Explicit markRead that differs from current diff: update the diff
-                val newIsRead = markRead
-                if (newIsRead == articleWithFeed.article.isRead) {
-                    // New state matches DB, remove the diff
-                    diffMap.remove(articleId)
-                } else {
-                    // New state differs from DB, update the diff
-                    diffMap[articleId] = diff.copy(isRead = newIsRead)
-                }
-                return Diff(isRead = newIsRead, articleWithFeed = articleWithFeed)
-            }
-        }
-        return null
+        val method = DiffMapHolder::class.java.getDeclaredMethod(
+            "updateDiffInternal",
+            ArticleWithFeed::class.java,
+            Boolean::class.javaObjectType,
+        )
+        method.isAccessible = true
+        @Suppress("UNCHECKED_CAST")
+        return method.invoke(holder, articleWithFeed, markRead) as Diff?
     }
 
     private fun unreadArticle(): ArticleWithFeed =
