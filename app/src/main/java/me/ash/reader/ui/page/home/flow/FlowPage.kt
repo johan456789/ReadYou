@@ -45,7 +45,6 @@ import androidx.compose.material3.Text
 import androidx.compose.material3.TopAppBarDefaults
 import androidx.compose.material3.rememberTopAppBarState
 import androidx.compose.runtime.Composable
-import androidx.compose.runtime.DisposableEffect
 import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableStateOf
@@ -227,15 +226,18 @@ fun FlowPage(
         }
     }
 
-    DisposableEffect(filterUiState.filter) {
+    LaunchedEffect(filterUiState.filter) {
         val isUnread = filterUiState.filter.isUnread()
         viewModel.setDeferDbCommits(isUnread)
-        onDispose {
-            if (isUnread) {
-                viewModel.setDeferDbCommits(false)
-                viewModel.flushDeferredDiffs()
-            }
+    }
+
+    val navigateUpWithFlushIfUnread = {
+        onSearch = false
+        if (filterUiState.filter.isUnread()) {
+            viewModel.setDeferDbCommits(false)
+            viewModel.flushDeferredDiffs()
         }
+        onNavigateUp()
     }
 
     val topAppBarState = rememberTopAppBarState()
@@ -384,8 +386,7 @@ fun FlowPage(
                                 contentDescription = stringResource(R.string.back),
                                 tint = MaterialTheme.colorScheme.onSurface,
                             ) {
-                                onSearch = false
-                                onNavigateUp()
+                                navigateUpWithFlushIfUnread()
                             }
                         },
                         actions = {
@@ -454,6 +455,10 @@ fun FlowPage(
                 }
             },
             content = {
+                BackHandler(enabled = !isTwoPane && !onSearch && !markAsRead) {
+                    navigateUpWithFlushIfUnread()
+                }
+
                 RYExtensibleVisibility(modifier = Modifier.zIndex(1f), visible = onSearch) {
                     BackHandler(onSearch) { onSearch = false }
                     SearchBar(
