@@ -43,9 +43,8 @@ import kotlin.math.sign
 /**
  * A [NestedScrollConnection] that provides scroll events to a hoisted [state].
  *
- * This connection tracks pull-to-load state for article switching while allowing
- * the native Android 12+ overscroll stretch effect to handle visual feedback.
- * It does NOT consume scroll events at boundaries to let the native overscroll work.
+ * This connection handles pull-to-load/switch behavior by consuming scroll events
+ * at boundaries and moving content accordingly.
  *
  * @param enabled If not enabled, all scroll delta and fling velocity will be ignored.
  * @param scrollState The ScrollState of the content, used to detect boundaries.
@@ -69,15 +68,8 @@ private class ReaderNestedScrollConnection(
         if (source != NestedScrollSource.UserInput) return Offset.Zero
         
         // Let the state handle any pull-back (reducing existing offset)
-        // This is needed for pull-to-load indicator to retract properly
         val consumed = onPreScroll(available.y)
-        if (consumed != 0f) {
-            return Offset(0f, consumed)
-        }
-        
-        // Don't consume scroll events here - let them pass through to 
-        // the scrollable content and then to native overscroll
-        return Offset.Zero
+        return Offset(0f, consumed)
     }
 
     override fun onPostScroll(
@@ -86,14 +78,11 @@ private class ReaderNestedScrollConnection(
         if (!enabled) return Offset.Zero
         if (source != NestedScrollSource.UserInput) return Offset.Zero
         
-        // Track pull state for pull-to-load indicator, but DON'T consume
-        // the scroll delta - return Offset.Zero so native overscroll can work
+        // Consume the overscroll and apply it to pull state
         val delta = available.y
         if (delta != 0f) {
-            // Update the pull state (for pull-to-load indicator)
-            onPostScroll(delta)
-            // Return Zero to NOT consume - let native overscroll handle visual feedback
-            return Offset.Zero
+            val pulled = onPostScroll(delta)
+            return Offset(0f, pulled)
         }
         
         return Offset.Zero

@@ -277,7 +277,6 @@ fun ReadingPage(
                                                 modifier = Modifier.pullToLoad(
                                                     state = state,
                                                     scrollState = scrollState,
-                                                    contentOffsetY = null,
                                                 ),
                                                 contentPadding = paddings,
                                                 content = content.text ?: "",
