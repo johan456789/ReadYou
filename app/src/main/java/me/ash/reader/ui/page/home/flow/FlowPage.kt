@@ -147,7 +147,15 @@ fun FlowPage(
 
     val filterUiState = pagerData.filterState
 
-    val listState = rememberSaveable(pagerData, saver = LazyListState.Saver) { LazyListState(0, 0) }
+    val listState =
+        rememberSaveable(
+            filterUiState.filter,
+            filterUiState.group?.id,
+            filterUiState.feed?.id,
+            saver = LazyListState.Saver,
+        ) {
+            LazyListState(0, 0)
+        }
 
     val isTopBarElevated = topBarTonalElevation.value > 0
     val scrolledTopBarContainerColor =
@@ -295,24 +303,6 @@ fun FlowPage(
                 if (index != -1) {
                     scrollAppBarToCollapsed()
                     listState.animateScrollToItem(index, scrollOffset = -200)
-                }
-            }
-        }
-    } else {
-        LaunchedEffect(Unit) {
-            if (readerState.articleId != null) {
-                val articleId = readerState.articleId
-
-                val itemList = pagingItems?.itemSnapshotList
-
-                val index =
-                    itemList?.indexOfFirst {
-                        it is ArticleFlowItem.Article && it.articleWithFeed.article.id == articleId
-                    } ?: -1
-
-                if (index != -1) {
-                    snapAppBarToCollapsed()
-                    listState.requestScrollToItem(index, scrollOffset = -400)
                 }
             }
         }
