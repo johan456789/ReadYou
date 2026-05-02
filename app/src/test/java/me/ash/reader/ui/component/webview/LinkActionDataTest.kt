@@ -58,4 +58,16 @@ class LinkActionDataTest {
         val data = LinkActionData("https://example.com")
         assertEquals(null, data.linkText)
     }
+
+    @Test
+    fun `fallbackTitle returns hostname without www`() {
+        val data = LinkActionData("https://www.example.com/item?id=1")
+        assertEquals("example.com", data.fallbackTitle())
+    }
+
+    @Test
+    fun `fallbackTitle returns url when hostname is unavailable`() {
+        val data = LinkActionData("not a url")
+        assertEquals("not a url", data.fallbackTitle())
+    }
 }
