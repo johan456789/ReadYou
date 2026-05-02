@@ -1,6 +1,6 @@
 package me.ash.reader.infrastructure.html
 
-import android.util.Log
+import timber.log.Timber
 import net.dankito.readability4j.extended.Readability4JExtended
 import net.dankito.readability4j.extended.processor.PostprocessorExtended
 import net.dankito.readability4j.extended.util.RegExUtilExtended
@@ -16,7 +16,7 @@ object Readability {
         return try {
             Readability4JExtended(uri, htmlContent).parse().textContent?.trim() ?: ""
         } catch (e: Exception) {
-            Log.e("RLog", "Readability.parseToText '$uri' is error: ", e)
+            Timber.tag("RLog").e(e, "Readability.parseToText '$uri' is error")
             ""
         }
     }

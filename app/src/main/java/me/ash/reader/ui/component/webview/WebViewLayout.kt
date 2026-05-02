@@ -3,7 +3,7 @@ package me.ash.reader.ui.component.webview
 import android.annotation.SuppressLint
 import android.content.Context
 import android.graphics.Color
-import android.util.Log
+import timber.log.Timber
 import android.webkit.JavascriptInterface
 import me.ash.reader.infrastructure.preference.ReadingFontsPreference
 
@@ -18,13 +18,13 @@ object WebViewLayout {
         onImageClick: ((imgUrl: String, altText: String) -> Unit)? = null,
         onLinkLongPress: ((url: String, text: String) -> Unit)? = null,
     ): HorizontalScrollAwareWebView {
-        Log.d("WebViewLayout", "Creating WebView with webChromeClient=$webChromeClient")
+                Timber.tag("WebViewLayout").d("Creating WebView with webChromeClient=$webChromeClient")
         return HorizontalScrollAwareWebView(context).apply {
             this.webViewClient = webViewClient
             webChromeClient?.let { 
-                Log.d("WebViewLayout", "Setting webChromeClient: $it")
+                        Timber.tag("WebViewLayout").d("Setting webChromeClient: $it")
                 this.webChromeClient = it 
-            } ?: Log.d("WebViewLayout", "webChromeClient is null, not setting")
+            } ?: Timber.tag("WebViewLayout").d("webChromeClient is null, not setting")
             scrollBarSize = 0
             isHorizontalScrollBarEnabled = false
             isVerticalScrollBarEnabled = true

@@ -4,7 +4,7 @@ import android.Manifest
 import android.content.Intent
 import android.net.Uri
 import android.provider.Settings
-import android.util.Log
+import timber.log.Timber
 import androidx.activity.compose.rememberLauncherForActivityResult
 import androidx.activity.result.contract.ActivityResultContracts
 import androidx.compose.foundation.layout.Column
@@ -124,10 +124,9 @@ fun UpdateDialog(
                         is Download.Progress -> " ${downloadState.percent}%"
                         is Download.Finished -> {
                             if (context.packageManager.canRequestPackageInstalls()) {
-                                Log.i(
-                                    "RLog",
-                                    "Download.Finished: ${downloadState.file.absolutePath}"
-                                )
+                            Timber.tag("RLog").i(
+                                "Download.Finished: ${downloadState.file.absolutePath}"
+                            )
                                 context.installLatestApk()
                             } else {
                                 launcher.launch(Manifest.permission.REQUEST_INSTALL_PACKAGES)

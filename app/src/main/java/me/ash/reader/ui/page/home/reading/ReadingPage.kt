@@ -45,6 +45,7 @@ import androidx.compose.ui.unit.isSpecified
 import androidx.compose.ui.unit.sp
 import androidx.compose.ui.viewinterop.AndroidView
 import android.widget.FrameLayout
+import timber.log.Timber
 import kotlin.math.abs
 import kotlinx.coroutines.flow.distinctUntilChanged
 import kotlinx.coroutines.launch
@@ -314,7 +315,7 @@ fun ReadingPage(
                                                 showLinkActionDialog = true
                                             },
                                             onShowCustomView = { view, callback ->
-                                                android.util.Log.d("ReadingPage", "onShowCustomView lambda called with view=$view")
+                                                Timber.tag("ReadingPage").d("onShowCustomView lambda called with view=$view")
                                                 fullscreenVideoView = view
                                                 fullscreenVideoCallback = callback
                                             },
@@ -409,9 +410,9 @@ fun ReadingPage(
         }
 
         // Fullscreen video overlay
-        android.util.Log.d("ReadingPage", "Checking fullscreen: isVideoFullscreen=$isVideoFullscreen, view=${fullscreenVideoView}")
+        Timber.tag("ReadingPage").d("Checking fullscreen: isVideoFullscreen=$isVideoFullscreen, view=${fullscreenVideoView}")
         if (isVideoFullscreen) {
-            android.util.Log.d("ReadingPage", "Rendering fullscreen overlay NOW")
+            Timber.tag("ReadingPage").d("Rendering fullscreen overlay NOW")
             Box(
                 modifier = Modifier
                     .fillMaxSize()

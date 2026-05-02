@@ -1,7 +1,7 @@
 package me.ash.reader.ui.ext
 
 import android.content.Context
-import android.util.Log
+import timber.log.Timber
 import androidx.datastore.core.DataStore
 import androidx.datastore.preferences.core.Preferences
 import androidx.datastore.preferences.core.booleanPreferencesKey
@@ -81,7 +81,7 @@ fun <T> DataStore<Preferences>.get(key: String): T? {
         this@get.data
             .catch { exception ->
                 if (exception is IOException) {
-                    Log.e("RLog", "Get data store error $exception")
+                    Timber.tag("RLog").e(exception, "Get data store error")
                     exception.printStackTrace()
                     emit(emptyPreferences())
                 } else {

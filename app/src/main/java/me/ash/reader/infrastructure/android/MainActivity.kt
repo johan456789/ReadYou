@@ -5,7 +5,7 @@ import android.content.Intent
 import android.database.CursorWindow
 import android.os.Build
 import android.os.Bundle
-import android.util.Log
+import timber.log.Timber
 import androidx.activity.compose.setContent
 import androidx.activity.enableEdgeToEdge
 import androidx.activity.result.contract.ActivityResultContracts
@@ -62,7 +62,7 @@ class MainActivity : AppCompatActivity() {
 
     override fun onCreate(savedInstanceState: Bundle?) {
         super.onCreate(savedInstanceState)
-        Log.i("RLog", "onCreate: ${ProfileInstallerInitializer().create(this)}")
+        Timber.tag("RLog").i("onCreate: ${ProfileInstallerInitializer().create(this)}")
 
         enableEdgeToEdge()
 
@@ -78,7 +78,7 @@ class MainActivity : AppCompatActivity() {
             field.isAccessible = true
             field.set(null, 100 * 1024 * 1024) // 100MB is the new cursor window size
         } catch (e: Exception) {
-            Log.e("RLog", "Unable to increase cursor window size: ${e.printStackTrace()}")
+            Timber.tag("RLog").e(e, "Unable to increase cursor window size")
         }
 
         val requestPermissionLauncher =

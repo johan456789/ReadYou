@@ -1,6 +1,6 @@
 package me.ash.reader.ui.component.webview
 
-import android.util.Log
+import timber.log.Timber
 import android.view.View
 import android.webkit.WebChromeClient
 
@@ -13,32 +13,32 @@ class RYWebChromeClient(
     private var customViewCallback: CustomViewCallback? = null
 
     override fun onShowCustomView(view: View?, callback: CustomViewCallback?) {
-        Log.i("RYWebChromeClient", "onShowCustomView called, view=$view, callback=$callback")
+        Timber.tag("RYWebChromeClient").i("onShowCustomView called, view=$view, callback=$callback")
         if (customView != null) {
-            Log.i("RYWebChromeClient", "customView already exists, ignoring duplicate call")
+            Timber.tag("RYWebChromeClient").i("customView already exists, ignoring duplicate call")
             return
         }
         if (view == null || callback == null) {
-            Log.w("RYWebChromeClient", "view or callback is null, returning")
+            Timber.tag("RYWebChromeClient").w("view or callback is null, returning")
             return
         }
 
-        Log.i("RYWebChromeClient", "Setting fullscreen view")
+        Timber.tag("RYWebChromeClient").i("Setting fullscreen view")
         customView = view
         customViewCallback = callback
-        Log.i("RYWebChromeClient", "Calling onShowCustomViewCallback lambda")
+        Timber.tag("RYWebChromeClient").i("Calling onShowCustomViewCallback lambda")
         onShowCustomViewCallback(view, callback)
-        Log.i("RYWebChromeClient", "onShowCustomViewCallback lambda completed")
+        Timber.tag("RYWebChromeClient").i("onShowCustomViewCallback lambda completed")
     }
 
     override fun onHideCustomView() {
-        Log.i("RYWebChromeClient", "onHideCustomView called")
+        Timber.tag("RYWebChromeClient").i("onHideCustomView called")
         if (customView == null) {
-            Log.w("RYWebChromeClient", "customView is null, returning")
+            Timber.tag("RYWebChromeClient").w("customView is null, returning")
             return
         }
 
-        Log.i("RYWebChromeClient", "Hiding fullscreen view")
+        Timber.tag("RYWebChromeClient").i("Hiding fullscreen view")
         clearCustomView()
         onHideCustomViewCallback()
     }

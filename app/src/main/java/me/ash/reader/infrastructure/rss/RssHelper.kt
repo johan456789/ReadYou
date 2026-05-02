@@ -1,7 +1,7 @@
 package me.ash.reader.infrastructure.rss
 
 import android.content.Context
-import android.util.Log
+import timber.log.Timber
 import com.rometools.modules.mediarss.MediaEntryModule
 import com.rometools.modules.mediarss.MediaModule
 import com.rometools.modules.mediarss.types.UrlReference
@@ -146,7 +146,7 @@ constructor(
             }
         } catch (e: Exception) {
             e.printStackTrace()
-            Log.e("RLog", "queryRssXml[${feed.name}]: ${e.message}")
+            Timber.tag("RLog").e(e, "queryRssXml[${feed.name}]: ${e.message}")
             listOf()
         }
 
@@ -242,7 +242,7 @@ constructor(
         val iconFinder = BestIconFinder(okHttpClient)
         val domain = feedLink.extractDomain()
         return iconFinder.findBestIcon(domain ?: feedLink).also {
-            Log.i("RLog", "queryRssIconByLink: get $it from $domain")
+                        Timber.tag("RLog").i("queryRssIconByLink: get $it from $domain")
         }
     }
 

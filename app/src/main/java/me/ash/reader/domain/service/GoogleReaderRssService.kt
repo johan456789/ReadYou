@@ -2,7 +2,6 @@ package me.ash.reader.domain.service
 
 import android.content.Context
 import android.net.Uri
-import android.util.Log
 import androidx.compose.ui.util.fastFilter
 import androidx.compose.ui.util.fastFilteredMap
 import androidx.work.ListenableWorker
@@ -119,7 +118,7 @@ constructor(
                 accountService.update(account.copy(name = it))
             }
         } catch (ignore: Exception) {
-            Log.e("RLog", "get user info is failed: ", ignore)
+                Timber.tag("RLog").e(ignore, "get user info is failed")
         }
     }
 
@@ -870,7 +869,7 @@ constructor(
             .takeIf { it.isNotEmpty() }
             ?.chunked(500)
             ?.forEachIndexed { index, it ->
-                Log.d("RLog", "sync markAsRead:  ${(index * 500) + it.size}/${markList.size} num")
+                        Timber.tag("RLog").d("sync markAsRead:  ${(index * 500) + it.size}/${markList.size} num")
                 googleReaderAPI.editTag(
                     itemIds = it,
                     mark = if (markRead) GoogleReaderAPI.Stream.Read.tag else null,
@@ -886,8 +885,7 @@ constructor(
             .takeIf { it.isNotEmpty() }
             ?.chunked(500)
             ?.forEachIndexed { index, idList ->
-                Log.d(
-                    "RLog",
+                Timber.tag("RLog").d(
                     "sync markAsRead:  ${(index * 500) + idList.size}/${articleIds.size} num",
                 )
                 googleReaderAPI
