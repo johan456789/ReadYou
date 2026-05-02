@@ -187,9 +187,16 @@ class DiffMapHolder @Inject constructor(
             return newDiff
         } else {
             if (markRead == null) {
-                // Toggle: remove diff (reverts to original DB state behavior)
-                val removedDiff = diffMap.remove(articleId)
-                return removedDiff?.copy(isRead = !removedDiff.isRead)
+                // Toggle: flip the existing diff's isRead state
+                val toggledIsRead = !diff.isRead
+                val updatedDiff = diff.copy(isRead = toggledIsRead)
+                if (toggledIsRead == articleWithFeed.article.isRead) {
+                    // Toggling brings us back to the baseline, remove the diff
+                    diffMap.remove(articleId)
+                } else {
+                    diffMap[articleId] = updatedDiff
+                }
+                return updatedDiff
             } else if (diff.isRead != markRead) {
                 // Explicit markRead that differs from current diff.
                 // If it matches the baseline article state, this diff becomes a no-op and should be removed.
