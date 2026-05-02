@@ -46,6 +46,7 @@ import androidx.compose.ui.unit.sp
 import androidx.compose.ui.viewinterop.AndroidView
 import android.widget.FrameLayout
 import kotlin.math.abs
+import kotlinx.coroutines.flow.distinctUntilChanged
 import kotlinx.coroutines.launch
 import me.ash.reader.R
 import me.ash.reader.infrastructure.android.TextToSpeechManager
@@ -80,6 +81,11 @@ fun ReadingPage(
 
     var isReaderScrollingDown by remember { mutableStateOf(false) }
     var showFullScreenImageViewer by remember { mutableStateOf(false) }
+    
+    // Track scroll position for toolbar visibility
+    var isScrollable by remember { mutableStateOf(false) }
+    var isAtTop by remember { mutableStateOf(true) }
+    var isAtBottom by remember { mutableStateOf(true) }
 
     var currentImageData by remember { mutableStateOf(ImageData()) }
 
@@ -93,12 +99,14 @@ fun ReadingPage(
         fullscreenVideoCallback?.onCustomViewHidden()
     }
 
-    val isShowToolBar =
-        if (LocalReadingAutoHideToolbar.current.value) {
-            readerState.articleId != null && !isReaderScrollingDown
-        } else {
-            true
-        }
+    val isAutoHideEnabled = LocalReadingAutoHideToolbar.current.value
+    val isShowToolBar = readerState.articleId != null && ReaderToolbarState.shouldShowToolbar(
+        isAutoHideEnabled = isAutoHideEnabled,
+        isScrollable = isScrollable,
+        isAtTop = isAtTop,
+        isAtBottom = isAtBottom,
+        isScrollingDown = isReaderScrollingDown
+    )
 
     var showTopDivider by remember { mutableStateOf(false) }
 
@@ -190,14 +198,14 @@ fun ReadingPage(
                                     rememberPullToLoadState(
                                         key = content,
                                         onLoadNext =
-                                            if (isNextArticleAvailable) {
+                                            if (isPullToSwitchArticleEnabled && isNextArticleAvailable) {
                                                 {
                                                     val (id, index) = readerState.nextArticle
                                                     onLoadArticle(id, index)
                                                 }
                                             } else null,
                                         onLoadPrevious =
-                                            if (isPreviousArticleAvailable) {
+                                            if (isPullToSwitchArticleEnabled && isPreviousArticleAvailable) {
                                                 {
                                                     val (id, index) = readerState.previousArticle
                                                     onLoadArticle(id, index)
@@ -225,6 +233,28 @@ fun ReadingPage(
                                         }
                                         .collectAsStateValue(initial = false)
 
+                                // Track scroll position for toolbar visibility
+                                LaunchedEffect(scrollState) {
+                                    var lastPosition = scrollState.value
+                                    snapshotFlow {
+                                        Triple(
+                                            scrollState.value,
+                                            scrollState.maxValue,
+                                            scrollState.maxValue > 0
+                                        )
+                                    }.distinctUntilChanged().collect { (position, maxScroll, scrollable) ->
+                                        isScrollable = scrollable
+                                        isAtTop = ReaderToolbarState.isAtTop(position)
+                                        isAtBottom = ReaderToolbarState.isAtBottom(position, maxScroll)
+                                        // Track scroll direction for toolbar visibility
+                                        val delta = position - lastPosition
+                                        if (abs(delta) > 2) {
+                                            isReaderScrollingDown = delta > 0
+                                        }
+                                        lastPosition = position
+                                    }
+                                }
+
                                 CompositionLocalProvider(
                                     LocalTextStyle provides
                                         LocalTextStyle.current.run {
@@ -242,16 +272,15 @@ fun ReadingPage(
                                         modifier = Modifier.fillMaxSize(),
                                         contentAlignment = Alignment.Center,
                                     ) {
+                                        val contentModifier = if (isPullToSwitchArticleEnabled) {
+                                            Modifier.pullToLoad(
+                                                state = state,
+                                            )
+                                        } else {
+                                            Modifier
+                                        }
                                         Content(
-                                            modifier =
-                                                Modifier.pullToLoad(
-                                                    state = state,
-                                                    onScroll = { f ->
-                                                        if (abs(f) > 2f)
-                                                            isReaderScrollingDown = f < 0f
-                                                    },
-                                                    enabled = isPullToSwitchArticleEnabled,
-                                                ),
+                                            modifier = contentModifier,
                                             contentPadding = paddings,
                                             content = content.text ?: "",
                                             feedName = feedName,
@@ -275,11 +304,13 @@ fun ReadingPage(
                                                 fullscreenVideoCallback = null
                                             },
                                         )
-                                        PullToLoadIndicator(
-                                            state = state,
-                                            canLoadPrevious = isPreviousArticleAvailable,
-                                            canLoadNext = isNextArticleAvailable,
-                                        )
+                                        if (isPullToSwitchArticleEnabled) {
+                                            PullToLoadIndicator(
+                                                state = state,
+                                                canLoadPrevious = isPreviousArticleAvailable,
+                                                canLoadNext = isNextArticleAvailable,
+                                            )
+                                        }
                                     }
                                 }
                             }
