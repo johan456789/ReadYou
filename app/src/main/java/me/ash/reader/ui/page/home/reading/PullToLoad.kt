@@ -375,7 +375,7 @@ fun Modifier.pullToLoad(
             onScroll = onScroll
         )
     )
-    return if (contentOffsetY != null) {
+    return if (enabled && contentOffsetY != null) {
         base.offset { IntOffset(x = 0, y = contentOffsetY(state.offsetFraction)) }
     } else {
         base
