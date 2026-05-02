@@ -79,6 +79,48 @@ class DiffMapHolderUpdateDiffTest {
         assertFalse(holder.checkIfRead(article))
     }
 
+    @Test
+    fun `toggle uses current diff state not stale article state`() {
+        // This test reproduces the bug from issue #59:
+        // 1. Article in DB is originally unread (isUnread=true)
+        // 2. User opens article -> auto-marked as read via diffMap
+        // 3. User taps "mark as unread" button in reading page
+        //    - Reading page passes articleWithFeed with MUTATED isUnread=false (from withReadState)
+        //    - This creates a diff with isRead=false
+        // 4. User goes back to flow list
+        // 5. User swipes to toggle
+        //    - Paging list passes articleWithFeed with ORIGINAL isUnread=true (stale DB state)
+        //    - Toggle should use diffMap's state (isRead=false) and toggle to read
+        //    - BUG: Current implementation removes the diff, falling back to stale article.isRead=false
+        val holder = createHolder()
+        val originalUnreadArticle = unreadArticle()
+
+        // Step 2: User opens article, it gets marked as read
+        invokeUpdateDiffInternal(holder, originalUnreadArticle, markRead = true)
+        assertTrue(holder.checkIfRead(originalUnreadArticle))
+
+        // Step 3: User taps "mark as unread" button in reading page
+        // The reading page's articleWithFeed has been mutated by withReadState(true)
+        // so it now has article.isRead = true (article.isUnread = false)
+        val readingPageArticle = originalUnreadArticle.copy(
+            article = originalUnreadArticle.article.copy(isUnread = false)
+        )
+        invokeUpdateDiffInternal(holder, readingPageArticle, markRead = false)
+        assertFalse(holder.checkIfRead(originalUnreadArticle))
+
+        // Step 4-5: User goes back to flow list. 
+        // The paging data still has the stale article with isUnread = true (original DB state),
+        // but diffMap has isRead = false
+
+        // Step 6: User swipes to toggle. The paging list passes the stale article.
+        // Toggle should see that diffMap says "unread" and toggle to "read"
+        invokeUpdateDiffInternal(holder, originalUnreadArticle, markRead = null)
+
+        // The article should now be read (toggled from the diffMap's unread state)
+        assertTrue("After toggle, article should be read (toggled from diffMap unread state)",
+            holder.checkIfRead(originalUnreadArticle))
+    }
+
     private fun createHolder(): DiffMapHolder {
         val context = mock<Context>()
         whenever(context.cacheDir).thenReturn(Files.createTempDirectory("diff-map-holder-test").toFile())
