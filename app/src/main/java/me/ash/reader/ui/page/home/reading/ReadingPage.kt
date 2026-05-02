@@ -275,7 +275,6 @@ fun ReadingPage(
                                         val contentModifier = if (isPullToSwitchArticleEnabled) {
                                             Modifier.pullToLoad(
                                                 state = state,
-                                                scrollState = scrollState,
                                             )
                                         } else {
                                             Modifier

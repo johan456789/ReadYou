@@ -8,7 +8,6 @@ import androidx.compose.animation.core.animate
 import androidx.compose.animation.core.animateDecay
 import androidx.compose.animation.core.spring
 import androidx.compose.foundation.MutatorMutex
-import androidx.compose.foundation.ScrollState
 import androidx.compose.foundation.layout.offset
 import androidx.compose.material.ExperimentalMaterialApi
 import androidx.compose.runtime.Composable
@@ -47,12 +46,10 @@ import kotlin.math.sign
  * at boundaries and moving content accordingly.
  *
  * @param enabled If not enabled, all scroll delta and fling velocity will be ignored.
- * @param scrollState The ScrollState of the content, used to detect boundaries.
  * @param onScroll Used for detecting if the reader is scrolling down
  */
 private class ReaderNestedScrollConnection(
     private val enabled: Boolean,
-    private val scrollState: ScrollState?,
     private val onPreScroll: (Float) -> Float,
     private val onPostScroll: (Float) -> Float,
     private val onRelease: () -> Unit,
@@ -358,7 +355,6 @@ object PullToLoadDefaults {
  */
 fun Modifier.pullToLoad(
     state: PullToLoadState,
-    scrollState: ScrollState? = null,
     contentOffsetY: (Density.(Float) -> Int)? = { fraction ->
         (ContentOffsetMultiple.dp * fraction).roundToPx()
     },
@@ -368,7 +364,6 @@ fun Modifier.pullToLoad(
     val base = nestedScroll(
         ReaderNestedScrollConnection(
             enabled = enabled,
-            scrollState = scrollState,
             onPreScroll = state::onPullBack,
             onPostScroll = state::onPull,
             onRelease = state::onRelease,
