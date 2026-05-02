@@ -272,64 +272,44 @@ fun ReadingPage(
                                         modifier = Modifier.fillMaxSize(),
                                         contentAlignment = Alignment.Center,
                                     ) {
-                                        if (isPullToSwitchArticleEnabled) {
-                                            Content(
-                                                modifier = Modifier.pullToLoad(
-                                                    state = state,
-                                                    scrollState = scrollState,
-                                                ),
-                                                contentPadding = paddings,
-                                                content = content.text ?: "",
-                                                feedName = feedName,
-                                                title = title.toString(),
-                                                author = author,
-                                                link = link,
-                                                publishedDate = publishedDate,
-                                                isLoading = content is ReaderState.Loading,
+                                        val contentModifier = if (isPullToSwitchArticleEnabled) {
+                                            Modifier.pullToLoad(
+                                                state = state,
                                                 scrollState = scrollState,
-                                                onImageClick = { imgUrl, altText ->
-                                                    currentImageData = ImageData(imgUrl, altText)
-                                                    showFullScreenImageViewer = true
-                                                },
-                                                onShowCustomView = { view, callback ->
-                                                    android.util.Log.d("ReadingPage", "onShowCustomView lambda called with view=$view")
-                                                    fullscreenVideoView = view
-                                                    fullscreenVideoCallback = callback
-                                                },
-                                                onHideCustomView = {
-                                                    fullscreenVideoView = null
-                                                    fullscreenVideoCallback = null
-                                                },
                                             )
+                                        } else {
+                                            Modifier
+                                        }
+                                        Content(
+                                            modifier = contentModifier,
+                                            contentPadding = paddings,
+                                            content = content.text ?: "",
+                                            feedName = feedName,
+                                            title = title.toString(),
+                                            author = author,
+                                            link = link,
+                                            publishedDate = publishedDate,
+                                            isLoading = content is ReaderState.Loading,
+                                            scrollState = scrollState,
+                                            onImageClick = { imgUrl, altText ->
+                                                currentImageData = ImageData(imgUrl, altText)
+                                                showFullScreenImageViewer = true
+                                            },
+                                            onShowCustomView = { view, callback ->
+                                                android.util.Log.d("ReadingPage", "onShowCustomView lambda called with view=$view")
+                                                fullscreenVideoView = view
+                                                fullscreenVideoCallback = callback
+                                            },
+                                            onHideCustomView = {
+                                                fullscreenVideoView = null
+                                                fullscreenVideoCallback = null
+                                            },
+                                        )
+                                        if (isPullToSwitchArticleEnabled) {
                                             PullToLoadIndicator(
                                                 state = state,
                                                 canLoadPrevious = isPreviousArticleAvailable,
                                                 canLoadNext = isNextArticleAvailable,
-                                            )
-                                        } else {
-                                            Content(
-                                                contentPadding = paddings,
-                                                content = content.text ?: "",
-                                                feedName = feedName,
-                                                title = title.toString(),
-                                                author = author,
-                                                link = link,
-                                                publishedDate = publishedDate,
-                                                isLoading = content is ReaderState.Loading,
-                                                scrollState = scrollState,
-                                                onImageClick = { imgUrl, altText ->
-                                                    currentImageData = ImageData(imgUrl, altText)
-                                                    showFullScreenImageViewer = true
-                                                },
-                                                onShowCustomView = { view, callback ->
-                                                    android.util.Log.d("ReadingPage", "onShowCustomView lambda called with view=$view")
-                                                    fullscreenVideoView = view
-                                                    fullscreenVideoCallback = callback
-                                                },
-                                                onHideCustomView = {
-                                                    fullscreenVideoView = null
-                                                    fullscreenVideoCallback = null
-                                                },
                                             )
                                         }
                                     }
