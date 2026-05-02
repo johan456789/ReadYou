@@ -4,6 +4,7 @@ import android.content.ClipData
 import android.content.ClipboardManager
 import android.content.Context
 import android.content.Intent
+import android.os.Build
 import androidx.compose.foundation.clickable
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.Row
@@ -159,7 +160,13 @@ private fun copyToClipboard(context: Context, text: String) {
     val clipboard = context.getSystemService(Context.CLIPBOARD_SERVICE) as ClipboardManager
     val clip = ClipData.newPlainText("Link", text)
     clipboard.setPrimaryClip(clip)
-    context.showToast(context.getString(R.string.link_copied))
+    if (shouldShowClipboardToast(Build.VERSION.SDK_INT)) {
+        context.showToast(context.getString(R.string.link_copied))
+    }
+}
+
+internal fun shouldShowClipboardToast(sdkInt: Int): Boolean {
+    return sdkInt < Build.VERSION_CODES.TIRAMISU
 }
 
 private fun shareLink(context: Context, url: String) {
