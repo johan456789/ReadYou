@@ -1,7 +1,7 @@
 package me.ash.reader.domain.service
 
 import android.content.Context
-import android.util.Log
+import timber.log.Timber
 import dagger.hilt.android.qualifiers.ApplicationContext
 import kotlinx.coroutines.CoroutineDispatcher
 import kotlinx.coroutines.flow.Flow
@@ -60,9 +60,9 @@ class AppService @Inject constructor(
             val latestSize = latest.assets?.first()?.size ?: 0
             val latestDownloadUrl = latest.assets?.first()?.browser_download_url ?: ""
 
-            Log.i("RLog", "current version $currentVersion")
+            Timber.tag("RLog").i("current version $currentVersion")
             if (latestVersion.whetherNeedUpdate(currentVersion, skipVersion)) {
-                Log.i("RLog", "new version $latestVersion")
+                Timber.tag("RLog").i("new version $latestVersion")
                 NewVersionNumberPreference.put(context, this, latestVersion.toString())
                 NewVersionLogPreference.put(context, this, latestLog)
                 NewVersionPublishDatePreference.put(context, this, latestPublishDate)
@@ -74,7 +74,7 @@ class AppService @Inject constructor(
             }
         } catch (e: Exception) {
             e.printStackTrace()
-            Log.e("RLog", "checkUpdate: ${e.message}")
+            Timber.tag("RLog").e(e, "checkUpdate: ${e.message}")
             withContext(mainDispatcher) {
                 if (showToast) context.showToast(context.getString(R.string.check_failure))
             }
@@ -84,13 +84,13 @@ class AppService @Inject constructor(
 
     suspend fun downloadFile(url: String): Flow<Download> =
         withContext(ioDispatcher) {
-            Log.i("RLog", "downloadFile start: $url")
+            Timber.tag("RLog").i("downloadFile start: $url")
             try {
                 return@withContext networkDataSource.downloadFile(url)
                     .downloadToFileWithProgress(context.getLatestApk())
             } catch (e: Exception) {
                 e.printStackTrace()
-                Log.e("RLog", "downloadFile: ${e.message}")
+                Timber.tag("RLog").e(e, "downloadFile: ${e.message}")
                 withContext(mainDispatcher) {
                     context.showToast(context.getString(R.string.download_failure))
                 }

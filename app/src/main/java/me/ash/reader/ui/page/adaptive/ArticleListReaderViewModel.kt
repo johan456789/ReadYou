@@ -264,7 +264,7 @@ constructor(
      * This prevents articles from immediately disappearing in the Unread filter view.
      */
     fun setDeferDbCommits(defer: Boolean) {
-        android.util.Log.d("ArticleListReaderVM", "setDeferDbCommits($defer)")
+        Timber.tag("ArticleListReaderVM").d("setDeferDbCommits($defer)")
         diffMapHolder.deferDbCommits = defer
     }
 

@@ -3,7 +3,7 @@ package me.ash.reader.infrastructure.android
 import android.content.Context
 import android.content.Intent
 import android.os.Looper
-import android.util.Log
+import timber.log.Timber
 import me.ash.reader.R
 import me.ash.reader.ui.ext.showToastLong
 import java.lang.Thread.UncaughtExceptionHandler
@@ -27,7 +27,7 @@ class CrashHandler(private val context: Context) : UncaughtExceptionHandler {
      */
     override fun uncaughtException(p0: Thread, p1: Throwable) {
         val causeMessage = getCauseMessage(p1)
-        Log.e("RLog", "uncaughtException: $causeMessage", p1)
+        Timber.tag("RLog").e(p1, "uncaughtException: $causeMessage")
 
         val rootCause = getRootCause(p1)
         if (isNetworkException(rootCause)) {

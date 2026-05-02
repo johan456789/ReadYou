@@ -1,7 +1,7 @@
 package me.ash.reader.domain.service
 
 import android.content.Context
-import android.util.Log
+import timber.log.Timber
 import androidx.annotation.CheckResult
 import androidx.compose.ui.util.fastFilter
 import androidx.work.ListenableWorker
@@ -311,7 +311,7 @@ constructor(
                 }
             }
 
-            Log.i("RLog", "onCompletion: ${System.currentTimeMillis() - preTime}")
+                Timber.tag("RLog").i("onCompletion: ${System.currentTimeMillis() - preTime}")
             accountService.update(
                 account.copy(
                     updateAt = Date(),
@@ -323,7 +323,7 @@ constructor(
             )
             ListenableWorker.Result.success()
         } catch (e: Exception) {
-            Log.e("RLog", "On sync exception: ${e.message}", e)
+                Timber.tag("RLog").e(e, "On sync exception: ${e.message}")
             //                withContext(mainDispatcher) {
             //                    context.showToast(e.message)
             //                }
@@ -386,7 +386,7 @@ constructor(
         articleIds
             .takeIf { it.isNotEmpty() }
             ?.forEachIndexed { index, it ->
-                Log.d("RLog", "sync markAsRead: ${index}/${articleIds.size} num")
+                        Timber.tag("RLog").d("sync markAsRead: ${index}/${articleIds.size} num")
                 feverAPI.markItem(
                     status = targetStatus,
                     id = it.dollarLast(),

@@ -30,6 +30,7 @@ import me.ash.reader.domain.service.RssService
 import me.ash.reader.infrastructure.di.ApplicationScope
 import me.ash.reader.infrastructure.di.IODispatcher
 import me.ash.reader.ui.ext.dollarLast
+import timber.log.Timber
 import java.io.File
 import javax.inject.Inject
 
@@ -226,11 +227,11 @@ class DiffMapHolder @Inject constructor(
             }
         }
 
-        android.util.Log.d("DiffMapHolder", "updateDiff: deferDbCommits=$deferDbCommits, appliedDiffsCount=${appliedDiffs.size}")
+        Timber.tag("DiffMapHolder").d("updateDiff: deferDbCommits=$deferDbCommits, appliedDiffsCount=${appliedDiffs.size}")
         val diffsToCommitNow: Map<String, Diff>? =
             synchronized(deferredDiffs) {
                 if (deferDbCommits) {
-                    android.util.Log.d("DiffMapHolder", "Deferring DB commits for ${appliedDiffs.size} articles")
+                    Timber.tag("DiffMapHolder").d("Deferring DB commits for ${appliedDiffs.size} articles")
                     appliedDiffs.forEach { deferredDiffs[it.articleId] = it }
                     if (!shouldSyncWithRemote) {
                         applicationScope.launch(ioDispatcher) {
@@ -243,7 +244,7 @@ class DiffMapHolder @Inject constructor(
                 }
             }
         if (diffsToCommitNow != null) {
-            android.util.Log.d("DiffMapHolder", "Immediately committing ${diffsToCommitNow.size} articles to DB")
+            Timber.tag("DiffMapHolder").d("Immediately committing ${diffsToCommitNow.size} articles to DB")
             applicationScope.launch(ioDispatcher) {
                 commitAppliedDiffsToDb(diffsToCommitNow)
             }
@@ -258,13 +259,13 @@ class DiffMapHolder @Inject constructor(
         val diffsToCommit: Map<String, Diff>
         synchronized(deferredDiffs) {
             if (deferredDiffs.isEmpty()) {
-                android.util.Log.d("DiffMapHolder", "flushDeferredDiffs: nothing to flush")
+                Timber.tag("DiffMapHolder").d("flushDeferredDiffs: nothing to flush")
                 return
             }
             diffsToCommit = deferredDiffs.toMap()
             deferredDiffs.clear()
         }
-        android.util.Log.d("DiffMapHolder", "flushDeferredDiffs: flushing ${diffsToCommit.size} articles")
+        Timber.tag("DiffMapHolder").d("flushDeferredDiffs: flushing ${diffsToCommit.size} articles")
         applicationScope.launch(ioDispatcher) {
             commitAppliedDiffsToDb(diffsToCommit)
         }

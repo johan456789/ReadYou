@@ -2,7 +2,7 @@ package me.ash.reader.ui.component.webview
 
 import android.content.Context
 import android.net.http.SslError
-import android.util.Log
+import timber.log.Timber
 import android.webkit.SslErrorHandler
 import android.webkit.WebResourceError
 import android.webkit.WebResourceRequest
@@ -39,7 +39,7 @@ class WebViewClient(
                     context.assets.open(assetPath)
                 )
             } catch (e: Exception) {
-                Log.e("RLog", "WebView shouldInterceptRequest: $e")
+                Timber.tag("RLog").e(e, "WebView shouldInterceptRequest")
             }
         } else if (url != null && url.isUrl()) {
             try {
@@ -52,7 +52,7 @@ class WebViewClient(
                     return WebResourceResponse(connection.contentType, "UTF-8", inputStream)
                 }
             } catch (e: Exception) {
-                Log.e("RLog", "shouldInterceptRequest url: $e")
+                Timber.tag("RLog").e(e, "shouldInterceptRequest url")
             }
         }
         return super.shouldInterceptRequest(view, request)
@@ -88,7 +88,7 @@ class WebViewClient(
         error: WebResourceError?,
     ) {
         super.onReceivedError(view, request, error)
-        Log.e("RLog", "RYWebView onReceivedError: $error")
+        Timber.tag("RLog").e("RYWebView onReceivedError: $error")
     }
 
     override fun onReceivedSslError(view: WebView?, handler: SslErrorHandler?, error: SslError?) {

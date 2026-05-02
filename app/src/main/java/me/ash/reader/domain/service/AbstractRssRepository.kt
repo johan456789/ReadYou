@@ -1,6 +1,6 @@
 package me.ash.reader.domain.service
 
-import android.util.Log
+import timber.log.Timber
 import androidx.paging.PagingSource
 import androidx.work.ListenableWorker
 import androidx.work.WorkManager
@@ -238,8 +238,7 @@ abstract class AbstractRssRepository(
         sortAscending: Boolean = false,
     ): PagingSource<Int, ArticleWithFeed> {
         val accountId = accountService.getCurrentAccountId()
-        Log.i(
-            "RLog",
+        Timber.tag("RLog").i(
             "pullArticles: accountId: ${accountId}, groupId: ${groupId}, feedId: ${feedId}, isStarred: ${isStarred}, isUnread: ${isUnread}",
         )
         return when {
@@ -301,8 +300,7 @@ abstract class AbstractRssRepository(
     @OptIn(ExperimentalCoroutinesApi::class)
     fun pullImportant(isStarred: Boolean, isUnread: Boolean): Flow<Map<String, Int>> {
         val accountId = accountService.getCurrentAccountId()
-        Log.i(
-            "RLog",
+        Timber.tag("RLog").i(
             "pullImportant: accountId: ${accountId}, isStarred: ${isStarred}, isUnread: ${isUnread}",
         )
         return when {
@@ -435,8 +433,7 @@ abstract class AbstractRssRepository(
         sortAscending: Boolean = false,
     ): PagingSource<Int, ArticleWithFeed> {
         val accountId = accountService.getCurrentAccountId()
-        Log.i(
-            "RLog",
+        Timber.tag("RLog").i(
             "searchArticles: content: ${content}, accountId: ${accountId}, groupId: ${groupId}, feedId: ${feedId}, isStarred: ${isStarred}, isUnread: ${isUnread}",
         )
         return when {

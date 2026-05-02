@@ -2,7 +2,7 @@ package me.ash.reader.ui.component.webview
 
 import android.annotation.SuppressLint
 import android.content.Context
-import android.util.Log
+import timber.log.Timber
 import android.view.MotionEvent
 import android.view.View
 import android.view.ViewConfiguration
@@ -161,9 +161,9 @@ fun RYWebView(
         modifier = modifier,
         factory = { webView },
         update = { wv ->
-            Log.i("RLog", "maxWidth: ${maxWidth}")
-            Log.i("RLog", "readingFont: ${context.filesDir.absolutePath}")
-            Log.i("RLog", "CustomWebView: ${content}")
+                Timber.tag("RLog").i("maxWidth: ${maxWidth}")
+                Timber.tag("RLog").i("readingFont: ${context.filesDir.absolutePath}")
+                Timber.tag("RLog").i("CustomWebView: ${content}")
             wv.settings.defaultFontSize = fontSize
             wv.loadDataWithBaseURL(
                 htmlBaseUrl,

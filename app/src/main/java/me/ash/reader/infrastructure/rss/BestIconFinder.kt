@@ -1,6 +1,6 @@
 package me.ash.reader.infrastructure.rss
 
-import android.util.Log
+import timber.log.Timber
 import okhttp3.OkHttpClient
 import okhttp3.Request
 import org.jsoup.Jsoup
@@ -29,7 +29,7 @@ class BestIconFinder(private val client: OkHttpClient) {
             val html = fetchHtml(url)
             findIconLinks(url, html)
         } catch (e: Exception) {
-            Log.w("RLog", "fetchIcons: $e")
+            Timber.tag("RLog").w(e, "fetchIcons")
             // Fallback to default icon paths if HTML fetch fails
             defaultIconUrls(url)
         }

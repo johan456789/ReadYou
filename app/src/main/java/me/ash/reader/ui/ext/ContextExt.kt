@@ -8,7 +8,7 @@ import android.content.pm.PackageManager
 import android.content.pm.ResolveInfo
 import android.os.Build
 import android.os.Parcelable
-import android.util.Log
+import timber.log.Timber
 import android.widget.Toast
 import androidx.browser.customtabs.CustomTabsIntent
 import androidx.browser.customtabs.CustomTabsService.ACTION_CUSTOM_TABS_CONNECTION
@@ -58,7 +58,7 @@ fun Context.installLatestApk() {
         }
     } catch (e: Throwable) {
         e.printStackTrace()
-        Log.e("RLog", "installLatestApk: ${e.message}")
+        Timber.tag("RLog").e(e, "installLatestApk: ${e.message}")
     }
 }
 
