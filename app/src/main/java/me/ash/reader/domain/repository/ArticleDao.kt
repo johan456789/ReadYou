@@ -36,7 +36,7 @@ interface ArticleDao {
 
     @Query(
         """
-        UPDATE article SET isUnread = :storedUnread 
+        UPDATE article SET isUnread = NOT :isRead 
         WHERE accountId = :accountId
         AND id in (:ids)
         """
@@ -44,7 +44,7 @@ interface ArticleDao {
     fun markAsReadByIdSet(
         accountId: Int,
         ids: Set<String>,
-        storedUnread: Boolean,
+        isRead: Boolean,
     ): Int
 
     @Transaction
@@ -92,7 +92,7 @@ interface ArticleDao {
         AND feedId IN (
             SELECT id FROM feed WHERE groupId = :groupId
         )
-        AND isUnread = :isUnread
+        AND isUnread = NOT :isRead
         AND (
             title LIKE '%' || :text || '%'
             OR shortDescription LIKE '%' || :text || '%'
@@ -107,7 +107,7 @@ interface ArticleDao {
         accountId: Int,
         text: String,
         groupId: String,
-        isUnread: Boolean,
+        isRead: Boolean,
         sortAscending: Boolean = false
     ): PagingSource<Int, ArticleWithFeed>
 
@@ -166,7 +166,7 @@ interface ArticleDao {
         SELECT * FROM article
         WHERE accountId = :accountId 
         AND feedId = :feedId
-        AND isUnread = :isUnread
+        AND isUnread = NOT :isRead
         AND (
             title LIKE '%' || :text || '%'
             OR shortDescription LIKE '%' || :text || '%'
@@ -181,7 +181,7 @@ interface ArticleDao {
         accountId: Int,
         text: String,
         feedId: String,
-        isUnread: Boolean,
+        isRead: Boolean,
         sortAscending: Boolean = false
     ): PagingSource<Int, ArticleWithFeed>
 
@@ -235,7 +235,7 @@ interface ArticleDao {
         """
         SELECT * FROM article
         WHERE accountId = :accountId 
-        AND isUnread = :isUnread
+        AND isUnread = NOT :isRead
         AND (
             title LIKE '%' || :text || '%'
             OR shortDescription LIKE '%' || :text || '%'
@@ -247,7 +247,7 @@ interface ArticleDao {
         """
     )
     fun searchArticleWhenIsUnread(
-        accountId: Int, text: String, isUnread: Boolean, sortAscending: Boolean = false
+        accountId: Int, text: String, isRead: Boolean, sortAscending: Boolean = false
     ): PagingSource<Int, ArticleWithFeed>
 
     @Transaction
@@ -321,59 +321,59 @@ interface ArticleDao {
     @Transaction
     @Query(
         """
-        UPDATE article SET isUnread = :storedUnread 
+        UPDATE article SET isUnread = NOT :isRead 
         WHERE accountId = :accountId
         AND date < :before
-        AND isUnread != :storedUnread
+        AND isUnread != NOT :isRead
         """
     )
     suspend fun markAllAsRead(
         accountId: Int,
-        storedUnread: Boolean,
+        isRead: Boolean,
         before: Date,
     )
 
     @Transaction
     @Query(
         """
-        UPDATE article SET isUnread = :storedUnread 
+        UPDATE article SET isUnread = NOT :isRead 
         WHERE feedId IN (
             SELECT id FROM feed 
             WHERE groupId = :groupId
         )
         AND accountId = :accountId
-        AND isUnread != :storedUnread
+        AND isUnread != NOT :isRead
         AND date < :before
         """
     )
     suspend fun markAllAsReadByGroupId(
         accountId: Int,
         groupId: String,
-        storedUnread: Boolean,
+        isRead: Boolean,
         before: Date,
     )
 
     @Transaction
     @Query(
         """
-        UPDATE article SET isUnread = :storedUnread 
+        UPDATE article SET isUnread = NOT :isRead 
         WHERE feedId = :feedId
         AND accountId = :accountId
-        AND isUnread != :storedUnread
+        AND isUnread != NOT :isRead
         AND date < :before
         """
     )
     suspend fun markAllAsReadByFeedId(
         accountId: Int,
         feedId: String,
-        storedUnread: Boolean,
+        isRead: Boolean,
         before: Date,
     )
 
     @Transaction
     @Query(
         """
-        UPDATE article SET isUnread = :storedUnread 
+        UPDATE article SET isUnread = NOT :isRead 
         WHERE id = :articleId
         AND accountId = :accountId
         """
@@ -381,7 +381,7 @@ interface ArticleDao {
     suspend fun markAsReadByArticleId(
         accountId: Int,
         articleId: String,
-        storedUnread: Boolean,
+        isRead: Boolean,
     )
 
     @Query(
@@ -436,14 +436,14 @@ interface ArticleDao {
         """
         SELECT feedId, COUNT(*) AS important
         FROM article
-        WHERE isUnread = :isUnread
+        WHERE isUnread = NOT :isRead
         AND accountId = :accountId
         GROUP BY feedId
         """
     )
     fun queryImportantCountWhenIsUnread(
         accountId: Int,
-        isUnread: Boolean,
+        isRead: Boolean,
     ): Flow<Map<@MapColumn("feedId") String, @MapColumn("important") Int>>
 
     @Transaction
@@ -507,7 +507,7 @@ interface ArticleDao {
     @Query(
         """
         SELECT * FROM article 
-        WHERE isUnread = :isUnread 
+        WHERE isUnread = NOT :isRead 
         AND accountId = :accountId
         ORDER BY
             CASE WHEN :sortAscending = 1 THEN date END ASC,
@@ -515,7 +515,7 @@ interface ArticleDao {
         """
     )
     fun queryArticleWithFeedWhenIsUnread(
-        accountId: Int, isUnread: Boolean, sortAscending: Boolean = false
+        accountId: Int, isRead: Boolean, sortAscending: Boolean = false
     ): PagingSource<Int, ArticleWithFeed>
 
     @Transaction
@@ -572,7 +572,7 @@ interface ArticleDao {
         LEFT JOIN feed AS b ON b.id = a.feedId
         LEFT JOIN `group` AS c ON c.id = b.groupId
         WHERE c.id = :groupId
-        AND a.isUnread = :isUnread
+        AND a.isUnread = NOT :isRead
         AND a.accountId = :accountId
         ORDER BY
             CASE WHEN :sortAscending = 1 THEN a.date END ASC,
@@ -580,7 +580,7 @@ interface ArticleDao {
         """
     )
     fun queryArticleWithFeedByGroupIdWhenIsUnread(
-        accountId: Int, groupId: String, isUnread: Boolean, sortAscending: Boolean = false
+        accountId: Int, groupId: String, isRead: Boolean, sortAscending: Boolean = false
     ): PagingSource<Int, ArticleWithFeed>
 
     @Transaction
@@ -619,7 +619,7 @@ interface ArticleDao {
         """
         SELECT * FROM article 
         WHERE feedId = :feedId 
-        AND isUnread = :isUnread
+        AND isUnread = NOT :isRead
         AND accountId = :accountId
         ORDER BY
             CASE WHEN :sortAscending = 1 THEN date END ASC,
@@ -627,7 +627,7 @@ interface ArticleDao {
         """
     )
     fun queryArticleWithFeedByFeedIdWhenIsUnread(
-        accountId: Int, feedId: String, isUnread: Boolean, sortAscending: Boolean = false
+        accountId: Int, feedId: String, isRead: Boolean, sortAscending: Boolean = false
     ): PagingSource<Int, ArticleWithFeed>
 
 
@@ -704,14 +704,14 @@ interface ArticleDao {
         """
         SELECT id, isUnread, isStarred FROM article
         WHERE accountId = :accountId
-        AND isUnread = :isUnread
+        AND isUnread = NOT :isRead
         ORDER BY
             CASE WHEN :sortAscending = 1 THEN date END ASC,
             CASE WHEN :sortAscending = 0 THEN date END DESC
         """
     )
     fun queryMetadataAll(
-        accountId: Int, isUnread: Boolean, sortAscending: Boolean = false
+        accountId: Int, isRead: Boolean, sortAscending: Boolean = false
     ): List<ArticleMeta>
 
     @Transaction
@@ -734,7 +734,7 @@ interface ArticleDao {
         """
         SELECT id, isUnread, isStarred FROM article
         WHERE accountId = :accountId
-        AND isUnread = :isUnread
+        AND isUnread = NOT :isRead
         AND date < :before
         ORDER BY
             CASE WHEN :sortAscending = 1 THEN date END ASC,
@@ -742,7 +742,7 @@ interface ArticleDao {
         """
     )
     fun queryMetadataAll(
-        accountId: Int, isUnread: Boolean, before: Date, sortAscending: Boolean = false
+        accountId: Int, isRead: Boolean, before: Date, sortAscending: Boolean = false
     ): List<ArticleMeta>
 
     @Transaction
@@ -751,14 +751,14 @@ interface ArticleDao {
         SELECT id, isUnread, isStarred FROM article
         WHERE accountId = :accountId
         AND feedId = :feedId
-        AND isUnread = :isUnread
+        AND isUnread = NOT :isRead
         ORDER BY
             CASE WHEN :sortAscending = 1 THEN date END ASC,
             CASE WHEN :sortAscending = 0 THEN date END DESC
         """
     )
     fun queryMetadataByFeedId(
-        accountId: Int, feedId: String, isUnread: Boolean, sortAscending: Boolean = false
+        accountId: Int, feedId: String, isRead: Boolean, sortAscending: Boolean = false
     ): List<ArticleMeta>
 
     @Transaction
@@ -767,7 +767,7 @@ interface ArticleDao {
         SELECT id, isUnread, isStarred FROM article
         WHERE accountId = :accountId
         AND feedId = :feedId
-        AND isUnread = :isUnread
+        AND isUnread = NOT :isRead
         AND date < :before
         ORDER BY
             CASE WHEN :sortAscending = 1 THEN date END ASC,
@@ -777,7 +777,7 @@ interface ArticleDao {
     fun queryMetadataByFeedId(
         accountId: Int,
         feedId: String,
-        isUnread: Boolean,
+        isRead: Boolean,
         before: Date,
         sortAscending: Boolean = false
     ): List<ArticleMeta>
@@ -791,14 +791,14 @@ interface ArticleDao {
         LEFT JOIN `group` AS c ON c.id = b.groupId
         WHERE c.id = :groupId
         AND a.accountId = :accountId
-        AND a.isUnread = :isUnread
+        AND a.isUnread = NOT :isRead
         ORDER BY
             CASE WHEN :sortAscending = 1 THEN a.date END ASC,
             CASE WHEN :sortAscending = 0 THEN a.date END DESC
         """
     )
     fun queryMetadataByGroupIdWhenIsUnread(
-        accountId: Int, groupId: String, isUnread: Boolean, sortAscending: Boolean = false
+        accountId: Int, groupId: String, isRead: Boolean, sortAscending: Boolean = false
     ): List<ArticleMeta>
 
     @Transaction
@@ -810,7 +810,7 @@ interface ArticleDao {
         LEFT JOIN `group` AS c ON c.id = b.groupId
         WHERE c.id = :groupId
         AND a.accountId = :accountId
-        AND a.isUnread = :isUnread
+        AND a.isUnread = NOT :isRead
         AND a.date < :before
         ORDER BY
             CASE WHEN :sortAscending = 1 THEN a.date END ASC,
@@ -820,7 +820,7 @@ interface ArticleDao {
     fun queryMetadataByGroupIdWhenIsUnread(
         accountId: Int,
         groupId: String,
-        isUnread: Boolean,
+        isRead: Boolean,
         before: Date,
         sortAscending: Boolean = false
     ): List<ArticleMeta>

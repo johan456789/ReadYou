@@ -17,11 +17,8 @@ data class PendingReadStateOp(
     val accountId: Int,
     @ColumnInfo
     val feedId: String,
-    @ColumnInfo
-    val isUnread: Boolean,
+    @ColumnInfo(name = "isUnread")
+    val isRead: Boolean,
     @ColumnInfo
     val updatedAt: Date = Date(),
-) {
-    val isRead: Boolean
-        get() = !isUnread
-}
+)
