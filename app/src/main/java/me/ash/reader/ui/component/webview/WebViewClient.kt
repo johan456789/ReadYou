@@ -61,6 +61,7 @@ class WebViewClient(
     override fun onPageFinished(view: WebView?, url: String?) {
         super.onPageFinished(view, url)
         view!!.evaluateJavascript(OnImgClickScript, null)
+        view.evaluateJavascript(OnLinkLongPressScript, null)
     }
 
     override fun shouldOverrideUrlLoading(view: WebView?, request: WebResourceRequest?): Boolean {
@@ -105,6 +106,73 @@ class WebViewClient(
                         event.preventDefault();
                         window.${JavaScriptInterface.NAME}.onImgTagClick(this.src, this.alt);
                     }
+                }
+            })()
+            """
+
+        private const val OnLinkLongPressScript = """
+            javascript:(function() {
+                var links = document.getElementsByTagName("a");
+                var longPressTimer = null;
+                var longPressDuration = 500;
+                var touchStartX = 0;
+                var touchStartY = 0;
+                var moveThreshold = 10;
+                var suppressNextClick = false;
+
+                for(var i = 0; i < links.length; i++){
+                    (function(link) {
+                        link.addEventListener('touchstart', function(event) {
+                            touchStartX = event.touches[0].clientX;
+                            touchStartY = event.touches[0].clientY;
+                            longPressTimer = setTimeout(function() {
+                                suppressNextClick = true;
+                                var href = link.href || '';
+                                var text = link.innerText || link.textContent || '';
+                                window.${JavaScriptInterface.NAME}.onLinkLongPress(href, text.trim());
+                            }, longPressDuration);
+                        }, {passive: false});
+
+                        link.addEventListener('touchmove', function(event) {
+                            if (longPressTimer) {
+                                var dx = Math.abs(event.touches[0].clientX - touchStartX);
+                                var dy = Math.abs(event.touches[0].clientY - touchStartY);
+                                if (dx > moveThreshold || dy > moveThreshold) {
+                                    clearTimeout(longPressTimer);
+                                    longPressTimer = null;
+                                }
+                            }
+                        });
+
+                        link.addEventListener('touchend', function(event) {
+                            if (longPressTimer) {
+                                clearTimeout(longPressTimer);
+                                longPressTimer = null;
+                            }
+                        });
+
+                        link.addEventListener('touchcancel', function(event) {
+                            if (longPressTimer) {
+                                clearTimeout(longPressTimer);
+                                longPressTimer = null;
+                            }
+                        });
+
+                        link.addEventListener('contextmenu', function(event) {
+                            event.preventDefault();
+                            var href = link.href || '';
+                            var text = link.innerText || link.textContent || '';
+                            window.${JavaScriptInterface.NAME}.onLinkLongPress(href, text.trim());
+                        });
+
+                        link.addEventListener('click', function(event) {
+                            if (suppressNextClick) {
+                                event.preventDefault();
+                                event.stopPropagation();
+                                suppressNextClick = false;
+                            }
+                        }, true);
+                    })(links[i]);
                 }
             })()
             """

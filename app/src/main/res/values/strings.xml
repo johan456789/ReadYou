@@ -384,4 +384,6 @@
     <string name="disable">Disable</string>
     <string name="server_unreachable">Server unreachable. Check your network connection and server URL.</string>
     <string name="unauthorized">Invalid credentials</string>
+    <string name="link_action_copy">Copy link</string>
+    <string name="link_copied">Link copied</string>
 </resources>

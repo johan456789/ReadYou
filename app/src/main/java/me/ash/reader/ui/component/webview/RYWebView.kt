@@ -89,6 +89,7 @@ fun RYWebView(
     baseUrl: String? = null,
     refererDomain: String? = null,
     onImageClick: ((imgUrl: String, altText: String) -> Unit)? = null,
+    onLinkLongPress: ((url: String, text: String) -> Unit)? = null,
     onShowCustomView: ((View, WebChromeClient.CustomViewCallback) -> Unit)? = null,
     onHideCustomView: (() -> Unit)? = null,
 ) {
@@ -145,6 +146,7 @@ fun RYWebView(
                         ),
                     webChromeClient = webChromeClient,
                     onImageClick = onImageClick,
+                    onLinkLongPress = onLinkLongPress,
                 )
             )
         }

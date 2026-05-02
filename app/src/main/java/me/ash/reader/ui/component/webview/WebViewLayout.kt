@@ -16,6 +16,7 @@ object WebViewLayout {
         webViewClient: WebViewClient,
         webChromeClient: RYWebChromeClient? = null,
         onImageClick: ((imgUrl: String, altText: String) -> Unit)? = null,
+        onLinkLongPress: ((url: String, text: String) -> Unit)? = null,
     ): HorizontalScrollAwareWebView {
         Log.d("WebViewLayout", "Creating WebView with webChromeClient=$webChromeClient")
         return HorizontalScrollAwareWebView(context).apply {
@@ -57,6 +58,13 @@ object WebViewLayout {
                         override fun onImgTagClick(imgUrl: String?, alt: String?) {
                             if (onImageClick != null && imgUrl != null) {
                                 onImageClick.invoke(imgUrl, alt ?: "")
+                            }
+                        }
+
+                        @JavascriptInterface
+                        override fun onLinkLongPress(url: String?, text: String?) {
+                            if (onLinkLongPress != null && url != null) {
+                                onLinkLongPress.invoke(url, text ?: "")
                             }
                         }
                     },

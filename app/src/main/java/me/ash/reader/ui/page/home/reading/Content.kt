@@ -41,6 +41,7 @@ fun Content(
     isLoading: Boolean,
     contentPadding: PaddingValues = PaddingValues(),
     onImageClick: ((imgUrl: String, altText: String) -> Unit)? = null,
+    onLinkLongPress: ((url: String, text: String) -> Unit)? = null,
     onShowCustomView: ((View, WebChromeClient.CustomViewCallback) -> Unit)? = null,
     onHideCustomView: (() -> Unit)? = null,
 ) {
@@ -84,6 +85,7 @@ fun Content(
                     baseUrl = link,
                     refererDomain = link.extractDomain(),
                     onImageClick = onImageClick,
+                    onLinkLongPress = onLinkLongPress,
                     onShowCustomView = onShowCustomView,
                     onHideCustomView = onHideCustomView,
                 )

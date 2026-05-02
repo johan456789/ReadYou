@@ -49,6 +49,8 @@ import kotlin.math.abs
 import kotlinx.coroutines.flow.distinctUntilChanged
 import kotlinx.coroutines.launch
 import me.ash.reader.R
+import me.ash.reader.ui.component.webview.LinkActionDialog
+import me.ash.reader.ui.component.webview.LinkActionData
 import me.ash.reader.infrastructure.android.TextToSpeechManager
 import me.ash.reader.infrastructure.preference.LocalPullToSwitchArticle
 import me.ash.reader.infrastructure.preference.LocalReadingAutoHideToolbar
@@ -94,6 +96,10 @@ fun ReadingPage(
     var fullscreenVideoCallback by remember { mutableStateOf<WebChromeClient.CustomViewCallback?>(null) }
     val isVideoFullscreen = fullscreenVideoView != null
 
+    // Link action dialog state
+    var showLinkActionDialog by remember { mutableStateOf(false) }
+    var linkActionData by remember { mutableStateOf<LinkActionData?>(null) }
+
     // Handle back press when video is fullscreen
     BackHandler(enabled = isVideoFullscreen) {
         fullscreenVideoCallback?.onCustomViewHidden()
@@ -117,6 +123,12 @@ fun ReadingPage(
     //    }
 
     var bringToTop by remember { mutableStateOf(false) }
+
+    LinkActionDialog(
+        visible = showLinkActionDialog,
+        linkData = linkActionData,
+        onDismissRequest = { showLinkActionDialog = false },
+    )
 
     Box(modifier = Modifier.fillMaxSize()) {
         Scaffold(
@@ -293,6 +305,13 @@ fun ReadingPage(
                                             onImageClick = { imgUrl, altText ->
                                                 currentImageData = ImageData(imgUrl, altText)
                                                 showFullScreenImageViewer = true
+                                            },
+                                            onLinkLongPress = { url, text ->
+                                                linkActionData = LinkActionData(
+                                                    url = url,
+                                                    linkText = text.ifEmpty { null },
+                                                )
+                                                showLinkActionDialog = true
                                             },
                                             onShowCustomView = { view, callback ->
                                                 android.util.Log.d("ReadingPage", "onShowCustomView lambda called with view=$view")
