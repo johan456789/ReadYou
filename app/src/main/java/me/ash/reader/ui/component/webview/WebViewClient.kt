@@ -118,6 +118,7 @@ class WebViewClient(
                 var touchStartX = 0;
                 var touchStartY = 0;
                 var moveThreshold = 10;
+                var suppressNextClick = false;
 
                 for(var i = 0; i < links.length; i++){
                     (function(link) {
@@ -125,8 +126,7 @@ class WebViewClient(
                             touchStartX = event.touches[0].clientX;
                             touchStartY = event.touches[0].clientY;
                             longPressTimer = setTimeout(function() {
-                                event.preventDefault();
-                                event.stopPropagation();
+                                suppressNextClick = true;
                                 var href = link.href || '';
                                 var text = link.innerText || link.textContent || '';
                                 window.${JavaScriptInterface.NAME}.onLinkLongPress(href, text.trim());
@@ -164,6 +164,14 @@ class WebViewClient(
                             var text = link.innerText || link.textContent || '';
                             window.${JavaScriptInterface.NAME}.onLinkLongPress(href, text.trim());
                         });
+
+                        link.addEventListener('click', function(event) {
+                            if (suppressNextClick) {
+                                event.preventDefault();
+                                event.stopPropagation();
+                                suppressNextClick = false;
+                            }
+                        }, true);
                     })(links[i]);
                 }
             })()
