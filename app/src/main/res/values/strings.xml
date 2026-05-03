@@ -53,6 +53,7 @@
     <string name="all_parse_full_content_toast">Full content parsing of all articles in the \"%1$s\" group is allowed</string>
     <string name="all_deny_parse_full_content_toast">Full content parsing of all articles in the \"%1$s\" group is denied</string>
     <string name="open_in_browser">Open in browser</string>
+    <string name="open_article_link">Open article link</string>
     <string name="all_open_in_browser_tips">Open all articles in the \"%1$s\" group using the default browser</string>
     <string name="all_open_in_browser_toast">Opening all articles in the \"%1$s\" group in the default browser is allowed</string>
     <string name="all_deny_open_in_browser_toast">Opening all articles in the \"%1$s\" group in the default browser is denied</string>

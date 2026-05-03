@@ -1,5 +1,6 @@
 package me.ash.reader.ui.page.home.reading
 
+import androidx.compose.foundation.clickable
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.Spacer
 import androidx.compose.foundation.layout.fillMaxWidth
@@ -13,9 +14,12 @@ import androidx.compose.runtime.derivedStateOf
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.remember
 import androidx.compose.ui.Modifier
+import androidx.compose.ui.res.stringResource
+import androidx.compose.ui.semantics.Role
 import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.dp
+import me.ash.reader.R
 import me.ash.reader.infrastructure.preference.LocalReadingFonts
 import me.ash.reader.infrastructure.preference.LocalReadingTitleAlign
 import me.ash.reader.infrastructure.preference.LocalReadingTitleBold
@@ -33,6 +37,8 @@ fun Metadata(
     publishedDate: Date,
     modifier: Modifier = Modifier,
     author: String? = null,
+    link: String? = null,
+    onTitleClick: ((String) -> Unit)? = null,
 ) {
     val context = LocalContext.current
     val titleBold = LocalReadingTitleBold.current
@@ -41,6 +47,7 @@ fun Metadata(
     val dateString =
         remember(publishedDate) { publishedDate.formatAsString(context, atHourMinute = true) }
     val fontFamily = LocalReadingFonts.current.asFontFamily(context)
+    val openArticleLinkLabel = stringResource(R.string.open_article_link)
 
     val titleUpperCaseString by remember { derivedStateOf { title.uppercase() } }
 
@@ -60,8 +67,20 @@ fun Metadata(
             textAlign = titleAlign,
         )
         Spacer(modifier = Modifier.height(4.dp))
+        val titleModifier = if (!link.isNullOrBlank() && onTitleClick != null) {
+            Modifier
+                .fillMaxWidth()
+                .clickable(
+                    onClickLabel = openArticleLinkLabel,
+                    role = Role.Button,
+                ) {
+                    onTitleClick(link)
+                }
+        } else {
+            Modifier.fillMaxWidth()
+        }
         Text(
-            modifier = Modifier.fillMaxWidth(),
+            modifier = titleModifier,
             text = if (titleUpperCase.value) titleUpperCaseString else title,
             color = MaterialTheme.colorScheme.onSurface,
             style =
