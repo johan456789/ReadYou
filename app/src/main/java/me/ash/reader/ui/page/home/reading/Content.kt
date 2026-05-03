@@ -16,6 +16,7 @@ import androidx.compose.foundation.verticalScroll
 import androidx.compose.material3.ExperimentalMaterial3ExpressiveApi
 import androidx.compose.material3.LoadingIndicator
 import androidx.compose.runtime.Composable
+import androidx.compose.runtime.remember
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.platform.LocalUriHandler
@@ -48,6 +49,9 @@ fun Content(
     val textContentWidth = LocalTextContentWidth.current
     val maxWidthModifier = Modifier.widthIn(max = textContentWidth)
     val uriHandler = LocalUriHandler.current
+    val openTitleLink = remember(uriHandler) {
+        { uri: String -> uriHandler.openUri(uri) }
+    }
 
     val headline =
         @Composable {
@@ -59,7 +63,7 @@ fun Content(
                         author = author,
                         publishedDate = publishedDate,
                         link = link,
-                        onTitleClick = { uriHandler.openUri(it) },
+                        onTitleClick = openTitleLink,
                     )
                 }
             }
