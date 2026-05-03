@@ -14,9 +14,12 @@ import androidx.compose.runtime.derivedStateOf
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.remember
 import androidx.compose.ui.Modifier
+import androidx.compose.ui.res.stringResource
+import androidx.compose.ui.semantics.Role
 import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.dp
+import me.ash.reader.R
 import me.ash.reader.infrastructure.preference.LocalReadingFonts
 import me.ash.reader.infrastructure.preference.LocalReadingTitleAlign
 import me.ash.reader.infrastructure.preference.LocalReadingTitleBold
@@ -44,6 +47,7 @@ fun Metadata(
     val dateString =
         remember(publishedDate) { publishedDate.formatAsString(context, atHourMinute = true) }
     val fontFamily = LocalReadingFonts.current.asFontFamily(context)
+    val openArticleLinkLabel = stringResource(R.string.open_article_link)
 
     val titleUpperCaseString by remember { derivedStateOf { title.uppercase() } }
 
@@ -64,7 +68,14 @@ fun Metadata(
         )
         Spacer(modifier = Modifier.height(4.dp))
         val titleModifier = if (!link.isNullOrBlank() && onTitleClick != null) {
-            Modifier.fillMaxWidth().clickable { onTitleClick(link) }
+            Modifier
+                .fillMaxWidth()
+                .clickable(
+                    onClickLabel = openArticleLinkLabel,
+                    role = Role.Button,
+                ) {
+                    onTitleClick(link)
+                }
         } else {
             Modifier.fillMaxWidth()
         }
