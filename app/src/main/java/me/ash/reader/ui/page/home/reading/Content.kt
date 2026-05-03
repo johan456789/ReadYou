@@ -58,6 +58,8 @@ fun Content(
                         title = title,
                         author = author,
                         publishedDate = publishedDate,
+                        link = link,
+                        onTitleClick = { uriHandler.openUri(it) },
                     )
                 }
             }

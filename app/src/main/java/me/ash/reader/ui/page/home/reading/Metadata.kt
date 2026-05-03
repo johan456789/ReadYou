@@ -1,5 +1,6 @@
 package me.ash.reader.ui.page.home.reading
 
+import androidx.compose.foundation.clickable
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.Spacer
 import androidx.compose.foundation.layout.fillMaxWidth
@@ -33,6 +34,8 @@ fun Metadata(
     publishedDate: Date,
     modifier: Modifier = Modifier,
     author: String? = null,
+    link: String? = null,
+    onTitleClick: ((String) -> Unit)? = null,
 ) {
     val context = LocalContext.current
     val titleBold = LocalReadingTitleBold.current
@@ -60,8 +63,13 @@ fun Metadata(
             textAlign = titleAlign,
         )
         Spacer(modifier = Modifier.height(4.dp))
+        val titleModifier = if (!link.isNullOrBlank() && onTitleClick != null) {
+            Modifier.fillMaxWidth().clickable { onTitleClick(link) }
+        } else {
+            Modifier.fillMaxWidth()
+        }
         Text(
-            modifier = Modifier.fillMaxWidth(),
+            modifier = titleModifier,
             text = if (titleUpperCase.value) titleUpperCaseString else title,
             color = MaterialTheme.colorScheme.onSurface,
             style =
