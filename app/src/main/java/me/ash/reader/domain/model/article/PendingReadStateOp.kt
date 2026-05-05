@@ -21,6 +21,10 @@ data class PendingReadStateOp(
     val isUnread: Boolean,
     @ColumnInfo
     val updatedAt: Date = Date(),
+    @ColumnInfo
+    val localCommitted: Boolean = false,
+    @ColumnInfo
+    val remoteSynced: Boolean = false,
 ) {
     val isRead: Boolean
         get() = !isUnread

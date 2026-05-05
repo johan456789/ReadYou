@@ -16,6 +16,7 @@ import me.ash.reader.domain.service.AbstractRssRepository
 import me.ash.reader.domain.service.AccountService
 import me.ash.reader.domain.service.RssService
 import org.junit.Test
+import org.mockito.kotlin.any
 import org.mockito.kotlin.eq
 import org.mockito.kotlin.mock
 import org.mockito.kotlin.never
@@ -27,12 +28,16 @@ class DiffMapHolderPendingReadStateTest {
     @Test
     fun `local account applies and deletes pending read state ops on init`() = runBlocking {
         val pendingReadStateOpDao = pendingReadStateOpDaoWith(
-            PendingReadStateOp(
-                articleId = ARTICLE_ID,
-                accountId = ACCOUNT_ID,
-                feedId = FEED_ID,
-                isUnread = false,
-                updatedAt = Date(0L),
+            localPending = listOf(
+                PendingReadStateOp(
+                    articleId = ARTICLE_ID,
+                    accountId = ACCOUNT_ID,
+                    feedId = FEED_ID,
+                    isUnread = false,
+                    updatedAt = Date(0L),
+                    localCommitted = false,
+                    remoteSynced = true,
+                )
             )
         )
         val rssRepository = mock<AbstractRssRepository>()
@@ -48,21 +53,23 @@ class DiffMapHolderPendingReadStateTest {
         )
 
         verify(rssRepository).batchMarkAsRead(setOf(ARTICLE_ID), markRead = true)
-        verify(pendingReadStateOpDao).deleteByArticleIdsAndUnreadState(
-            articleIds = setOf(ARTICLE_ID),
-            isUnread = false,
-        )
+        verify(pendingReadStateOpDao).markLocalCommitted(setOf(ARTICLE_ID), isUnread = false)
+        verify(pendingReadStateOpDao).deleteCompleted()
     }
 
     @Test
-    fun `remote account applies pending read state ops locally but keeps them queued`() = runBlocking {
+    fun `remote account applies pending read state ops locally and marks localCommitted`() = runBlocking {
         val pendingReadStateOpDao = pendingReadStateOpDaoWith(
-            PendingReadStateOp(
-                articleId = ARTICLE_ID,
-                accountId = ACCOUNT_ID,
-                feedId = FEED_ID,
-                isUnread = false,
-                updatedAt = Date(0L),
+            localPending = listOf(
+                PendingReadStateOp(
+                    articleId = ARTICLE_ID,
+                    accountId = ACCOUNT_ID,
+                    feedId = FEED_ID,
+                    isUnread = false,
+                    updatedAt = Date(0L),
+                    localCommitted = false,
+                    remoteSynced = false,
+                )
             )
         )
         val rssRepository = mock<AbstractRssRepository>()
@@ -78,10 +85,8 @@ class DiffMapHolderPendingReadStateTest {
         )
 
         verify(rssRepository).batchMarkAsRead(setOf(ARTICLE_ID), markRead = true)
-        verify(pendingReadStateOpDao, never()).deleteByArticleIdsAndUnreadState(
-            articleIds = setOf(ARTICLE_ID),
-            isUnread = false,
-        )
+        verify(pendingReadStateOpDao).markLocalCommitted(setOf(ARTICLE_ID), isUnread = false)
+        verify(pendingReadStateOpDao).deleteCompleted()
     }
 
     private fun createHolder(
@@ -111,11 +116,14 @@ class DiffMapHolderPendingReadStateTest {
     }
 
     private fun pendingReadStateOpDaoWith(
-        vararg ops: PendingReadStateOp
+        localPending: List<PendingReadStateOp> = emptyList(),
+        remotePending: List<PendingReadStateOp> = emptyList(),
     ): PendingReadStateOpDao {
         val pendingReadStateOpDao = mock<PendingReadStateOpDao>()
         runBlocking {
-            whenever(pendingReadStateOpDao.queryByAccountId(eq(ACCOUNT_ID))).thenReturn(ops.toList())
+            whenever(pendingReadStateOpDao.queryLocalPending(eq(ACCOUNT_ID))).thenReturn(localPending)
+            whenever(pendingReadStateOpDao.queryRemotePending(eq(ACCOUNT_ID))).thenReturn(remotePending)
+            whenever(pendingReadStateOpDao.queryByAccountId(eq(ACCOUNT_ID))).thenReturn(localPending + remotePending)
         }
         return pendingReadStateOpDao
     }

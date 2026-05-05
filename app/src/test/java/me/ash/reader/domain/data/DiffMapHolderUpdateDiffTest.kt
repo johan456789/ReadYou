@@ -137,6 +137,8 @@ class DiffMapHolderUpdateDiffTest {
 
         val pendingReadStateOpDao = mock<PendingReadStateOpDao>()
         runBlocking {
+            whenever(pendingReadStateOpDao.queryLocalPending(eq(1))).thenReturn(emptyList<PendingReadStateOp>())
+            whenever(pendingReadStateOpDao.queryRemotePending(eq(1))).thenReturn(emptyList<PendingReadStateOp>())
             whenever(pendingReadStateOpDao.queryByAccountId(eq(1))).thenReturn(emptyList<PendingReadStateOp>())
         }
 
