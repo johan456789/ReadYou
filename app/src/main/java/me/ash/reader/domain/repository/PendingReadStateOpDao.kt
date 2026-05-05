@@ -24,6 +24,53 @@ interface PendingReadStateOpDao {
 
     @Query(
         """
+        SELECT * FROM pending_read_state_op
+        WHERE accountId = :accountId
+        AND localCommitted = 0
+        """
+    )
+    suspend fun queryLocalPending(accountId: Int): List<PendingReadStateOp>
+
+    @Query(
+        """
+        SELECT * FROM pending_read_state_op
+        WHERE accountId = :accountId
+        AND remoteSynced = 0
+        """
+    )
+    suspend fun queryRemotePending(accountId: Int): List<PendingReadStateOp>
+
+    @Query(
+        """
+        UPDATE pending_read_state_op
+        SET localCommitted = 1
+        WHERE articleId IN (:articleIds)
+        AND isUnread = :isUnread
+        """
+    )
+    suspend fun markLocalCommitted(articleIds: Set<String>, isUnread: Boolean)
+
+    @Query(
+        """
+        UPDATE pending_read_state_op
+        SET remoteSynced = 1
+        WHERE articleId IN (:articleIds)
+        AND isUnread = :isUnread
+        """
+    )
+    suspend fun markRemoteSynced(articleIds: Set<String>, isUnread: Boolean)
+
+    @Query(
+        """
+        DELETE FROM pending_read_state_op
+        WHERE localCommitted = 1
+        AND remoteSynced = 1
+        """
+    )
+    suspend fun deleteCompleted()
+
+    @Query(
+        """
         DELETE FROM pending_read_state_op
         WHERE articleId IN (:articleIds)
         AND isUnread = :isUnread
