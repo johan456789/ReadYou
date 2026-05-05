@@ -26,9 +26,10 @@ interface PendingReadStateOpDao {
         """
         DELETE FROM pending_read_state_op
         WHERE articleId IN (:articleIds)
+        AND isUnread = :isUnread
         """
     )
-    suspend fun deleteByArticleIds(articleIds: Set<String>)
+    suspend fun deleteByArticleIdsAndUnreadState(articleIds: Set<String>, isUnread: Boolean)
 
     @Query(
         """
