@@ -248,13 +248,22 @@ blockquote img {
 }
 
 /* Table  */
-table {
-    display: block;
-    max-width: var(--content-width) !important;
-    width: 100% !important;
+.table-scroll {
+    display: block !important;
+    max-width: 100% !important;
+    overflow-x: auto !important;
+    overflow-y: hidden !important;
+    margin-top: 1em !important;
+    margin-bottom: 1em !important;
+    -webkit-overflow-scrolling: touch;
+}
+
+.table-scroll table {
+    width: max-content !important;
+    min-width: 100% !important;
+    max-width: none !important;
     border-collapse: collapse !important;
-    margin-left: var(--table-margin) !important;
-    margin-right: var(--table-margin) !important;
+    margin: 0 !important;
 }
 
 table th,
@@ -264,14 +273,6 @@ table td {
     line-height: var(--line-height) !important;
     letter-spacing: var(--letter-spacing) !important;
     text-align: var(--text-align) !important;
-}
-
-table tr {
-    display: block;
-}
-
-table tr table tr td {
-    display: inline-block;
 }
 
 table tr:nth-child(even) {

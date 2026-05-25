@@ -77,6 +77,17 @@ function setBold(enabled) {
 
 ${if (boldCharacters) "setBold(true);" else ""}
 
+document.querySelectorAll("table").forEach(function(table) {
+    if (table.closest(".table-scroll") || table.parentElement.closest("table")) {
+        return;
+    }
+
+    var wrapper = document.createElement("div");
+    wrapper.className = "table-scroll";
+    table.parentNode.insertBefore(wrapper, table);
+    wrapper.appendChild(table);
+});
+
 var images = document.querySelectorAll("img");
 
 images.forEach(function(img) {
