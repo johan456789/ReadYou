@@ -537,6 +537,11 @@ private constructor(
 
         private val instances: ConcurrentHashMap<String, GoogleReaderAPI> = ConcurrentHashMap()
 
+        fun normalizeServerUrl(serverUrl: String): String {
+            val trimmedUrl = serverUrl.trim()
+            return if (trimmedUrl.endsWith("/")) trimmedUrl else "$trimmedUrl/"
+        }
+
         fun getInstance(
             context: Context,
             serverUrl: String,
@@ -547,19 +552,21 @@ private constructor(
             clientCertificateAlias: String? = null,
             syncLogger: SyncLogger,
         ): GoogleReaderAPI =
-            instances.getOrPut(
-                "$serverUrl$username$password$httpUsername$httpPassword$clientCertificateAlias"
-            ) {
-                GoogleReaderAPI(
-                    context,
-                    serverUrl,
-                    username,
-                    password,
-                    httpUsername,
-                    httpPassword,
-                    syncLogger,
-                    clientCertificateAlias,
-                )
+            normalizeServerUrl(serverUrl).let { normalizedServerUrl ->
+                instances.getOrPut(
+                    "$normalizedServerUrl$username$password$httpUsername$httpPassword$clientCertificateAlias"
+                ) {
+                    GoogleReaderAPI(
+                        context,
+                        normalizedServerUrl,
+                        username,
+                        password,
+                        httpUsername,
+                        httpPassword,
+                        syncLogger,
+                        clientCertificateAlias,
+                    )
+                }
             }
 
         fun clearInstance() {
