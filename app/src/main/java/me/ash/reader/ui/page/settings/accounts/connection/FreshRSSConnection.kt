@@ -33,7 +33,7 @@ fun LazyItemScope.FreshRSSConnection(
 
     var passwordMask by remember { mutableStateOf(securityKey.password?.mask()) }
 
-    var serverUrlValue by remember { mutableStateOf(securityKey.serverUrl) }
+    var serverUrlValue by remember { mutableStateOf(securityKey.serverUrl.orEmpty()) }
     var usernameValue by remember { mutableStateOf(securityKey.username) }
     var passwordValue by remember { mutableStateOf(securityKey.password) }
 
@@ -79,13 +79,13 @@ fun LazyItemScope.FreshRSSConnection(
     TextFieldDialog(
         visible = serverUrlDialogVisible,
         title = stringResource(R.string.server_url),
-        value = serverUrlValue ?: "",
+        value = serverUrlValue,
         placeholder = "https://demo.freshrss.org/api/greader.php",
         onValueChange = { serverUrlValue = it },
         onDismissRequest = { serverUrlDialogVisible = false },
         onConfirm = {
-            if (serverUrlValue?.isNotBlank() == true) {
-                securityKey.serverUrl = GoogleReaderAPI.normalizeServerUrl(serverUrlValue!!)
+            if (serverUrlValue.isNotBlank()) {
+                securityKey.serverUrl = GoogleReaderAPI.normalizeServerUrl(serverUrlValue)
                 save(account, viewModel, securityKey)
                 serverUrlDialogVisible = false
             }
