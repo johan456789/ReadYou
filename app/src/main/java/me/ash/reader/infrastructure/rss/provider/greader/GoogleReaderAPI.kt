@@ -539,6 +539,7 @@ private constructor(
 
         fun normalizeServerUrl(serverUrl: String): String {
             val trimmedUrl = serverUrl.trim()
+            if (trimmedUrl.isEmpty()) return trimmedUrl
             return if (trimmedUrl.endsWith("/")) trimmedUrl else "$trimmedUrl/"
         }
 

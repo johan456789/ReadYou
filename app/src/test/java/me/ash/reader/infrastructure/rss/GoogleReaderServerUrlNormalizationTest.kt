@@ -26,4 +26,11 @@ class GoogleReaderServerUrlNormalizationTest {
 
         assertEquals("https://demo.freshrss.org/api/greader.php/", normalized)
     }
+
+    @Test
+    fun normalizeServerUrl_returnsEmptyStringForBlankInput() {
+        val normalized = GoogleReaderAPI.normalizeServerUrl("   ")
+
+        assertEquals("", normalized)
+    }
 }
