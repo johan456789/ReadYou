@@ -93,7 +93,7 @@ function tableUsesDynamicTheme(table) {
 }
 
 document.querySelectorAll("table").forEach(function(table) {
-    if (table.closest(".table-scroll") || table.parentElement.closest("table")) {
+    if (table.closest(".table-scroll") || (table.parentElement && table.parentElement.closest("table"))) {
         return;
     }
 
