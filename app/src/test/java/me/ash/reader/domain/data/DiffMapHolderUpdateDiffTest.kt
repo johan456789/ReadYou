@@ -18,13 +18,16 @@ import me.ash.reader.domain.repository.PendingReadStateOpDao
 import me.ash.reader.domain.service.AbstractRssRepository
 import me.ash.reader.domain.service.AccountService
 import me.ash.reader.domain.service.RssService
+import org.junit.Assert.assertEquals
 import org.junit.Assert.assertFalse
 import org.junit.Assert.assertTrue
 import org.junit.Test
+import org.mockito.kotlin.any
 import org.mockito.kotlin.argumentCaptor
 import org.mockito.kotlin.eq
 import org.mockito.kotlin.inOrder
 import org.mockito.kotlin.mock
+import org.mockito.kotlin.verify
 import org.mockito.kotlin.whenever
 
 class DiffMapHolderUpdateDiffTest {
@@ -144,20 +147,72 @@ class DiffMapHolderUpdateDiffTest {
         }
     }
 
+    @Test
+    fun `flushDeferredDiffs waits for pending op persistence`() {
+        val pendingReadStateOpDao = pendingReadStateOpDao()
+        val holder = createHolder(
+            pendingReadStateOpDao = pendingReadStateOpDao,
+            deferDbCommits = true,
+        )
+
+        holder.updateDiff(unreadArticle(), markRead = true)
+        holder.flushDeferredDiffs()
+
+        runBlocking {
+            inOrder(pendingReadStateOpDao).apply {
+                verify(pendingReadStateOpDao).upsertAll(any())
+                verify(pendingReadStateOpDao).queryLocalPending(eq(1))
+            }
+        }
+    }
+
+    @Test
+    fun `prepareReadStateForSync persists pending sync ops before querying remote queue`() {
+        val pendingReadStateOpDao = pendingReadStateOpDao()
+        var upsertCount = 0
+        var firstRemoteQueryUpsertCount: Int? = null
+        runBlocking {
+            whenever(pendingReadStateOpDao.upsertAll(any())).thenAnswer {
+                upsertCount += 1
+                Unit
+            }
+            whenever(pendingReadStateOpDao.queryRemotePending(eq(1))).thenAnswer {
+                if (firstRemoteQueryUpsertCount == null) {
+                    firstRemoteQueryUpsertCount = upsertCount
+                }
+                emptyList<PendingReadStateOp>()
+            }
+        }
+        val holder = createHolder(
+            account = Account(
+                id = 1,
+                name = "FreshRSS",
+                type = AccountType(AccountType.FreshRSS.id),
+            ),
+            pendingReadStateOpDao = pendingReadStateOpDao,
+            deferDbCommits = true,
+        )
+
+        holder.updateDiff(unreadArticle(), markRead = true)
+        runBlocking {
+            holder.prepareReadStateForSync(1)
+            assertEquals(2, firstRemoteQueryUpsertCount)
+        }
+    }
+
     private fun createHolder(
+        account: Account = Account(
+            id = 1,
+            name = "Local",
+            type = AccountType(AccountType.Local.id),
+        ),
         pendingReadStateOpDao: PendingReadStateOpDao = pendingReadStateOpDao(),
         deferDbCommits: Boolean = true,
     ): DiffMapHolder {
         val context = mock<Context>()
         whenever(context.cacheDir).thenReturn(Files.createTempDirectory("diff-map-holder-test").toFile())
 
-        val localAccountFlow = MutableStateFlow(
-            Account(
-                id = 1,
-                name = "Local",
-                type = AccountType(AccountType.Local.id),
-            )
-        )
+        val localAccountFlow = MutableStateFlow(account)
         val accountService = mock<AccountService>()
         whenever(accountService.currentAccountFlow).thenReturn(localAccountFlow)
 
