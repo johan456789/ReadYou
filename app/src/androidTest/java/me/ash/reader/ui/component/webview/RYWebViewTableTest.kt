@@ -148,7 +148,9 @@ class RYWebViewTableTest {
             }
         }
         assertTrue(latch.await(5, TimeUnit.SECONDS))
-        val json = JSONTokener(encodedResult).nextValue() as String
+        val json =
+            JSONTokener(encodedResult ?: "null").nextValue() as? String
+                ?: throw AssertionError("Expected JavaScript to return encoded JSON, got: $encodedResult")
         return org.json.JSONObject(json)
     }
 
