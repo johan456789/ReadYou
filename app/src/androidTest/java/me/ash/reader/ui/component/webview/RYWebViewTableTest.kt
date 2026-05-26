@@ -87,6 +87,42 @@ class RYWebViewTableTest {
         assertTrue(metrics.getString("wrapperClass").contains("table-scroll--dynamic"))
     }
 
+    @Test
+    fun nestedTablesAreNormalizedWithoutScrollSizing() {
+        loadArticle(NESTED_TABLE_HTML)
+
+        val metrics = evaluateJavascript(
+            """
+            (function() {
+                const wrapper = document.querySelector('.table-scroll');
+                const outerTable = wrapper.children[0];
+                const nestedTable = wrapper.querySelector('td table');
+                const nestedHeader = nestedTable.querySelector('th');
+                const outerStyle = getComputedStyle(outerTable);
+                const nestedStyle = getComputedStyle(nestedTable);
+                return JSON.stringify({
+                    wrapperClass: wrapper.className,
+                    wrapperCount: document.querySelectorAll('.table-scroll').length,
+                    outerMinWidth: outerStyle.minWidth,
+                    nestedMinWidth: nestedStyle.minWidth,
+                    nestedHeaderBackground: getComputedStyle(nestedHeader).backgroundColor,
+                    nestedHeaderColor: getComputedStyle(nestedHeader).color
+                });
+            })()
+            """.trimIndent()
+        )
+
+        assertEquals(1, metrics.getInt("wrapperCount"))
+        assertTrue(metrics.getString("wrapperClass").contains("table-scroll--reader"))
+        assertEquals("100%", metrics.getString("outerMinWidth"))
+        assertTrue(
+            "Expected nested table not to receive root scroll sizing: $metrics",
+            metrics.getString("nestedMinWidth") != "100%",
+        )
+        assertEquals("rgba(0, 0, 0, 0)", metrics.getString("nestedHeaderBackground"))
+        assertEquals("rgb(17, 17, 17)", metrics.getString("nestedHeaderColor"))
+    }
+
     private fun loadArticle(content: String) {
         val pageLoaded = CountDownLatch(1)
         val html = WebViewHtml.HTML.format(
@@ -193,6 +229,30 @@ class RYWebViewTableTest {
                 <tr>
                     <td style="white-space: nowrap">On public Wi-Fi</td>
                     <td style="white-space: nowrap">Always on</td>
+                </tr>
+            </table>
+        """
+
+        const val NESTED_TABLE_HTML = """
+            <table>
+                <tr>
+                    <th style="white-space: nowrap">Outer header</th>
+                    <th style="white-space: nowrap">Outer detail</th>
+                </tr>
+                <tr>
+                    <td style="white-space: nowrap">Outer row</td>
+                    <td>
+                        <table>
+                            <tr>
+                                <th style="white-space: nowrap; background-color: rgb(0, 64, 96); color: white">Nested header</th>
+                                <th style="white-space: nowrap; background-color: rgb(0, 128, 64); color: white">Nested detail</th>
+                            </tr>
+                            <tr>
+                                <td style="white-space: nowrap">Nested row</td>
+                                <td style="white-space: nowrap">Nested value</td>
+                            </tr>
+                        </table>
+                    </td>
                 </tr>
             </table>
         """

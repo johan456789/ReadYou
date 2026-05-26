@@ -257,7 +257,7 @@ blockquote img {
     -webkit-overflow-scrolling: touch;
 }
 
-.table-scroll table {
+.table-scroll > table {
     width: max-content !important;
     min-width: 100% !important;
     max-width: none !important;
