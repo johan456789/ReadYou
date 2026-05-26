@@ -21,7 +21,9 @@ import me.ash.reader.domain.service.RssService
 import org.junit.Assert.assertFalse
 import org.junit.Assert.assertTrue
 import org.junit.Test
+import org.mockito.kotlin.any
 import org.mockito.kotlin.eq
+import org.mockito.kotlin.inOrder
 import org.mockito.kotlin.mock
 import org.mockito.kotlin.whenever
 
@@ -121,7 +123,28 @@ class DiffMapHolderUpdateDiffTest {
             holder.checkIfRead(originalUnreadArticle))
     }
 
-    private fun createHolder(): DiffMapHolder {
+    @Test
+    fun `updateDiff persists pending op before marking local commit`() {
+        val pendingReadStateOpDao = pendingReadStateOpDao()
+        val holder = createHolder(
+            pendingReadStateOpDao = pendingReadStateOpDao,
+            deferDbCommits = false,
+        )
+
+        holder.updateDiff(unreadArticle(), markRead = true)
+
+        runBlocking {
+            inOrder(pendingReadStateOpDao).apply {
+                verify(pendingReadStateOpDao).upsertAll(any())
+                verify(pendingReadStateOpDao).markLocalCommitted(setOf("article"), isUnread = false)
+            }
+        }
+    }
+
+    private fun createHolder(
+        pendingReadStateOpDao: PendingReadStateOpDao = pendingReadStateOpDao(),
+        deferDbCommits: Boolean = true,
+    ): DiffMapHolder {
         val context = mock<Context>()
         whenever(context.cacheDir).thenReturn(Files.createTempDirectory("diff-map-holder-test").toFile())
 
@@ -135,13 +158,6 @@ class DiffMapHolderUpdateDiffTest {
         val accountService = mock<AccountService>()
         whenever(accountService.currentAccountFlow).thenReturn(localAccountFlow)
 
-        val pendingReadStateOpDao = mock<PendingReadStateOpDao>()
-        runBlocking {
-            whenever(pendingReadStateOpDao.queryLocalPending(eq(1))).thenReturn(emptyList<PendingReadStateOp>())
-            whenever(pendingReadStateOpDao.queryRemotePending(eq(1))).thenReturn(emptyList<PendingReadStateOp>())
-            whenever(pendingReadStateOpDao.queryByAccountId(eq(1))).thenReturn(emptyList<PendingReadStateOp>())
-        }
-
         val rssRepository = mock<AbstractRssRepository>()
         val rssService = mock<RssService>()
         whenever(rssService.get()).thenReturn(rssRepository)
@@ -154,8 +170,18 @@ class DiffMapHolderUpdateDiffTest {
             rssService = rssService,
             pendingReadStateOpDao = pendingReadStateOpDao,
         ).apply {
-            deferDbCommits = true
+            this.deferDbCommits = deferDbCommits
         }
+    }
+
+    private fun pendingReadStateOpDao(): PendingReadStateOpDao {
+        val pendingReadStateOpDao = mock<PendingReadStateOpDao>()
+        runBlocking {
+            whenever(pendingReadStateOpDao.queryLocalPending(eq(1))).thenReturn(emptyList<PendingReadStateOp>())
+            whenever(pendingReadStateOpDao.queryRemotePending(eq(1))).thenReturn(emptyList<PendingReadStateOp>())
+            whenever(pendingReadStateOpDao.queryByAccountId(eq(1))).thenReturn(emptyList<PendingReadStateOp>())
+        }
+        return pendingReadStateOpDao
     }
 
     private fun invokeUpdateDiffInternal(

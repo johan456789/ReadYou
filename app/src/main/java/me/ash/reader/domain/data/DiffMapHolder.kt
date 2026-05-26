@@ -223,15 +223,13 @@ class DiffMapHolder @Inject constructor(
 
         applicationScope.launch(ioDispatcher) {
             persistPendingReadStateOps(appliedDiffs)
-        }
 
-        if (!deferDbCommits) {
-            Timber.tag("DiffMapHolder").d("Immediately committing ${appliedDiffs.size} articles to DB")
-            applicationScope.launch(ioDispatcher) {
+            if (!deferDbCommits) {
+                Timber.tag("DiffMapHolder").d("Immediately committing ${appliedDiffs.size} articles to DB")
                 commitAppliedDiffsToDb(appliedDiffs.associateBy { it.articleId })
+            } else {
+                Timber.tag("DiffMapHolder").d("Deferring DB commits for ${appliedDiffs.size} articles")
             }
-        } else {
-            Timber.tag("DiffMapHolder").d("Deferring DB commits for ${appliedDiffs.size} articles")
         }
     }
 
