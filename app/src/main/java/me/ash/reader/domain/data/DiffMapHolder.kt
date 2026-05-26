@@ -433,8 +433,9 @@ class DiffMapHolder @Inject constructor(
     }
 
     private suspend fun markRemoteSyncedOps(diffs: Collection<Diff>) {
-        val markReadIds = diffs.filter { it.isRead }.map { it.articleId }.toSet()
-        val markUnreadIds = diffs.filter { !it.isRead }.map { it.articleId }.toSet()
+        val (readDiffs, unreadDiffs) = diffs.partition { it.isRead }
+        val markReadIds = readDiffs.map { it.articleId }.toSet()
+        val markUnreadIds = unreadDiffs.map { it.articleId }.toSet()
         if (markReadIds.isNotEmpty()) {
             pendingReadStateOpDao.markRemoteSynced(
                 articleIds = markReadIds,
