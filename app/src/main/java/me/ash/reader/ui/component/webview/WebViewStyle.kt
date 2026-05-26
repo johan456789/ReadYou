@@ -67,10 +67,9 @@ ${applyFontFace(fontPath)}
     --blockquote-border-width: 3px;
     --blockquote-border-color: ${argbToCssColor(textColor)}33;
     --table-margin: ${tableMargin}px;
-    --table-border-width;
-    --table-border-color;
+    --table-border-width: 1px;
+    --table-border-color: ${argbToCssColor(textColor)}22;
     --table-cell-padding: 0.2em;
-    --table-alt-row-bg-color;
     --code-text-color: ${argbToCssColor(codeTextColor)};
     --code-bg-color: ${argbToCssColor(codeBgColor)};
     --code-scrollbar-color: ${argbToCssColor(codeTextColor)}22;
@@ -266,17 +265,35 @@ blockquote img {
     margin: 0 !important;
 }
 
-table th,
-table td {
+.table-scroll--reader table,
+.table-scroll--reader thead,
+.table-scroll--reader tbody,
+.table-scroll--reader tr,
+.table-scroll--reader th,
+.table-scroll--reader td {
+    color: var(--text-color) !important;
+    background: transparent !important;
+    background-color: transparent !important;
+    background-image: none !important;
+}
+
+.table-scroll--reader table {
     border: var(--table-border-width) solid var(--table-border-color) !important;
-    padding: var(--table-cell-padding) !important;
+}
+
+.table-scroll--reader th,
+.table-scroll--reader td {
+    border: var(--table-border-width) solid var(--table-border-color) !important;
+    padding: 0.6em 0.8em !important;
     line-height: var(--line-height) !important;
     letter-spacing: var(--letter-spacing) !important;
     text-align: var(--text-align) !important;
+    vertical-align: top !important;
 }
 
-table tr:nth-child(even) {
-    background-color: var(--table-alt-row-bg-color) !important;
+.table-scroll--reader th {
+    color: var(--bold-text-color) !important;
+    font-weight: 600 !important;
 }
 
 /* Code */

@@ -77,13 +77,30 @@ function setBold(enabled) {
 
 ${if (boldCharacters) "setBold(true);" else ""}
 
+const LIGHT_DARK_FUNCTION = /light-dark\s*\(/i;
+const TABLE_SELECTOR_PATTERN = /\b(table|thead|tbody|tfoot|tr|th|td)\b/i;
+
+function tableUsesDynamicTheme(table) {
+    const styledElements = [table, ...table.querySelectorAll("[style]")];
+    if (styledElements.some((element) => LIGHT_DARK_FUNCTION.test(element.getAttribute("style") || ""))) {
+        return true;
+    }
+
+    return [...document.querySelectorAll("style")].some((styleElement) => {
+        const css = styleElement.textContent || "";
+        return LIGHT_DARK_FUNCTION.test(css) && TABLE_SELECTOR_PATTERN.test(css);
+    });
+}
+
 document.querySelectorAll("table").forEach(function(table) {
     if (table.closest(".table-scroll") || table.parentElement.closest("table")) {
         return;
     }
 
     var wrapper = document.createElement("div");
-    wrapper.className = "table-scroll";
+    wrapper.className = tableUsesDynamicTheme(table)
+        ? "table-scroll table-scroll--dynamic"
+        : "table-scroll table-scroll--reader";
     table.parentNode.insertBefore(wrapper, table);
     wrapper.appendChild(table);
 });
