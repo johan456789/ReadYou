@@ -187,5 +187,15 @@ object MIGRATION_10_11 : Migration(10, 11) {
             ALTER TABLE pending_read_state_op ADD COLUMN remoteSynced INTEGER NOT NULL DEFAULT 0
             """.trimIndent()
         )
+        database.execSQL(
+            """
+            UPDATE pending_read_state_op
+            SET remoteSynced = 1
+            WHERE accountId IN (
+                SELECT id FROM account
+                WHERE type = ${AccountType.Local.id}
+            )
+            """.trimIndent()
+        )
     }
 }
