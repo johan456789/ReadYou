@@ -292,13 +292,13 @@ class DiffMapHolder @Inject constructor(
         if (diffsToCommit.isEmpty()) return
 
         val diffBatch = ReadStateDiffApplier.toBatch(diffsToCommit)
-        rssService.get().batchMarkAsRead(articleIds = diffBatch.markReadIds, markRead = true)
-        rssService.get().batchMarkAsRead(articleIds = diffBatch.markUnreadIds, markRead = false)
 
         if (diffBatch.markReadIds.isNotEmpty()) {
+            rssService.get().batchMarkAsRead(articleIds = diffBatch.markReadIds, markRead = true)
             pendingReadStateOpDao.markLocalCommitted(diffBatch.markReadIds, isUnread = false)
         }
         if (diffBatch.markUnreadIds.isNotEmpty()) {
+            rssService.get().batchMarkAsRead(articleIds = diffBatch.markUnreadIds, markRead = false)
             pendingReadStateOpDao.markLocalCommitted(diffBatch.markUnreadIds, isUnread = true)
         }
 
