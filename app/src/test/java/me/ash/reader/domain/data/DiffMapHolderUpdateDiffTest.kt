@@ -21,7 +21,7 @@ import me.ash.reader.domain.service.RssService
 import org.junit.Assert.assertFalse
 import org.junit.Assert.assertTrue
 import org.junit.Test
-import org.mockito.kotlin.any
+import org.mockito.kotlin.argumentCaptor
 import org.mockito.kotlin.eq
 import org.mockito.kotlin.inOrder
 import org.mockito.kotlin.mock
@@ -130,14 +130,17 @@ class DiffMapHolderUpdateDiffTest {
             pendingReadStateOpDao = pendingReadStateOpDao,
             deferDbCommits = false,
         )
+        assertFalse(holder.shouldSyncWithRemote)
 
         holder.updateDiff(unreadArticle(), markRead = true)
 
         runBlocking {
+            val opsCaptor = argumentCaptor<List<PendingReadStateOp>>()
             inOrder(pendingReadStateOpDao).apply {
-                verify(pendingReadStateOpDao).upsertAll(any())
+                verify(pendingReadStateOpDao).upsertAll(opsCaptor.capture())
                 verify(pendingReadStateOpDao).markLocalCommitted(setOf("article"), isUnread = false)
             }
+            assertTrue(opsCaptor.firstValue.single().remoteSynced)
         }
     }
 
@@ -152,7 +155,7 @@ class DiffMapHolderUpdateDiffTest {
             Account(
                 id = 1,
                 name = "Local",
-                type = AccountType.Local,
+                type = AccountType(AccountType.Local.id),
             )
         )
         val accountService = mock<AccountService>()

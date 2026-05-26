@@ -66,7 +66,7 @@ class DiffMapHolder @Inject constructor(
         applicationScope, SharingStarted.Eagerly, emptyMap()
     )
 
-    val shouldSyncWithRemote get() = currentAccount?.type != AccountType.Local
+    val shouldSyncWithRemote get() = currentAccount?.type?.id != AccountType.Local.id
 
     private val gson = Gson()
 
@@ -459,7 +459,7 @@ class DiffMapHolder @Inject constructor(
             feedId = diff.feedId,
             isUnread = !diff.isRead,
             localCommitted = false,
-            remoteSynced = account.type == AccountType.Local,
+            remoteSynced = account.type.id == AccountType.Local.id,
         )
     }
 
