@@ -253,16 +253,16 @@ class DiffMapHolder @Inject constructor(
 
         Timber.tag("DiffMapHolder").d("flushLocalPendingOps: flushing ${pendingOps.size} articles")
 
-        val markAsReadIds = pendingOps.filter { it.isRead }.map { it.articleId }.toSet()
-        val markAsUnreadIds = pendingOps.filter { !it.isRead }.map { it.articleId }.toSet()
-
-        rssService.get().batchMarkAsRead(articleIds = markAsReadIds, markRead = true)
-        rssService.get().batchMarkAsRead(articleIds = markAsUnreadIds, markRead = false)
+        val (readOps, unreadOps) = pendingOps.partition { it.isRead }
+        val markAsReadIds = readOps.map { it.articleId }.toSet()
+        val markAsUnreadIds = unreadOps.map { it.articleId }.toSet()
 
         if (markAsReadIds.isNotEmpty()) {
+            rssService.get().batchMarkAsRead(articleIds = markAsReadIds, markRead = true)
             pendingReadStateOpDao.markLocalCommitted(markAsReadIds, isUnread = false)
         }
         if (markAsUnreadIds.isNotEmpty()) {
+            rssService.get().batchMarkAsRead(articleIds = markAsUnreadIds, markRead = false)
             pendingReadStateOpDao.markLocalCommitted(markAsUnreadIds, isUnread = true)
         }
 
