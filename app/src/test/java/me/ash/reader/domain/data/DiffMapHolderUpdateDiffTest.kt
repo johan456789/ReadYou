@@ -26,6 +26,7 @@ import org.junit.Assert.assertEquals
 import org.junit.Assert.assertFalse
 import org.junit.Assert.assertTrue
 import org.junit.Test
+import org.mockito.kotlin.atLeastOnce
 import org.mockito.kotlin.any
 import org.mockito.kotlin.argumentCaptor
 import org.mockito.kotlin.eq
@@ -205,6 +206,40 @@ class DiffMapHolderUpdateDiffTest {
     }
 
     @Test
+    fun `prepareReadStateForSync preserves local commit when re-persisting same diff`() = runBlocking {
+        val pendingReadStateOpDao = pendingReadStateOpDao()
+        val existingOp = PendingReadStateOp(
+            articleId = "article",
+            accountId = 1,
+            feedId = "feed",
+            isUnread = false,
+            localCommitted = true,
+            remoteSynced = false,
+        )
+        val upsertCaptor = argumentCaptor<List<PendingReadStateOp>>()
+        whenever(pendingReadStateOpDao.queryByArticleIds(eq(setOf("article"))))
+            .thenReturn(listOf(existingOp))
+
+        val holder = createHolder(
+            account = Account(
+                id = 1,
+                name = "FreshRSS",
+                type = AccountType(AccountType.FreshRSS.id),
+            ),
+            pendingReadStateOpDao = pendingReadStateOpDao,
+            deferDbCommits = true,
+        )
+
+        holder.updateDiff(unreadArticle(), markRead = true)
+        holder.prepareReadStateForSync(1)
+
+        verify(pendingReadStateOpDao, atLeastOnce()).upsertAll(upsertCaptor.capture())
+        assertTrue(
+            upsertCaptor.allValues.last().single().localCommitted
+        )
+    }
+
+    @Test
     fun `flushPendingSyncDiffs waits for pending op persistence before remote mark`() = runBlocking {
         val pendingReadStateOpDao = delayedPendingReadStateOpDao()
         val rssRepository = mock<AbstractRssRepository>()
@@ -282,6 +317,7 @@ class DiffMapHolderUpdateDiffTest {
             whenever(pendingReadStateOpDao.queryLocalPending(eq(1))).thenReturn(emptyList<PendingReadStateOp>())
             whenever(pendingReadStateOpDao.queryRemotePending(eq(1))).thenReturn(emptyList<PendingReadStateOp>())
             whenever(pendingReadStateOpDao.queryByAccountId(eq(1))).thenReturn(emptyList<PendingReadStateOp>())
+            whenever(pendingReadStateOpDao.queryByArticleIds(any())).thenReturn(emptyList<PendingReadStateOp>())
         }
         return pendingReadStateOpDao
     }
@@ -363,6 +399,9 @@ class DiffMapHolderUpdateDiffTest {
 
         override suspend fun queryByAccountId(accountId: Int): List<PendingReadStateOp> =
             ops.values.filter { it.accountId == accountId }
+
+        override suspend fun queryByArticleIds(articleIds: Set<String>): List<PendingReadStateOp> =
+            articleIds.mapNotNull { ops[it] }
 
         override suspend fun queryLocalPending(accountId: Int): List<PendingReadStateOp> =
             ops.values.filter { it.accountId == accountId && !it.localCommitted }

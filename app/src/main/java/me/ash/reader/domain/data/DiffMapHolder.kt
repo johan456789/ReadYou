@@ -491,7 +491,21 @@ class DiffMapHolder @Inject constructor(
         if (diffs.isEmpty()) return
         val ops = diffs.mapNotNull(::toPendingReadStateOp)
         if (ops.isNotEmpty()) {
-            pendingReadStateOpDao.upsertAll(ops)
+            val existingOps = pendingReadStateOpDao.queryByArticleIds(ops.map { it.articleId }.toSet())
+                .associateBy { it.articleId }
+            pendingReadStateOpDao.upsertAll(
+                ops.map { op ->
+                    val existing = existingOps[op.articleId]
+                    if (existing != null && existing.isUnread == op.isUnread) {
+                        op.copy(
+                            localCommitted = existing.localCommitted,
+                            remoteSynced = existing.remoteSynced,
+                        )
+                    } else {
+                        op
+                    }
+                }
+            )
         }
     }
 

@@ -17,6 +17,14 @@ interface PendingReadStateOpDao {
     @Query(
         """
         SELECT * FROM pending_read_state_op
+        WHERE articleId IN (:articleIds)
+        """
+    )
+    suspend fun queryByArticleIds(articleIds: Set<String>): List<PendingReadStateOp>
+
+    @Query(
+        """
+        SELECT * FROM pending_read_state_op
         WHERE accountId = :accountId
         """
     )
