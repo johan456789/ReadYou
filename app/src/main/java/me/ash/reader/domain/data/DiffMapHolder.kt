@@ -353,6 +353,7 @@ class DiffMapHolder @Inject constructor(
         if (!shouldSyncWithRemote) return emptySet()
 
         return pendingSyncMutex.withLock {
+            awaitPendingReadStateWork()
             val excludedReadStateIds =
                 pendingReadStateMutex.withLock {
                     persistPendingReadStateOps(pendingSyncDiffs.values)
