@@ -2,7 +2,7 @@
   "formatVersion": 1,
   "database": {
     "version": 11,
-    "identityHash": "454c5fa0fe6c446c8804a8411930dd83",
+    "identityHash": "871af344bbf2efe7d815f3a9a3b51ed4",
     "entities": [
       {
         "tableName": "account",
@@ -424,7 +424,7 @@
       },
       {
         "tableName": "pending_read_state_op",
-        "createSql": "CREATE TABLE IF NOT EXISTS `${TABLE_NAME}` (`articleId` TEXT NOT NULL, `accountId` INTEGER NOT NULL, `feedId` TEXT NOT NULL, `isUnread` INTEGER NOT NULL, `updatedAt` INTEGER NOT NULL, `localCommitted` INTEGER NOT NULL, `remoteSynced` INTEGER NOT NULL, PRIMARY KEY(`articleId`))",
+        "createSql": "CREATE TABLE IF NOT EXISTS `${TABLE_NAME}` (`articleId` TEXT NOT NULL, `accountId` INTEGER NOT NULL, `feedId` TEXT NOT NULL, `isUnread` INTEGER NOT NULL, `updatedAt` INTEGER NOT NULL, `localCommitted` INTEGER NOT NULL DEFAULT 0, `remoteSynced` INTEGER NOT NULL DEFAULT 0, PRIMARY KEY(`articleId`))",
         "fields": [
           {
             "fieldPath": "articleId",
@@ -460,13 +460,15 @@
             "fieldPath": "localCommitted",
             "columnName": "localCommitted",
             "affinity": "INTEGER",
-            "notNull": true
+            "notNull": true,
+            "defaultValue": "0"
           },
           {
             "fieldPath": "remoteSynced",
             "columnName": "remoteSynced",
             "affinity": "INTEGER",
-            "notNull": true
+            "notNull": true,
+            "defaultValue": "0"
           }
         ],
         "primaryKey": {
@@ -499,7 +501,7 @@
     ],
     "setupQueries": [
       "CREATE TABLE IF NOT EXISTS room_master_table (id INTEGER PRIMARY KEY,identity_hash TEXT)",
-      "INSERT OR REPLACE INTO room_master_table (id,identity_hash) VALUES(42, '454c5fa0fe6c446c8804a8411930dd83')"
+      "INSERT OR REPLACE INTO room_master_table (id,identity_hash) VALUES(42, '871af344bbf2efe7d815f3a9a3b51ed4')"
     ]
   }
 }
