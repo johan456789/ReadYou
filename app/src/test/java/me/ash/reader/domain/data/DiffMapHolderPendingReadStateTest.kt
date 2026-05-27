@@ -109,6 +109,7 @@ class DiffMapHolderPendingReadStateTest {
             context = context,
             applicationScope = CoroutineScope(SupervisorJob() + Dispatchers.Unconfined),
             ioDispatcher = Dispatchers.Unconfined,
+            mainDispatcher = Dispatchers.Unconfined,
             accountService = accountService,
             rssService = rssService,
             pendingReadStateOpDao = pendingReadStateOpDao,

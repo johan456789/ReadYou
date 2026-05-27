@@ -267,6 +267,7 @@ class DiffMapHolderUpdateDiffTest {
             context = context,
             applicationScope = applicationScope,
             ioDispatcher = ioDispatcher,
+            mainDispatcher = Dispatchers.Unconfined,
             accountService = accountService,
             rssService = rssService,
             pendingReadStateOpDao = pendingReadStateOpDao,

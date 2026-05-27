@@ -29,6 +29,7 @@ import me.ash.reader.domain.service.AccountService
 import me.ash.reader.domain.service.RssService
 import me.ash.reader.infrastructure.di.ApplicationScope
 import me.ash.reader.infrastructure.di.IODispatcher
+import me.ash.reader.infrastructure.di.MainDispatcher
 import me.ash.reader.ui.ext.dollarLast
 import timber.log.Timber
 import java.io.File
@@ -39,6 +40,7 @@ class DiffMapHolder @Inject constructor(
     @param:ApplicationContext private val context: Context,
     @param:ApplicationScope private val applicationScope: CoroutineScope,
     @param:IODispatcher private val ioDispatcher: CoroutineDispatcher,
+    @param:MainDispatcher private val mainDispatcher: CoroutineDispatcher,
     private val accountService: AccountService,
     private val rssService: RssService,
     private val pendingReadStateOpDao: PendingReadStateOpDao,
@@ -107,6 +109,21 @@ class DiffMapHolder @Inject constructor(
         synchronized(pendingReadStateQueueLock) { pendingReadStateTail }?.join()
     }
 
+    private suspend fun mutateDiffMapOnMain(block: MutableMap<String, Diff>.() -> Unit) {
+        withContext(mainDispatcher) {
+            diffMap.block()
+        }
+    }
+
+    private suspend fun removeAppliedDiffsFromUi(appliedDiffs: Map<String, Diff>) {
+        mutateDiffMapOnMain {
+            ReadStateDiffApplier.removeMatchingDiffs(
+                currentDiffs = this,
+                appliedDiffs = appliedDiffs,
+            )
+        }
+    }
+
     init {
         applicationScope.launch {
             accountService.currentAccountFlow.mapNotNull { it }.collect { account ->
@@ -142,7 +159,7 @@ class DiffMapHolder @Inject constructor(
         pendingReadStateMutex.withLock {
             commitDiffsToDb()
         }
-        diffMap.clear()
+        mutateDiffMapOnMain { clear() }
         pendingSyncDiffs.clear()
         syncedDiffs.clear()
     }
@@ -299,9 +316,8 @@ class DiffMapHolder @Inject constructor(
             pendingReadStateOpDao.markLocalCommitted(markAsUnreadIds, isUnread = true)
         }
 
-        ReadStateDiffApplier.removeMatchingDiffs(
-            currentDiffs = diffMap,
-            appliedDiffs = pendingOps.associate { it.articleId to Diff(it.isRead, it.articleId, it.feedId) },
+        removeAppliedDiffsFromUi(
+            pendingOps.associate { it.articleId to Diff(it.isRead, it.articleId, it.feedId) }
         )
 
         pendingReadStateOpDao.deleteCompleted()
@@ -335,10 +351,7 @@ class DiffMapHolder @Inject constructor(
             pendingReadStateOpDao.markLocalCommitted(diffBatch.markUnreadIds, isUnread = true)
         }
 
-        ReadStateDiffApplier.removeMatchingDiffs(
-            currentDiffs = diffMap,
-            appliedDiffs = diffsToCommit,
-        )
+        removeAppliedDiffsFromUi(diffsToCommit)
 
         pendingReadStateOpDao.deleteCompleted()
     }
@@ -394,8 +407,10 @@ class DiffMapHolder @Inject constructor(
                     tmpJson, mapType
                 )
                 diffMapFromCache?.let {
-                    diffMap.clear()
-                    diffMap.putAll(it)
+                    mutateDiffMapOnMain {
+                        clear()
+                        putAll(it)
+                    }
                     persistPendingReadStateOps(it.values)
                 }
                 if (cacheFile.canWrite()) {
