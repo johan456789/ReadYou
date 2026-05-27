@@ -67,10 +67,9 @@ ${applyFontFace(fontPath)}
     --blockquote-border-width: 3px;
     --blockquote-border-color: ${argbToCssColor(textColor)}33;
     --table-margin: ${tableMargin}px;
-    --table-border-width;
-    --table-border-color;
+    --table-border-width: 1px;
+    --table-border-color: ${argbToCssColor(textColor)}22;
     --table-cell-padding: 0.2em;
-    --table-alt-row-bg-color;
     --code-text-color: ${argbToCssColor(codeTextColor)};
     --code-bg-color: ${argbToCssColor(codeBgColor)};
     --code-scrollbar-color: ${argbToCssColor(codeTextColor)}22;
@@ -248,34 +247,53 @@ blockquote img {
 }
 
 /* Table  */
-table {
-    display: block;
-    max-width: var(--content-width) !important;
-    width: 100% !important;
-    border-collapse: collapse !important;
-    margin-left: var(--table-margin) !important;
-    margin-right: var(--table-margin) !important;
+.table-scroll {
+    display: block !important;
+    max-width: 100% !important;
+    overflow-x: auto !important;
+    overflow-y: hidden !important;
+    margin-top: 1em !important;
+    margin-bottom: 1em !important;
+    -webkit-overflow-scrolling: touch;
 }
 
-table th,
-table td {
+.table-scroll > table {
+    width: max-content !important;
+    min-width: 100% !important;
+    max-width: none !important;
+    border-collapse: collapse !important;
+    margin: 0 !important;
+}
+
+.table-scroll--reader table,
+.table-scroll--reader thead,
+.table-scroll--reader tbody,
+.table-scroll--reader tr,
+.table-scroll--reader th,
+.table-scroll--reader td {
+    color: var(--text-color) !important;
+    background: transparent !important;
+    background-color: transparent !important;
+    background-image: none !important;
+}
+
+.table-scroll--reader table {
     border: var(--table-border-width) solid var(--table-border-color) !important;
-    padding: var(--table-cell-padding) !important;
+}
+
+.table-scroll--reader th,
+.table-scroll--reader td {
+    border: var(--table-border-width) solid var(--table-border-color) !important;
+    padding: 0.6em 0.8em !important;
     line-height: var(--line-height) !important;
     letter-spacing: var(--letter-spacing) !important;
     text-align: var(--text-align) !important;
+    vertical-align: top !important;
 }
 
-table tr {
-    display: block;
-}
-
-table tr table tr td {
-    display: inline-block;
-}
-
-table tr:nth-child(even) {
-    background-color: var(--table-alt-row-bg-color) !important;
+.table-scroll--reader th {
+    color: var(--bold-text-color) !important;
+    font-weight: 600 !important;
 }
 
 /* Code */
