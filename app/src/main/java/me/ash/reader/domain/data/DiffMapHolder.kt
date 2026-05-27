@@ -449,7 +449,7 @@ class DiffMapHolder @Inject constructor(
             articleId = diff.articleId,
             accountId = accountId,
             feedId = diff.feedId,
-            isUnread = !diff.isRead,
+            isRead = diff.isRead,
         )
     }
 
