@@ -369,6 +369,7 @@ class DiffMapHolder @Inject constructor(
     private suspend fun flushPendingSyncDiffs(diffs: Map<String, Diff>) {
         if (!shouldSyncWithRemote) return
         if (diffs.isEmpty()) return
+        awaitPendingReadStateWork()
         val toBeSync = diffs
         val markAsReadArticles = toBeSync.filter { it.value.isRead }.map { it.key }.toSet()
         val markAsUnreadArticles = toBeSync.filter { !it.value.isRead }.map { it.key }.toSet()

@@ -4,10 +4,14 @@ import android.content.Context
 import java.nio.file.Files
 import java.util.Date
 import kotlinx.coroutines.CoroutineScope
+import kotlinx.coroutines.delay
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.SupervisorJob
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.runBlocking
+import kotlin.reflect.full.callSuspend
+import kotlin.reflect.full.declaredFunctions
+import kotlin.reflect.jvm.isAccessible
 import me.ash.reader.domain.model.account.Account
 import me.ash.reader.domain.model.account.AccountType
 import me.ash.reader.domain.model.article.Article
@@ -200,6 +204,43 @@ class DiffMapHolderUpdateDiffTest {
         }
     }
 
+    @Test
+    fun `flushPendingSyncDiffs waits for pending op persistence before remote mark`() = runBlocking {
+        val pendingReadStateOpDao = delayedPendingReadStateOpDao()
+        val rssRepository = mock<AbstractRssRepository>()
+        whenever(rssRepository.syncReadStatus(setOf("article"), true)).thenReturn(setOf("article"))
+        whenever(rssRepository.syncReadStatus(emptySet(), false)).thenReturn(emptySet())
+
+        val holder = createHolder(
+            account = Account(
+                id = 1,
+                name = "FreshRSS",
+                type = AccountType(AccountType.FreshRSS.id),
+            ),
+            pendingReadStateOpDao = pendingReadStateOpDao,
+            rssRepository = rssRepository,
+            applicationScope = CoroutineScope(SupervisorJob() + Dispatchers.Default),
+            ioDispatcher = Dispatchers.Default,
+            deferDbCommits = true,
+        )
+
+        while (!holder.shouldSyncWithRemote) {
+            delay(10)
+        }
+
+        val article = unreadArticle()
+        holder.updateDiff(article, markRead = true)
+        invokeFlushPendingSyncDiffs(
+            holder,
+            mapOf(article.article.id to Diff(true, article))
+        )
+
+        assertEquals(
+            listOf("upsertAll:end", "markRemoteSynced"),
+            pendingReadStateOpDao.events.filter { it == "upsertAll:end" || it == "markRemoteSynced" }
+        )
+    }
+
     private fun createHolder(
         account: Account = Account(
             id = 1,
@@ -207,6 +248,9 @@ class DiffMapHolderUpdateDiffTest {
             type = AccountType(AccountType.Local.id),
         ),
         pendingReadStateOpDao: PendingReadStateOpDao = pendingReadStateOpDao(),
+        rssRepository: AbstractRssRepository = mock<AbstractRssRepository>(),
+        applicationScope: CoroutineScope = CoroutineScope(SupervisorJob() + Dispatchers.Unconfined),
+        ioDispatcher: kotlinx.coroutines.CoroutineDispatcher = Dispatchers.Unconfined,
         deferDbCommits: Boolean = true,
     ): DiffMapHolder {
         val context = mock<Context>()
@@ -216,14 +260,13 @@ class DiffMapHolderUpdateDiffTest {
         val accountService = mock<AccountService>()
         whenever(accountService.currentAccountFlow).thenReturn(localAccountFlow)
 
-        val rssRepository = mock<AbstractRssRepository>()
         val rssService = mock<RssService>()
         whenever(rssService.get()).thenReturn(rssRepository)
 
         return DiffMapHolder(
             context = context,
-            applicationScope = CoroutineScope(SupervisorJob() + Dispatchers.Unconfined),
-            ioDispatcher = Dispatchers.Unconfined,
+            applicationScope = applicationScope,
+            ioDispatcher = ioDispatcher,
             accountService = accountService,
             rssService = rssService,
             pendingReadStateOpDao = pendingReadStateOpDao,
@@ -242,6 +285,8 @@ class DiffMapHolderUpdateDiffTest {
         return pendingReadStateOpDao
     }
 
+    private fun delayedPendingReadStateOpDao(): DelayedPendingReadStateOpDao = DelayedPendingReadStateOpDao()
+
     private fun invokeUpdateDiffInternal(
         holder: DiffMapHolder,
         articleWithFeed: ArticleWithFeed,
@@ -255,6 +300,17 @@ class DiffMapHolderUpdateDiffTest {
         method.isAccessible = true
         @Suppress("UNCHECKED_CAST")
         return method.invoke(holder, articleWithFeed, markRead) as Diff?
+    }
+
+    private suspend fun invokeFlushPendingSyncDiffs(
+        holder: DiffMapHolder,
+        diffs: Map<String, Diff>,
+    ) {
+        val method = DiffMapHolder::class.declaredFunctions.single {
+            it.name == "flushPendingSyncDiffs"
+        }
+        method.isAccessible = true
+        method.callSuspend(holder, diffs)
     }
 
     private fun unreadArticle(): ArticleWithFeed =
@@ -284,4 +340,66 @@ class DiffMapHolderUpdateDiffTest {
             groupId = "group",
             accountId = 1,
         )
+
+    private class DelayedPendingReadStateOpDao : PendingReadStateOpDao {
+        val events = mutableListOf<String>()
+        private val ops = linkedMapOf<String, PendingReadStateOp>()
+        private var delayNextUpsert = true
+
+        override suspend fun upsert(op: PendingReadStateOp) {
+            upsertAll(listOf(op))
+        }
+
+        override suspend fun upsertAll(ops: List<PendingReadStateOp>) {
+            events += "upsertAll:start"
+            if (delayNextUpsert) {
+                delayNextUpsert = false
+                delay(200)
+            }
+            ops.forEach { this.ops[it.articleId] = it }
+            events += "upsertAll:end"
+        }
+
+        override suspend fun queryByAccountId(accountId: Int): List<PendingReadStateOp> =
+            ops.values.filter { it.accountId == accountId }
+
+        override suspend fun queryLocalPending(accountId: Int): List<PendingReadStateOp> =
+            ops.values.filter { it.accountId == accountId && !it.localCommitted }
+
+        override suspend fun queryRemotePending(accountId: Int): List<PendingReadStateOp> =
+            ops.values.filter { it.accountId == accountId && !it.remoteSynced }
+
+        override suspend fun markLocalCommitted(articleIds: Set<String>, isUnread: Boolean) {
+            articleIds.forEach { articleId ->
+                ops[articleId]?.takeIf { it.isUnread == isUnread }?.let { op ->
+                    ops[articleId] = op.copy(localCommitted = true)
+                }
+            }
+        }
+
+        override suspend fun markRemoteSynced(articleIds: Set<String>, isUnread: Boolean) {
+            events += "markRemoteSynced"
+            articleIds.forEach { articleId ->
+                ops[articleId]?.takeIf { it.isUnread == isUnread }?.let { op ->
+                    ops[articleId] = op.copy(remoteSynced = true)
+                }
+            }
+        }
+
+        override suspend fun deleteCompleted() {
+            ops.entries.removeIf { (_, op) -> op.localCommitted && op.remoteSynced }
+        }
+
+        override suspend fun deleteByArticleIdsAndUnreadState(articleIds: Set<String>, isUnread: Boolean) {
+            articleIds.forEach { articleId ->
+                ops[articleId]?.takeIf { it.isUnread == isUnread }?.let {
+                    ops.remove(articleId)
+                }
+            }
+        }
+
+        override suspend fun deleteByAccountId(accountId: Int) {
+            ops.entries.removeIf { (_, op) -> op.accountId == accountId }
+        }
+    }
 }
