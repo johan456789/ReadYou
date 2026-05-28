@@ -29,7 +29,7 @@ import java.util.*
         ArchivedArticle::class,
         PendingReadStateOp::class,
     ],
-    version = 10,
+    version = 11,
     autoMigrations = [
         AutoMigration(from = 5, to = 6),
         AutoMigration(from = 6, to = 7),
@@ -92,6 +92,7 @@ val allMigrations = arrayOf(
     MIGRATION_2_3,
     MIGRATION_3_4,
     MIGRATION_4_5,
+    MIGRATION_10_11,
 )
 
 @Suppress("ClassName")
@@ -167,6 +168,33 @@ object MIGRATION_4_5 : Migration(4, 5) {
         database.execSQL(
             """
             ALTER TABLE account ADD COLUMN lastArticleId TEXT DEFAULT NULL
+            """.trimIndent()
+        )
+    }
+}
+
+@Suppress("ClassName")
+object MIGRATION_10_11 : Migration(10, 11) {
+
+    override fun migrate(database: SupportSQLiteDatabase) {
+        database.execSQL(
+            """
+            ALTER TABLE pending_read_state_op ADD COLUMN localCommitted INTEGER NOT NULL DEFAULT 0
+            """.trimIndent()
+        )
+        database.execSQL(
+            """
+            ALTER TABLE pending_read_state_op ADD COLUMN remoteSynced INTEGER NOT NULL DEFAULT 0
+            """.trimIndent()
+        )
+        database.execSQL(
+            """
+            UPDATE pending_read_state_op
+            SET remoteSynced = 1
+            WHERE accountId IN (
+                SELECT id FROM account
+                WHERE type = ${AccountType.Local.id}
+            )
             """.trimIndent()
         )
     }

@@ -29,6 +29,7 @@ import me.ash.reader.domain.service.AccountService
 import me.ash.reader.domain.service.RssService
 import me.ash.reader.infrastructure.di.ApplicationScope
 import me.ash.reader.infrastructure.di.IODispatcher
+import me.ash.reader.infrastructure.di.MainDispatcher
 import me.ash.reader.ui.ext.dollarLast
 import timber.log.Timber
 import java.io.File
@@ -39,6 +40,7 @@ class DiffMapHolder @Inject constructor(
     @param:ApplicationContext private val context: Context,
     @param:ApplicationScope private val applicationScope: CoroutineScope,
     @param:IODispatcher private val ioDispatcher: CoroutineDispatcher,
+    @param:MainDispatcher private val mainDispatcher: CoroutineDispatcher,
     private val accountService: AccountService,
     private val rssService: RssService,
     private val pendingReadStateOpDao: PendingReadStateOpDao,
@@ -54,11 +56,12 @@ class DiffMapHolder @Inject constructor(
     @Volatile
     var deferDbCommits: Boolean = false
 
-    private val deferredDiffs = mutableMapOf<String, Diff>()
-
     private val pendingSyncDiffs = mutableStateMapOf<String, Diff>()
     private val syncedDiffs = mutableMapOf<String, Diff>()
     private val pendingSyncMutex = Mutex()
+    private val pendingReadStateMutex = Mutex()
+    private val pendingReadStateQueueLock = Any()
+    private var pendingReadStateTail: Job? = null
 
     val diffMapSnapshotFlow = snapshotFlow { diffMap.toMap() }.stateIn(
         applicationScope, SharingStarted.Eagerly, emptyMap()
@@ -68,7 +71,7 @@ class DiffMapHolder @Inject constructor(
         applicationScope, SharingStarted.Eagerly, emptyMap()
     )
 
-    val shouldSyncWithRemote get() = currentAccount?.type != AccountType.Local
+    val shouldSyncWithRemote get() = currentAccount?.type?.id?.let { it != AccountType.Local.id } ?: false
 
     private val gson = Gson()
 
@@ -80,6 +83,46 @@ class DiffMapHolder @Inject constructor(
     private val cacheFile: File get() = userCacheDir.resolve("diff_map.json")
 
     var remoteJob: Job? = null
+
+    private fun enqueuePendingReadStateWork(block: suspend () -> Unit): Job {
+        val queuedJob =
+            synchronized(pendingReadStateQueueLock) {
+                val previous = pendingReadStateTail
+                applicationScope.launch(ioDispatcher) {
+                    previous?.join()
+                    pendingReadStateMutex.withLock {
+                        block()
+                    }
+                }.also { pendingReadStateTail = it }
+            }
+        queuedJob.invokeOnCompletion {
+            synchronized(pendingReadStateQueueLock) {
+                if (pendingReadStateTail === queuedJob) {
+                    pendingReadStateTail = null
+                }
+            }
+        }
+        return queuedJob
+    }
+
+    private suspend fun awaitPendingReadStateWork() {
+        synchronized(pendingReadStateQueueLock) { pendingReadStateTail }?.join()
+    }
+
+    private suspend fun mutateDiffMapOnMain(block: MutableMap<String, Diff>.() -> Unit) {
+        withContext(mainDispatcher) {
+            diffMap.block()
+        }
+    }
+
+    private suspend fun removeAppliedDiffsFromUi(appliedDiffs: Map<String, Diff>) {
+        mutateDiffMapOnMain {
+            ReadStateDiffApplier.removeMatchingDiffs(
+                currentDiffs = this,
+                appliedDiffs = appliedDiffs,
+            )
+        }
+    }
 
     init {
         applicationScope.launch {
@@ -97,10 +140,7 @@ class DiffMapHolder @Inject constructor(
     private fun init(account: Account) {
         userCacheDir = cacheDir.resolve(account.id.toString())
         account.id?.let { accountId ->
-            commitPendingReadStateOpsToLocalDb(
-                accountId = accountId,
-                deleteAfterCommit = account.type.id == AccountType.Local.id,
-            )
+            replayPendingOpsToLocalDb(accountId)
         }
         commitDiffsFromCache()
         if (account.type.id != AccountType.Local.id) {
@@ -110,17 +150,16 @@ class DiffMapHolder @Inject constructor(
 
     private suspend fun cleanup(@Suppress("UNUSED_PARAMETER") previousAccount: Account) {
         remoteJob?.cancel()
-        val deferredToCommit: Map<String, Diff> =
-            synchronized(deferredDiffs) {
-                val snapshot = deferredDiffs.toMap()
-                deferredDiffs.clear()
-                snapshot
+        awaitPendingReadStateWork()
+        previousAccount.id?.let { accountId ->
+            pendingReadStateMutex.withLock {
+                flushLocalPendingOps(accountId)
             }
-        if (deferredToCommit.isNotEmpty()) {
-            commitAppliedDiffsToDb(deferredToCommit)
         }
-        commitDiffsToDb()
-        diffMap.clear()
+        pendingReadStateMutex.withLock {
+            commitDiffsToDb()
+        }
+        mutateDiffMapOnMain { clear() }
         pendingSyncDiffs.clear()
         syncedDiffs.clear()
     }
@@ -231,25 +270,15 @@ class DiffMapHolder @Inject constructor(
         }
 
         Timber.tag("DiffMapHolder").d("updateDiff: deferDbCommits=$deferDbCommits, appliedDiffsCount=${appliedDiffs.size}")
-        val diffsToCommitNow: Map<String, Diff>? =
-            synchronized(deferredDiffs) {
-                if (deferDbCommits) {
-                    Timber.tag("DiffMapHolder").d("Deferring DB commits for ${appliedDiffs.size} articles")
-                    appliedDiffs.forEach { deferredDiffs[it.articleId] = it }
-                    if (!shouldSyncWithRemote) {
-                        applicationScope.launch(ioDispatcher) {
-                            persistPendingReadStateOps(appliedDiffs)
-                        }
-                    }
-                    null
-                } else {
-                    appliedDiffs.associateBy { it.articleId }
-                }
-            }
-        if (diffsToCommitNow != null) {
-            Timber.tag("DiffMapHolder").d("Immediately committing ${diffsToCommitNow.size} articles to DB")
-            applicationScope.launch(ioDispatcher) {
-                commitAppliedDiffsToDb(diffsToCommitNow)
+
+        enqueuePendingReadStateWork {
+            persistPendingReadStateOps(appliedDiffs)
+
+            if (!deferDbCommits) {
+                Timber.tag("DiffMapHolder").d("Immediately committing ${appliedDiffs.size} articles to DB")
+                commitAppliedDiffsToDb(appliedDiffs.associateBy { it.articleId })
+            } else {
+                Timber.tag("DiffMapHolder").d("Deferring DB commits for ${appliedDiffs.size} articles")
             }
         }
     }
@@ -259,28 +288,45 @@ class DiffMapHolder @Inject constructor(
      * starting a sync, or when the user navigates away from the flow page.
      */
     fun flushDeferredDiffs() {
-        val diffsToCommit: Map<String, Diff>
-        synchronized(deferredDiffs) {
-            if (deferredDiffs.isEmpty()) {
-                Timber.tag("DiffMapHolder").d("flushDeferredDiffs: nothing to flush")
-                return
-            }
-            diffsToCommit = deferredDiffs.toMap()
-            deferredDiffs.clear()
+        val accountId = currentAccount?.id ?: return
+        enqueuePendingReadStateWork {
+            flushLocalPendingOps(accountId)
         }
-        Timber.tag("DiffMapHolder").d("flushDeferredDiffs: flushing ${diffsToCommit.size} articles")
-        applicationScope.launch(ioDispatcher) {
-            commitAppliedDiffsToDb(diffsToCommit)
+    }
+
+    private suspend fun flushLocalPendingOps(accountId: Int) {
+        val pendingOps = pendingReadStateOpDao.queryLocalPending(accountId)
+        if (pendingOps.isEmpty()) {
+            Timber.tag("DiffMapHolder").d("flushLocalPendingOps: nothing to flush")
+            return
         }
+
+        Timber.tag("DiffMapHolder").d("flushLocalPendingOps: flushing ${pendingOps.size} articles")
+
+        val (readOps, unreadOps) = pendingOps.partition { it.isRead }
+        val markAsReadIds = readOps.map { it.articleId }.toSet()
+        val markAsUnreadIds = unreadOps.map { it.articleId }.toSet()
+
+        if (markAsReadIds.isNotEmpty()) {
+            rssService.get().batchMarkAsRead(articleIds = markAsReadIds, markRead = true)
+            pendingReadStateOpDao.markLocalCommitted(markAsReadIds, isUnread = false)
+        }
+        if (markAsUnreadIds.isNotEmpty()) {
+            rssService.get().batchMarkAsRead(articleIds = markAsUnreadIds, markRead = false)
+            pendingReadStateOpDao.markLocalCommitted(markAsUnreadIds, isUnread = true)
+        }
+
+        removeAppliedDiffsFromUi(
+            pendingOps.associate { it.articleId to Diff(it.isRead, it.articleId, it.feedId) }
+        )
+
+        pendingReadStateOpDao.deleteCompleted()
     }
 
     private fun appendDiffToSync(diff: Diff) {
         val syncedDiff = syncedDiffs[diff.articleId]
         if (syncedDiff == null || syncedDiff.isRead != diff.isRead) {
             pendingSyncDiffs[diff.articleId] = diff
-            applicationScope.launch(ioDispatcher) {
-                toPendingReadStateOp(diff)?.let { pendingReadStateOpDao.upsert(it) }
-            }
         }
     }
 
@@ -295,37 +341,48 @@ class DiffMapHolder @Inject constructor(
         if (diffsToCommit.isEmpty()) return
 
         val diffBatch = ReadStateDiffApplier.toBatch(diffsToCommit)
-        rssService.get().batchMarkAsRead(articleIds = diffBatch.markReadIds, markRead = true)
-        rssService.get().batchMarkAsRead(articleIds = diffBatch.markUnreadIds, markRead = false)
 
-        ReadStateDiffApplier.removeMatchingDiffs(
-            currentDiffs = diffMap,
-            appliedDiffs = diffsToCommit,
-        )
-        synchronized(deferredDiffs) {
-            ReadStateDiffApplier.removeMatchingDiffs(
-                currentDiffs = deferredDiffs,
-                appliedDiffs = diffsToCommit,
-            )
+        if (diffBatch.markReadIds.isNotEmpty()) {
+            rssService.get().batchMarkAsRead(articleIds = diffBatch.markReadIds, markRead = true)
+            pendingReadStateOpDao.markLocalCommitted(diffBatch.markReadIds, isUnread = false)
         }
+        if (diffBatch.markUnreadIds.isNotEmpty()) {
+            rssService.get().batchMarkAsRead(articleIds = diffBatch.markUnreadIds, markRead = false)
+            pendingReadStateOpDao.markLocalCommitted(diffBatch.markUnreadIds, isUnread = true)
+        }
+
+        removeAppliedDiffsFromUi(diffsToCommit)
+
+        pendingReadStateOpDao.deleteCompleted()
     }
 
     suspend fun prepareReadStateForSync(accountId: Int): Set<String> {
         if (currentAccount?.id != accountId) return emptySet()
 
-        commitDiffsToDb()
+        awaitPendingReadStateWork()
+        pendingReadStateMutex.withLock {
+            flushLocalPendingOps(accountId)
+        }
         if (!shouldSyncWithRemote) return emptySet()
 
         return pendingSyncMutex.withLock {
-            persistPendingReadStateOps(pendingSyncDiffs.values)
+            awaitPendingReadStateWork()
+            val excludedReadStateIds =
+                pendingReadStateMutex.withLock {
+                    persistPendingReadStateOps(pendingSyncDiffs.values)
+                    pendingReadStateOpDao.queryRemotePending(accountId)
+                        .map { it.articleId.dollarLast() }
+                        .toSet()
+                }
             flushPendingReadStateQueue(accountId)
-            pendingReadStateOpDao.queryByAccountId(accountId).map { it.articleId.dollarLast() }.toSet()
+            excludedReadStateIds
         }
     }
 
     private suspend fun flushPendingSyncDiffs(diffs: Map<String, Diff>) {
         if (!shouldSyncWithRemote) return
         if (diffs.isEmpty()) return
+        awaitPendingReadStateWork()
         val toBeSync = diffs
         val markAsReadArticles = toBeSync.filter { it.value.isRead }.map { it.key }.toSet()
         val markAsUnreadArticles = toBeSync.filter { !it.value.isRead }.map { it.key }.toSet()
@@ -337,12 +394,12 @@ class DiffMapHolder @Inject constructor(
             currentDiffs = pendingSyncDiffs,
             appliedDiffs = syncedDiffsSnapshot,
         )
-        deleteSyncedPendingReadStateOps(syncedDiffsSnapshot.values)
+        markRemoteSyncedOps(syncedDiffsSnapshot.values)
         syncedDiffs += syncedDiffsSnapshot
     }
 
     private fun commitDiffsFromCache() {
-        applicationScope.launch(ioDispatcher) {
+        enqueuePendingReadStateWork {
             if (cacheFile.exists() && cacheFile.canRead()) {
                 val tmpJson = cacheFile.readText()
                 val mapType = object : TypeToken<Map<String, Diff>>() {}.type
@@ -350,8 +407,10 @@ class DiffMapHolder @Inject constructor(
                     tmpJson, mapType
                 )
                 diffMapFromCache?.let {
-                    diffMap.clear()
-                    diffMap.putAll(it)
+                    mutateDiffMapOnMain {
+                        clear()
+                        putAll(it)
+                    }
                     persistPendingReadStateOps(it.values)
                 }
                 if (cacheFile.canWrite()) {
@@ -362,25 +421,35 @@ class DiffMapHolder @Inject constructor(
         }
     }
 
-    private fun commitPendingReadStateOpsToLocalDb(accountId: Int, deleteAfterCommit: Boolean) {
-        applicationScope.launch(ioDispatcher) {
-            val queuedOps = pendingReadStateOpDao.queryByAccountId(accountId)
-            if (queuedOps.isEmpty()) return@launch
+    private fun replayPendingOpsToLocalDb(accountId: Int) {
+        enqueuePendingReadStateWork {
+            val pendingOps = pendingReadStateOpDao.queryLocalPending(accountId)
+            if (pendingOps.isEmpty()) return@enqueuePendingReadStateWork
 
-            val markAsReadArticles = queuedOps.filter { it.isRead }.map { it.articleId }.toSet()
-            val markAsUnreadArticles = queuedOps.filter { !it.isRead }.map { it.articleId }.toSet()
-            rssService.get().batchMarkAsRead(articleIds = markAsReadArticles, markRead = true)
-            rssService.get().batchMarkAsRead(articleIds = markAsUnreadArticles, markRead = false)
-            if (deleteAfterCommit) {
-                deleteSyncedPendingReadStateOps(
-                    queuedOps.map { Diff(it.isRead, it.articleId, it.feedId) }
-                )
+            Timber.tag("DiffMapHolder").d("replayPendingOpsToLocalDb: replaying ${pendingOps.size} ops")
+
+            val (readOps, unreadOps) = pendingOps.partition { it.isRead }
+            val markAsReadIds = readOps.map { it.articleId }.toSet()
+            val markAsUnreadIds = unreadOps.map { it.articleId }.toSet()
+
+            if (markAsReadIds.isNotEmpty()) {
+                rssService.get().batchMarkAsRead(articleIds = markAsReadIds, markRead = true)
+                pendingReadStateOpDao.markLocalCommitted(markAsReadIds, isUnread = false)
             }
+            if (markAsUnreadIds.isNotEmpty()) {
+                rssService.get().batchMarkAsRead(articleIds = markAsUnreadIds, markRead = false)
+                pendingReadStateOpDao.markLocalCommitted(markAsUnreadIds, isUnread = true)
+            }
+
+            pendingReadStateOpDao.deleteCompleted()
         }
     }
 
     private suspend fun flushPendingReadStateQueue(accountId: Int) {
-        val queuedOps = pendingReadStateOpDao.queryByAccountId(accountId)
+        val queuedOps =
+            pendingReadStateMutex.withLock {
+                pendingReadStateOpDao.queryRemotePending(accountId)
+            }
         if (queuedOps.isEmpty()) return
 
         val markAsReadArticles = queuedOps.filter { it.isRead }.map { it.articleId }.toSet()
@@ -391,7 +460,7 @@ class DiffMapHolder @Inject constructor(
         val syncedOps = queuedOps
             .filter { synced.contains(it.articleId) }
             .associate { it.articleId to Diff(it.isRead, it.articleId, it.feedId) }
-        deleteSyncedPendingReadStateOps(syncedOps.values)
+        markRemoteSyncedOps(syncedOps.values)
         syncedDiffs += syncedOps
     }
 
@@ -422,34 +491,55 @@ class DiffMapHolder @Inject constructor(
         if (diffs.isEmpty()) return
         val ops = diffs.mapNotNull(::toPendingReadStateOp)
         if (ops.isNotEmpty()) {
-            pendingReadStateOpDao.upsertAll(ops)
+            val existingOps = pendingReadStateOpDao.queryByArticleIds(ops.map { it.articleId }.toSet())
+                .associateBy { it.articleId }
+            pendingReadStateOpDao.upsertAll(
+                ops.map { op ->
+                    val existing = existingOps[op.articleId]
+                    if (existing != null && existing.isUnread == op.isUnread) {
+                        op.copy(
+                            localCommitted = existing.localCommitted,
+                            remoteSynced = existing.remoteSynced,
+                        )
+                    } else {
+                        op
+                    }
+                }
+            )
         }
     }
 
-    private suspend fun deleteSyncedPendingReadStateOps(diffs: Collection<Diff>) {
-        val markReadIds = diffs.filter { it.isRead }.map { it.articleId }.toSet()
-        val markUnreadIds = diffs.filter { !it.isRead }.map { it.articleId }.toSet()
-        if (markReadIds.isNotEmpty()) {
-            pendingReadStateOpDao.deleteByArticleIdsAndUnreadState(
-                articleIds = markReadIds,
-                isUnread = false,
-            )
-        }
-        if (markUnreadIds.isNotEmpty()) {
-            pendingReadStateOpDao.deleteByArticleIdsAndUnreadState(
-                articleIds = markUnreadIds,
-                isUnread = true,
-            )
+    private suspend fun markRemoteSyncedOps(diffs: Collection<Diff>) {
+        pendingReadStateMutex.withLock {
+            val (readDiffs, unreadDiffs) = diffs.partition { it.isRead }
+            val markReadIds = readDiffs.map { it.articleId }.toSet()
+            val markUnreadIds = unreadDiffs.map { it.articleId }.toSet()
+            if (markReadIds.isNotEmpty()) {
+                pendingReadStateOpDao.markRemoteSynced(
+                    articleIds = markReadIds,
+                    isUnread = false,
+                )
+            }
+            if (markUnreadIds.isNotEmpty()) {
+                pendingReadStateOpDao.markRemoteSynced(
+                    articleIds = markUnreadIds,
+                    isUnread = true,
+                )
+            }
+            pendingReadStateOpDao.deleteCompleted()
         }
     }
 
     private fun toPendingReadStateOp(diff: Diff): PendingReadStateOp? {
-        val accountId = currentAccount?.id ?: return null
+        val account = currentAccount ?: return null
+        val accountId = account.id ?: return null
         return PendingReadStateOp(
             articleId = diff.articleId,
             accountId = accountId,
             feedId = diff.feedId,
             isUnread = !diff.isRead,
+            localCommitted = false,
+            remoteSynced = account.type.id == AccountType.Local.id,
         )
     }
 
