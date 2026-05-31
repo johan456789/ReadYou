@@ -48,11 +48,13 @@ class RYWebViewMediaLifecycleTest {
         composeRule.waitForIdle()
 
         assertNotNull(articleWebView)
-        assertThrows(
-            "Expected a removed article WebView to be destroyed so in-page audio/video cannot keep running.",
-            Throwable::class.java,
-        ) {
-            articleWebView!!.evaluateJavascript("document.querySelector('audio').paused", null)
+        composeRule.runOnUiThread {
+            assertThrows(
+                "Expected a removed article WebView to be destroyed so in-page audio/video cannot keep running.",
+                IllegalStateException::class.java,
+            ) {
+                articleWebView!!.evaluateJavascript("document.querySelector('audio').paused", null)
+            }
         }
     }
 

@@ -15,6 +15,7 @@ import androidx.compose.runtime.compositionLocalOf
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
+import androidx.compose.runtime.rememberUpdatedState
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.graphics.toArgb
@@ -134,9 +135,10 @@ fun RYWebView(
             )
         } else null
     }
+    val latestWebChromeClient by rememberUpdatedState(webChromeClient)
 
     val webView by
-        remember(backgroundColor, webChromeClient) {
+        remember {
             mutableStateOf(
                 WebViewLayout.get(
                     context = context,
@@ -149,7 +151,7 @@ fun RYWebView(
                                 context.openURL(url, openLink, openLinkSpecificBrowser)
                             },
                         ),
-                    webChromeClient = webChromeClient,
+                    webChromeClient = null,
                     onImageClick = onImageClick,
                     onLinkLongPress = onLinkLongPress,
                 ).also { onWebViewCreatedForTest?.invoke(it) }
@@ -164,9 +166,9 @@ fun RYWebView(
         } else null
     val htmlBaseUrl = baseUrl ?: "about:blank"
 
-    DisposableEffect(webView) {
+    DisposableEffect(Unit) {
         onDispose {
-            webView.releaseArticleMedia(webChromeClient)
+            webView.releaseArticleMedia(latestWebChromeClient)
         }
     }
 
@@ -174,6 +176,7 @@ fun RYWebView(
         modifier = modifier,
         factory = { webView },
         update = { wv ->
+            wv.webChromeClient = webChromeClient
                 Timber.tag("RLog").i("maxWidth: ${maxWidth}")
                 Timber.tag("RLog").i("readingFont: ${context.filesDir.absolutePath}")
                 Timber.tag("RLog").i("CustomWebView: ${content}")
@@ -216,21 +219,7 @@ fun RYWebView(
 
 private fun WebView.releaseArticleMedia(webChromeClient: RYWebChromeClient?) {
     webChromeClient?.releaseCustomView()
-
-    runCatching {
-        evaluateJavascript(
-            """
-            (function() {
-                document.querySelectorAll('audio, video').forEach(function(media) {
-                    media.pause();
-                    media.removeAttribute('src');
-                    media.load();
-                });
-            })();
-            """.trimIndent(),
-            null,
-        )
-    }
+    (parent as? android.view.ViewGroup)?.removeView(this)
     runCatching { stopLoading() }
     runCatching { loadUrl("about:blank") }
     runCatching { onPause() }
