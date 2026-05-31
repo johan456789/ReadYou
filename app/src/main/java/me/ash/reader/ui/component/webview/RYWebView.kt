@@ -127,15 +127,18 @@ fun RYWebView(
     val boldCharacters = LocalReadingBoldCharacters.current
     val onWebViewCreatedForTest = LocalWebViewCreatedForTest.current
 
-    val webChromeClient = remember(onShowCustomView, onHideCustomView) {
-        if (onShowCustomView != null && onHideCustomView != null) {
-            RYWebChromeClient(
-                onShowCustomViewCallback = onShowCustomView,
-                onHideCustomViewCallback = onHideCustomView,
-            )
-        } else null
+    val onShowCustomViewState by rememberUpdatedState(onShowCustomView)
+    val onHideCustomViewState by rememberUpdatedState(onHideCustomView)
+    val webChromeClient = remember {
+        RYWebChromeClient(
+            onShowCustomViewCallback = { view, callback ->
+                onShowCustomViewState?.invoke(view, callback)
+            },
+            onHideCustomViewCallback = {
+                onHideCustomViewState?.invoke()
+            },
+        )
     }
-    val latestWebChromeClient by rememberUpdatedState(webChromeClient)
 
     val webView by
         remember {
@@ -168,7 +171,7 @@ fun RYWebView(
 
     DisposableEffect(Unit) {
         onDispose {
-            webView.releaseArticleMedia(latestWebChromeClient)
+            webView.releaseArticleMedia(webChromeClient)
         }
     }
 
@@ -176,7 +179,8 @@ fun RYWebView(
         modifier = modifier,
         factory = { webView },
         update = { wv ->
-            wv.webChromeClient = webChromeClient
+            wv.webChromeClient =
+                if (onShowCustomView != null && onHideCustomView != null) webChromeClient else null
                 Timber.tag("RLog").i("maxWidth: ${maxWidth}")
                 Timber.tag("RLog").i("readingFont: ${context.filesDir.absolutePath}")
                 Timber.tag("RLog").i("CustomWebView: ${content}")
