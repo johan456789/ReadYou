@@ -185,9 +185,20 @@ fun RYWebView(
         modifier = modifier,
         factory = { webView },
         update = { wv ->
+            if (wv.webViewClient !== dynamicWebViewClient) {
+                wv.webViewClient = dynamicWebViewClient
+            }
             wv.webChromeClient =
                 if (onShowCustomView != null && onHideCustomView != null) webChromeClient else null
             wv.settings.defaultFontSize = fontSize
+            wv.settings.standardFontFamily =
+                when (readingFonts) {
+                    ReadingFontsPreference.Cursive -> "cursive"
+                    ReadingFontsPreference.Monospace -> "monospace"
+                    ReadingFontsPreference.SansSerif -> "sans-serif"
+                    ReadingFontsPreference.Serif -> "serif"
+                    else -> "sans-serif"
+                }
             val html =
                 WebViewHtml.HTML.format(
                     WebViewStyle.get(
