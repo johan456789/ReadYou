@@ -10,6 +10,8 @@ import android.webkit.WebChromeClient
 import android.webkit.WebView
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.runtime.Composable
+import androidx.compose.runtime.DisposableEffect
+import androidx.compose.runtime.compositionLocalOf
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
@@ -41,6 +43,8 @@ import me.ash.reader.ui.ext.ExternalFonts
 import me.ash.reader.ui.ext.openURL
 import me.ash.reader.ui.ext.surfaceColorAtElevation
 import me.ash.reader.ui.theme.palette.alwaysLight
+
+internal val LocalWebViewCreatedForTest = compositionLocalOf<((WebView) -> Unit)?> { null }
 
 /**
  * Custom WebView that detects horizontal gestures and tells parent views not to intercept.
@@ -122,23 +126,23 @@ fun RYWebView(
     val codeBgColor: Int =
         MaterialTheme.colorScheme.surfaceColorAtElevation((tonalElevation.value + 6).dp).toArgb()
     val boldCharacters = LocalReadingBoldCharacters.current
+    val onWebViewCreatedForTest = LocalWebViewCreatedForTest.current
 
-    val currentOnShowCustomView by rememberUpdatedState(onShowCustomView)
-    val currentOnHideCustomView by rememberUpdatedState(onHideCustomView)
-    val hasCustomViewCallbacks = onShowCustomView != null && onHideCustomView != null
-    val webChromeClient = remember(hasCustomViewCallbacks) {
-        if (hasCustomViewCallbacks) {
-            RYWebChromeClient(
-                onShowCustomViewCallback = { view, callback ->
-                    currentOnShowCustomView?.invoke(view, callback) ?: callback.onCustomViewHidden()
-                },
-                onHideCustomViewCallback = { currentOnHideCustomView?.invoke() },
-            )
-        } else null
+    val onShowCustomViewState by rememberUpdatedState(onShowCustomView)
+    val onHideCustomViewState by rememberUpdatedState(onHideCustomView)
+    val webChromeClient = remember {
+        RYWebChromeClient(
+            onShowCustomViewCallback = { view, callback ->
+                onShowCustomViewState?.invoke(view, callback)
+            },
+            onHideCustomViewCallback = {
+                onHideCustomViewState?.invoke()
+            },
+        )
     }
 
     val webView by
-        remember(context, readingFonts, refererDomain, openLink, openLinkSpecificBrowser, webChromeClient) {
+        remember {
             mutableStateOf(
                 WebViewLayout.get(
                     context = context,
@@ -151,10 +155,10 @@ fun RYWebView(
                                 context.openURL(url, openLink, openLinkSpecificBrowser)
                             },
                         ),
-                    webChromeClient = webChromeClient,
+                    webChromeClient = null,
                     onImageClick = onImageClick,
                     onLinkLongPress = onLinkLongPress,
-                )
+                ).also { onWebViewCreatedForTest?.invoke(it) }
             )
         }
 
@@ -166,10 +170,18 @@ fun RYWebView(
         } else null
     val htmlBaseUrl = baseUrl ?: "about:blank"
 
+    DisposableEffect(Unit) {
+        onDispose {
+            webView.releaseArticleMedia(webChromeClient)
+        }
+    }
+
     AndroidView(
         modifier = modifier,
         factory = { webView },
         update = { wv ->
+            wv.webChromeClient =
+                if (onShowCustomView != null && onHideCustomView != null) webChromeClient else null
             wv.settings.defaultFontSize = fontSize
             val html =
                 WebViewHtml.HTML.format(
@@ -213,4 +225,16 @@ fun RYWebView(
             }
         },
     )
+}
+
+private fun WebView.releaseArticleMedia(webChromeClient: RYWebChromeClient?) {
+    webChromeClient?.releaseCustomView()
+    (parent as? android.view.ViewGroup)?.removeView(this)
+    runCatching { stopLoading() }
+    runCatching { loadUrl("about:blank") }
+    runCatching { onPause() }
+    runCatching { removeAllViews() }
+    runCatching { this.webChromeClient = null }
+    runCatching { this.webViewClient = android.webkit.WebViewClient() }
+    runCatching { destroy() }
 }
