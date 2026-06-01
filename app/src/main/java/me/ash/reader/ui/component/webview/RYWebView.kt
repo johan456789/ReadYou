@@ -128,6 +128,18 @@ fun RYWebView(
     val boldCharacters = LocalReadingBoldCharacters.current
     val onWebViewCreatedForTest = LocalWebViewCreatedForTest.current
 
+    val currentOpenLink by rememberUpdatedState(openLink)
+    val currentOpenLinkSpecificBrowser by rememberUpdatedState(openLinkSpecificBrowser)
+    val dynamicWebViewClient = remember(context, refererDomain) {
+        WebViewClient(
+            context = context,
+            refererDomain = refererDomain,
+            onOpenLink = { url ->
+                context.openURL(url, currentOpenLink, currentOpenLinkSpecificBrowser)
+            },
+        )
+    }
+
     val onShowCustomViewState by rememberUpdatedState(onShowCustomView)
     val onHideCustomViewState by rememberUpdatedState(onHideCustomView)
     val webChromeClient = remember {
@@ -147,14 +159,7 @@ fun RYWebView(
                 WebViewLayout.get(
                     context = context,
                     readingFontsPreference = readingFonts,
-                    webViewClient =
-                        WebViewClient(
-                            context = context,
-                            refererDomain = refererDomain,
-                            onOpenLink = { url ->
-                                context.openURL(url, openLink, openLinkSpecificBrowser)
-                            },
-                        ),
+                    webViewClient = dynamicWebViewClient,
                     webChromeClient = null,
                     onImageClick = onImageClick,
                     onLinkLongPress = onLinkLongPress,
