@@ -13,10 +13,10 @@ import androidx.compose.runtime.Composable
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
+import androidx.compose.runtime.rememberUpdatedState
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.graphics.toArgb
-import androidx.compose.ui.platform.LocalConfiguration
 import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.viewinterop.AndroidView
@@ -52,6 +52,7 @@ class HorizontalScrollAwareWebView(context: Context) : WebView(context) {
     private var startY = 0f
     private var isHorizontalGesture: Boolean? = null
     private val touchSlop = ViewConfiguration.get(context).scaledTouchSlop.toFloat()
+    var loadedContentKey: WebViewContentKey? = null
 
     @SuppressLint("ClickableViewAccessibility")
     override fun dispatchTouchEvent(event: MotionEvent): Boolean {
@@ -82,6 +83,8 @@ class HorizontalScrollAwareWebView(context: Context) : WebView(context) {
     }
 }
 
+data class WebViewContentKey(val baseUrl: String, val html: String, val fontSize: Int)
+
 @Composable
 fun RYWebView(
     modifier: Modifier = Modifier,
@@ -94,7 +97,6 @@ fun RYWebView(
     onHideCustomView: (() -> Unit)? = null,
 ) {
     val context = LocalContext.current
-    val maxWidth = LocalConfiguration.current.screenWidthDp.dp.value
     val openLink = LocalOpenLink.current
     val openLinkSpecificBrowser = LocalOpenLinkSpecificBrowser.current
     val tonalElevation = LocalReadingPageTonalElevation.current
@@ -121,17 +123,22 @@ fun RYWebView(
         MaterialTheme.colorScheme.surfaceColorAtElevation((tonalElevation.value + 6).dp).toArgb()
     val boldCharacters = LocalReadingBoldCharacters.current
 
-    val webChromeClient = remember(onShowCustomView, onHideCustomView) {
-        if (onShowCustomView != null && onHideCustomView != null) {
+    val currentOnShowCustomView by rememberUpdatedState(onShowCustomView)
+    val currentOnHideCustomView by rememberUpdatedState(onHideCustomView)
+    val hasCustomViewCallbacks = onShowCustomView != null && onHideCustomView != null
+    val webChromeClient = remember(hasCustomViewCallbacks) {
+        if (hasCustomViewCallbacks) {
             RYWebChromeClient(
-                onShowCustomViewCallback = onShowCustomView,
-                onHideCustomViewCallback = onHideCustomView,
+                onShowCustomViewCallback = { view, callback ->
+                    currentOnShowCustomView?.invoke(view, callback) ?: callback.onCustomViewHidden()
+                },
+                onHideCustomViewCallback = { currentOnHideCustomView?.invoke() },
             )
         } else null
     }
 
     val webView by
-        remember(backgroundColor, webChromeClient) {
+        remember(context, readingFonts, refererDomain, openLink, openLinkSpecificBrowser, webChromeClient) {
             mutableStateOf(
                 WebViewLayout.get(
                     context = context,
@@ -163,12 +170,8 @@ fun RYWebView(
         modifier = modifier,
         factory = { webView },
         update = { wv ->
-                Timber.tag("RLog").i("maxWidth: ${maxWidth}")
-                Timber.tag("RLog").i("readingFont: ${context.filesDir.absolutePath}")
-                Timber.tag("RLog").i("CustomWebView: ${content}")
             wv.settings.defaultFontSize = fontSize
-            wv.loadDataWithBaseURL(
-                htmlBaseUrl,
+            val html =
                 WebViewHtml.HTML.format(
                     WebViewStyle.get(
                         fontSize = fontSize,
@@ -194,11 +197,20 @@ fun RYWebView(
                     htmlBaseUrl,
                     content,
                     WebViewScript.get(boldCharacters.value),
-                ),
-                "text/HTML",
-                "UTF-8",
-                null,
-            )
+                )
+            val contentKey = WebViewContentKey(htmlBaseUrl, html, fontSize)
+            if (wv.loadedContentKey != contentKey) {
+                Timber.tag("RLog").i("readingFont: ${context.filesDir.absolutePath}")
+                Timber.tag("RLog").i("CustomWebView: ${content}")
+                wv.loadedContentKey = contentKey
+                wv.loadDataWithBaseURL(
+                    htmlBaseUrl,
+                    html,
+                    "text/HTML",
+                    "UTF-8",
+                    null,
+                )
+            }
         },
     )
 }
