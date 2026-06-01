@@ -54,6 +54,25 @@ class UndoMarkedReadTest {
         assertEquals(setOf("a", "b"), repoIds)
     }
 
+    @Test
+    fun `undo action uses captured mode instead of current mode`() {
+        val items = listOf(unreadArticle("a"), unreadArticle("b"))
+        val action = createMarkedReadUndoAction(items, deferDbCommits = false)
+        var diffUndoCalled = false
+        var repoIds: Set<String> = emptySet()
+
+        // Simulate filter changed before undo is clicked (current mode now deferred=true).
+        performMarkedReadUndo(
+            action = action,
+            currentDeferDbCommits = true,
+            undoWithDiffMap = { diffUndoCalled = true },
+            undoWithRepository = { ids -> repoIds = ids },
+        )
+
+        assertEquals(false, diffUndoCalled)
+        assertEquals(setOf("a", "b"), repoIds)
+    }
+
     private fun unreadArticle(id: String): ArticleWithFeed =
         ArticleWithFeed(
             article =

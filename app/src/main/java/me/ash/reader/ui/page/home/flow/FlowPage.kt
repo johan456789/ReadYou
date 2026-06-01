@@ -205,9 +205,10 @@ fun FlowPage(
         { articleWithFeed -> viewModel.diffMapHolder.updateDiff(articleWithFeed) }
     }
 
-    val showUndoSnackbarForItems: (List<ArticleWithFeed>) -> Unit =
+    val showUndoSnackbarForItems: (MarkedReadUndoAction) -> Unit =
         remember(markedAsReadMessage, undoActionLabel) {
-            { items ->
+            { undoAction ->
+                val items = undoAction.items
                 if (items.isNotEmpty()) {
                     scope.launch {
                         val result =
@@ -217,9 +218,9 @@ fun FlowPage(
                                 withDismissAction = true,
                             )
                         if (result == SnackbarResult.ActionPerformed) {
-                            undoMarkedRead(
-                                items = items,
-                                deferDbCommits = viewModel.diffMapHolder.deferDbCommits,
+                            performMarkedReadUndo(
+                                action = undoAction,
+                                currentDeferDbCommits = viewModel.diffMapHolder.deferDbCommits,
                                 undoWithDiffMap = { articleArray ->
                                     viewModel.diffMapHolder.updateDiff(
                                         articleWithFeed = articleArray,
@@ -263,9 +264,13 @@ fun FlowPage(
         remember(sortByEarliest, showUndoSnackbarForItems) {
             {
                 showUndoSnackbarForItems(
-                    viewModel.markAsReadFromListByDate(
-                        date = it.article.date,
-                        isBefore = sortByEarliest,
+                    createMarkedReadUndoAction(
+                        items =
+                            viewModel.markAsReadFromListByDate(
+                                date = it.article.date,
+                                isBefore = sortByEarliest,
+                            ),
+                        deferDbCommits = viewModel.diffMapHolder.deferDbCommits,
                     )
                 )
             }
@@ -275,9 +280,13 @@ fun FlowPage(
         remember(sortByEarliest, showUndoSnackbarForItems) {
             {
                 showUndoSnackbarForItems(
-                    viewModel.markAsReadFromListByDate(
-                        date = it.article.date,
-                        isBefore = !sortByEarliest,
+                    createMarkedReadUndoAction(
+                        items =
+                            viewModel.markAsReadFromListByDate(
+                                date = it.article.date,
+                                isBefore = !sortByEarliest,
+                            ),
+                        deferDbCommits = viewModel.diffMapHolder.deferDbCommits,
                     )
                 )
             }
