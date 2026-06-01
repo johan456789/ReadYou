@@ -82,8 +82,17 @@ fun ReadingPage(
     val isPullToSwitchArticleEnabled = LocalPullToSwitchArticle.current.value
     val readingUiState = viewModel.readingUiState.collectAsStateValue()
     val readerState = viewModel.readerStateStateFlow.collectAsStateValue()
+    val contentStateKey =
+        when (readerState.content) {
+            is ReaderState.Description -> "description"
+            is ReaderState.FullContent -> "full_content"
+            is ReaderState.Error -> "error"
+            ReaderState.Loading -> "loading"
+        }
     val scrollState =
-        rememberSaveable(readerState.articleId, saver = ScrollState.Saver) { ScrollState(0) }
+        rememberSaveable(readerState.articleId, contentStateKey, saver = ScrollState.Saver) {
+            ScrollState(0)
+        }
 
     var isReaderScrollingDown by remember { mutableStateOf(false) }
     var showFullScreenImageViewer by remember { mutableStateOf(false) }
