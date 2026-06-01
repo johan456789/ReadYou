@@ -148,6 +148,18 @@ constructor(
         markRead: Boolean,
     ) {
         applicationScope.launch(ioDispatcher) {
+            markReadStatus(groupId, feedId, articleId, conditions, markRead)
+        }
+    }
+
+    suspend fun markReadStatus(
+        groupId: String?,
+        feedId: String?,
+        articleId: String?,
+        conditions: MarkAsReadConditions,
+        markRead: Boolean,
+    ): Set<String> =
+        kotlinx.coroutines.withContext(ioDispatcher) {
             rssService
                 .get()
                 .markAsRead(
@@ -157,6 +169,12 @@ constructor(
                     before = conditions.toDate(),
                     markRead = markRead,
                 )
+        }
+
+    fun undoReadStatus(articleIds: Set<String>) {
+        if (articleIds.isEmpty()) return
+        applicationScope.launch(ioDispatcher) {
+            rssService.get().batchMarkAsRead(articleIds = articleIds, markRead = false)
         }
     }
 
@@ -168,23 +186,25 @@ constructor(
         }
     }
 
-    fun markAsReadFromListByDate(date: Date, isBefore: Boolean) {
-        viewModelScope.launch(ioDispatcher) {
-            val items =
-                articleListUseCase.itemSnapshotList
-                    .filterIsInstance<ArticleFlowItem.Article>()
-                    .map { it.articleWithFeed }
-                    .filter {
-                        if (isBefore) {
-                            date > it.article.date && !it.article.isRead
-                        } else {
-                            date < it.article.date && !it.article.isRead
-                        }
+    fun markAsReadFromListByDate(date: Date, isBefore: Boolean): List<ArticleWithFeed> {
+        val items =
+            articleListUseCase.itemSnapshotList
+                .filterIsInstance<ArticleFlowItem.Article>()
+                .map { it.articleWithFeed }
+                .filter {
+                    val isRead = diffMapHolder.checkIfRead(it)
+                    if (isBefore) {
+                        date > it.article.date && !isRead
+                    } else {
+                        date < it.article.date && !isRead
                     }
-                    .distinctBy { it.article.id }
+                }
+                .distinctBy { it.article.id }
 
+        if (items.isNotEmpty()) {
             diffMapHolder.updateDiff(articleWithFeed = items.toTypedArray(), markRead = true)
         }
+        return items
     }
 
     fun loadNextFeedOrGroup() {
@@ -199,15 +219,18 @@ constructor(
         }
     }
 
-    fun markAllAsRead() {
-        viewModelScope.launch {
-            val items =
-                articleListUseCase.itemSnapshotList.items
-                    .filterIsInstance<ArticleFlowItem.Article>()
-                    .map { it.articleWithFeed }
+    fun markAllAsRead(): List<ArticleWithFeed> {
+        val items =
+            articleListUseCase.itemSnapshotList.items
+                .filterIsInstance<ArticleFlowItem.Article>()
+                .map { it.articleWithFeed }
+                .filter { !diffMapHolder.checkIfRead(it) }
+                .distinctBy { it.article.id }
 
+        if (items.isNotEmpty()) {
             diffMapHolder.updateDiff(articleWithFeed = items.toTypedArray(), markRead = true)
         }
+        return items
     }
 
     fun sync() {

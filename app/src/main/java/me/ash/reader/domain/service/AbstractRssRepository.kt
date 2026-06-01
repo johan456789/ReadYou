@@ -103,9 +103,45 @@ abstract class AbstractRssRepository(
         articleId: String?,
         before: Date?,
         markRead: Boolean,
-    ) {
+    ): Set<String> {
         val storedUnread = !markRead
         val accountId = accountService.getCurrentAccountId()
+        val affectedIds =
+            when {
+                groupId != null -> {
+                    articleDao
+                        .queryMetadataByGroupIdWhenIsUnread(
+                            accountId = accountId,
+                            groupId = groupId,
+                            isUnread = !storedUnread,
+                            before = before ?: Date(Long.MAX_VALUE),
+                        )
+                        .map { it.id }
+                }
+
+                feedId != null -> {
+                    articleDao
+                        .queryMetadataByFeedId(
+                            accountId = accountId,
+                            feedId = feedId,
+                            isUnread = !storedUnread,
+                            before = before ?: Date(Long.MAX_VALUE),
+                        )
+                        .map { it.id }
+                }
+
+                articleId != null -> listOf(articleId)
+
+                else -> {
+                    articleDao
+                        .queryMetadataAll(
+                            accountId = accountId,
+                            isUnread = !storedUnread,
+                            before = before ?: Date(Long.MAX_VALUE),
+                        )
+                        .map { it.id }
+                }
+            }.toSet()
         when {
             groupId != null -> {
                 articleDao.markAllAsReadByGroupId(
@@ -133,6 +169,7 @@ abstract class AbstractRssRepository(
                 articleDao.markAllAsRead(accountId, storedUnread, before ?: Date(Long.MAX_VALUE))
             }
         }
+        return affectedIds
     }
 
     open suspend fun batchMarkAsRead(articleIds: Set<String>, markRead: Boolean) {

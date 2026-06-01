@@ -337,8 +337,8 @@ constructor(
         articleId: String?,
         before: Date?,
         markRead: Boolean,
-    ) {
-        super.markAsRead(groupId, feedId, articleId, before, markRead)
+    ): Set<String> {
+        val affectedIds = super.markAsRead(groupId, feedId, articleId, before, markRead)
         val feverAPI = getFeverAPI()
         val targetStatus = if (markRead) FeverDTO.StatusEnum.Read else FeverDTO.StatusEnum.Unread
         val beforeUnixTimestamp = (before?.time ?: Date(Long.MAX_VALUE).time) / 1000
@@ -376,6 +376,7 @@ constructor(
                 }
             }
         }
+        return affectedIds
     }
 
     @CheckResult
