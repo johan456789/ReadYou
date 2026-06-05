@@ -149,15 +149,6 @@ a > strong {
     font-weight: 600 !important;
     color: var(--link-text-color) !important;
 }
-div > a {
-    display: block;
-    -webkit-tap-highlight-color: rgba(0, 0, 0, 0);
-    font-weight: 600 !important;
-    color: var(--link-text-color);
-    line-height: var(--line-height);
-    letter-spacing: var(--letter-spacing) !important;
-    text-align: var(--text-align) !important;
-}
 
 /* Image  */
 iframe,
