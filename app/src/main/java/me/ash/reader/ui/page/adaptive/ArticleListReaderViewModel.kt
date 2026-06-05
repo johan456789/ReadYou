@@ -171,11 +171,12 @@ constructor(
                 )
         }
 
+    fun undoReadStatus(articleWithFeed: List<ArticleWithFeed>) {
+        diffMapHolder.applyReadStateWithSync(articleWithFeed = articleWithFeed, markRead = false)
+    }
+
     fun undoReadStatus(articleIds: Set<String>) {
-        if (articleIds.isEmpty()) return
-        applicationScope.launch(ioDispatcher) {
-            rssService.get().batchMarkAsRead(articleIds = articleIds, markRead = false)
-        }
+        diffMapHolder.applyReadStateWithSync(articleIds = articleIds, markRead = false)
     }
 
     fun updateStarredStatus(articleId: String?, isStarred: Boolean) {

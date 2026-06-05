@@ -220,15 +220,14 @@ fun FlowPage(
                         if (result == SnackbarResult.ActionPerformed) {
                             performMarkedReadUndo(
                                 action = undoAction,
-                                currentDeferDbCommits = viewModel.diffMapHolder.deferDbCommits,
                                 undoWithDiffMap = { articleArray ->
                                     viewModel.diffMapHolder.updateDiff(
                                         articleWithFeed = articleArray,
                                         markRead = false,
                                     )
                                 },
-                                undoWithRepository = { articleIds ->
-                                    viewModel.undoReadStatus(articleIds)
+                                undoWithCommittedState = { articleWithFeed ->
+                                    viewModel.undoReadStatus(articleWithFeed)
                                 },
                             )
                         }

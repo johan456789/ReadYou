@@ -14,16 +14,15 @@ internal fun createMarkedReadUndoAction(
 
 internal fun performMarkedReadUndo(
     action: MarkedReadUndoAction,
-    currentDeferDbCommits: Boolean,
     undoWithDiffMap: (Array<ArticleWithFeed>) -> Unit,
-    undoWithRepository: (Set<String>) -> Unit,
+    undoWithCommittedState: (List<ArticleWithFeed>) -> Unit,
 ) {
     // Intentionally use the captured mode from mark-time, not current mode.
     undoMarkedRead(
         items = action.items,
         deferDbCommits = action.deferDbCommitsAtMarkTime,
         undoWithDiffMap = undoWithDiffMap,
-        undoWithRepository = undoWithRepository,
+        undoWithCommittedState = undoWithCommittedState,
     )
 }
 
@@ -31,12 +30,12 @@ internal fun undoMarkedRead(
     items: List<ArticleWithFeed>,
     deferDbCommits: Boolean,
     undoWithDiffMap: (Array<ArticleWithFeed>) -> Unit,
-    undoWithRepository: (Set<String>) -> Unit,
+    undoWithCommittedState: (List<ArticleWithFeed>) -> Unit,
 ) {
     if (items.isEmpty()) return
     if (deferDbCommits) {
         undoWithDiffMap(items.toTypedArray())
     } else {
-        undoWithRepository(items.map { it.article.id }.toSet())
+        undoWithCommittedState(items.distinctBy { it.article.id })
     }
 }

@@ -14,7 +14,7 @@ class UndoMarkedReadTest {
     fun `uses diff-map undo when commits are deferred`() {
         val items = listOf(unreadArticle("a"), unreadArticle("b"))
         var diffUndoCalled = false
-        var repoUndoCalled = false
+        var committedUndoCalled = false
 
         undoMarkedRead(
             items = items,
@@ -23,21 +23,21 @@ class UndoMarkedReadTest {
                 diffUndoCalled = true
                 assertEquals(2, it.size)
             },
-            undoWithRepository = {
-                repoUndoCalled = true
+            undoWithCommittedState = {
+                committedUndoCalled = true
             },
         )
 
         assertTrue(diffUndoCalled)
-        assertEquals(false, repoUndoCalled)
+        assertEquals(false, committedUndoCalled)
     }
 
     @Test
-    fun `uses repository undo with deduped ids when commits are immediate`() {
+    fun `uses committed-state undo with deduped items when commits are immediate`() {
         val duplicate = unreadArticle("a")
         val items = listOf(duplicate, duplicate, unreadArticle("b"))
         var diffUndoCalled = false
-        var repoIds: Set<String> = emptySet()
+        var committedItems: List<ArticleWithFeed> = emptyList()
 
         undoMarkedRead(
             items = items,
@@ -45,13 +45,13 @@ class UndoMarkedReadTest {
             undoWithDiffMap = {
                 diffUndoCalled = true
             },
-            undoWithRepository = { ids ->
-                repoIds = ids
+            undoWithCommittedState = {
+                committedItems = it
             },
         )
 
         assertEquals(false, diffUndoCalled)
-        assertEquals(setOf("a", "b"), repoIds)
+        assertEquals(listOf("a", "b"), committedItems.map { it.article.id })
     }
 
     @Test
@@ -59,18 +59,16 @@ class UndoMarkedReadTest {
         val items = listOf(unreadArticle("a"), unreadArticle("b"))
         val action = createMarkedReadUndoAction(items, deferDbCommits = false)
         var diffUndoCalled = false
-        var repoIds: Set<String> = emptySet()
+        var committedItems: List<ArticleWithFeed> = emptyList()
 
-        // Simulate filter changed before undo is clicked (current mode now deferred=true).
         performMarkedReadUndo(
             action = action,
-            currentDeferDbCommits = true,
             undoWithDiffMap = { diffUndoCalled = true },
-            undoWithRepository = { ids -> repoIds = ids },
+            undoWithCommittedState = { committedItems = it },
         )
 
         assertEquals(false, diffUndoCalled)
-        assertEquals(setOf("a", "b"), repoIds)
+        assertEquals(listOf("a", "b"), committedItems.map { it.article.id })
     }
 
     private fun unreadArticle(id: String): ArticleWithFeed =
