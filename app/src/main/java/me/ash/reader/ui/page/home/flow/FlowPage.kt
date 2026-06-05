@@ -86,9 +86,7 @@ import me.ash.reader.infrastructure.preference.LocalOpenLink
 import me.ash.reader.infrastructure.preference.LocalOpenLinkSpecificBrowser
 import me.ash.reader.infrastructure.preference.LocalSettings
 import me.ash.reader.infrastructure.preference.LocalSharedContent
-import me.ash.reader.infrastructure.preference.LocalSortUnreadArticles
 import me.ash.reader.infrastructure.preference.PullToLoadNextFeedPreference
-import me.ash.reader.infrastructure.preference.SortUnreadArticlesPreference
 import me.ash.reader.ui.component.FilterBar
 import me.ash.reader.ui.component.base.FeedbackIconButton
 import me.ash.reader.ui.component.base.RYExtensibleVisibility
@@ -197,26 +195,22 @@ fun FlowPage(
         { articleWithFeed -> viewModel.diffMapHolder.updateDiff(articleWithFeed) }
     }
 
-    val sortByEarliest =
-        filterUiState.filter.isUnread() &&
-            LocalSortUnreadArticles.current == SortUnreadArticlesPreference.Earliest
-
     val onMarkAboveAsRead: ((ArticleWithFeed) -> Unit)? =
-        remember(sortByEarliest) {
+        remember {
             {
-                viewModel.markAsReadFromListByDate(
-                    date = it.article.date,
-                    isBefore = sortByEarliest,
+                viewModel.markAsReadFromListPosition(
+                    articleId = it.article.id,
+                    markAbove = true,
                 )
             }
         }
 
     val onMarkBelowAsRead: ((ArticleWithFeed) -> Unit)? =
-        remember(sortByEarliest) {
+        remember {
             {
-                viewModel.markAsReadFromListByDate(
-                    date = it.article.date,
-                    isBefore = !sortByEarliest,
+                viewModel.markAsReadFromListPosition(
+                    articleId = it.article.id,
+                    markAbove = false,
                 )
             }
         }
