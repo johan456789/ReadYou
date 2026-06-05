@@ -559,17 +559,14 @@ fun FlowPage(
 
                     MarkAsReadBar {
                         markAsRead = false
-                        scope.launch {
-                            showUndoSnackbarForIds(
-                                viewModel.markReadStatus(
-                                    groupId = filterUiState.group?.id,
-                                    feedId = filterUiState.feed?.id,
-                                    articleId = null,
-                                    conditions = it,
-                                    markRead = true,
-                                )
-                            )
-                        }
+                        viewModel.markReadStatusInBackground(
+                            groupId = filterUiState.group?.id,
+                            feedId = filterUiState.feed?.id,
+                            articleId = null,
+                            conditions = it,
+                            markRead = true,
+                            onMarked = showUndoSnackbarForIds,
+                        )
                     }
                 }
                 val contentTransitionVertical =

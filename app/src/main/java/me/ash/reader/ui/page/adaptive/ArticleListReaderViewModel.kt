@@ -147,9 +147,27 @@ constructor(
         conditions: MarkAsReadConditions,
         markRead: Boolean,
     ) {
-        applicationScope.launch(ioDispatcher) {
-            markReadStatus(groupId, feedId, articleId, conditions, markRead)
-        }
+        launchMarkReadStatus(
+            applicationScope = applicationScope,
+            ioDispatcher = ioDispatcher,
+            markReadStatus = { markReadStatus(groupId, feedId, articleId, conditions, markRead) },
+        )
+    }
+
+    fun markReadStatusInBackground(
+        groupId: String?,
+        feedId: String?,
+        articleId: String?,
+        conditions: MarkAsReadConditions,
+        markRead: Boolean,
+        onMarked: (Set<String>) -> Unit = {},
+    ) {
+        launchMarkReadStatus(
+            applicationScope = applicationScope,
+            ioDispatcher = ioDispatcher,
+            markReadStatus = { markReadStatus(groupId, feedId, articleId, conditions, markRead) },
+            onMarked = onMarked,
+        )
     }
 
     suspend fun markReadStatus(
