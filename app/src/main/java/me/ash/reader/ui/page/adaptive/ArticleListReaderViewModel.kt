@@ -168,20 +168,13 @@ constructor(
         }
     }
 
-    fun markAsReadFromListByDate(date: Date, isBefore: Boolean) {
+    fun markAsReadFromListPosition(articleId: String, markAbove: Boolean) {
         viewModelScope.launch(ioDispatcher) {
-            val items =
-                articleListUseCase.itemSnapshotList
-                    .filterIsInstance<ArticleFlowItem.Article>()
-                    .map { it.articleWithFeed }
-                    .filter {
-                        if (isBefore) {
-                            date > it.article.date && !it.article.isRead
-                        } else {
-                            date < it.article.date && !it.article.isRead
-                        }
-                    }
-                    .distinctBy { it.article.id }
+            val items = selectArticlesToMark(
+                items = articleListUseCase.itemSnapshotList.items,
+                targetArticleId = articleId,
+                markAbove = markAbove,
+            )
 
             diffMapHolder.updateDiff(articleWithFeed = items.toTypedArray(), markRead = true)
         }
@@ -470,6 +463,25 @@ constructor(
 }
 
 data class FlowUiState(val pagerData: PagerData, val nextFilterState: FilterState? = null)
+
+internal fun selectArticlesToMark(
+    items: Iterable<ArticleFlowItem>,
+    targetArticleId: String,
+    markAbove: Boolean,
+): List<ArticleWithFeed> {
+    val articles = items.filterIsInstance<ArticleFlowItem.Article>().map { it.articleWithFeed }
+    val targetIndex = articles.indexOfFirst { it.article.id == targetArticleId }
+    if (targetIndex == -1) return emptyList()
+
+    val relativeArticles =
+        if (markAbove) {
+            articles.subList(0, targetIndex)
+        } else {
+            articles.subList(targetIndex + 1, articles.size)
+        }
+
+    return relativeArticles.filter { !it.article.isRead }.distinctBy { it.article.id }
+}
 
 data class ReadingUiState(
     val articleWithFeed: ArticleWithFeed? = null,
