@@ -50,6 +50,7 @@
         </activity>
         <activity
             android:name=".infrastructure.android.MainActivity"
+            android:configChanges="keyboardHidden|orientation|screenLayout|screenSize|smallestScreenSize"
             android:exported="true"
             android:launchMode="singleInstance"
             android:theme="@style/Theme.Reader"

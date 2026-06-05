@@ -19,7 +19,6 @@ import androidx.compose.runtime.rememberUpdatedState
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.graphics.toArgb
-import androidx.compose.ui.platform.LocalConfiguration
 import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.viewinterop.AndroidView
@@ -57,6 +56,7 @@ class HorizontalScrollAwareWebView(context: Context) : WebView(context) {
     private var startY = 0f
     private var isHorizontalGesture: Boolean? = null
     private val touchSlop = ViewConfiguration.get(context).scaledTouchSlop.toFloat()
+    var loadedContentKey: WebViewContentKey? = null
 
     @SuppressLint("ClickableViewAccessibility")
     override fun dispatchTouchEvent(event: MotionEvent): Boolean {
@@ -87,6 +87,8 @@ class HorizontalScrollAwareWebView(context: Context) : WebView(context) {
     }
 }
 
+data class WebViewContentKey(val baseUrl: String, val html: String, val fontSize: Int)
+
 @Composable
 fun RYWebView(
     modifier: Modifier = Modifier,
@@ -99,7 +101,6 @@ fun RYWebView(
     onHideCustomView: (() -> Unit)? = null,
 ) {
     val context = LocalContext.current
-    val maxWidth = LocalConfiguration.current.screenWidthDp.dp.value
     val openLink = LocalOpenLink.current
     val openLinkSpecificBrowser = LocalOpenLinkSpecificBrowser.current
     val tonalElevation = LocalReadingPageTonalElevation.current
@@ -127,6 +128,18 @@ fun RYWebView(
     val boldCharacters = LocalReadingBoldCharacters.current
     val onWebViewCreatedForTest = LocalWebViewCreatedForTest.current
 
+    val currentOpenLink by rememberUpdatedState(openLink)
+    val currentOpenLinkSpecificBrowser by rememberUpdatedState(openLinkSpecificBrowser)
+    val dynamicWebViewClient = remember(context, refererDomain) {
+        WebViewClient(
+            context = context,
+            refererDomain = refererDomain,
+            onOpenLink = { url ->
+                context.openURL(url, currentOpenLink, currentOpenLinkSpecificBrowser)
+            },
+        )
+    }
+
     val onShowCustomViewState by rememberUpdatedState(onShowCustomView)
     val onHideCustomViewState by rememberUpdatedState(onHideCustomView)
     val webChromeClient = remember {
@@ -146,14 +159,7 @@ fun RYWebView(
                 WebViewLayout.get(
                     context = context,
                     readingFontsPreference = readingFonts,
-                    webViewClient =
-                        WebViewClient(
-                            context = context,
-                            refererDomain = refererDomain,
-                            onOpenLink = { url ->
-                                context.openURL(url, openLink, openLinkSpecificBrowser)
-                            },
-                        ),
+                    webViewClient = dynamicWebViewClient,
                     webChromeClient = null,
                     onImageClick = onImageClick,
                     onLinkLongPress = onLinkLongPress,
@@ -179,14 +185,21 @@ fun RYWebView(
         modifier = modifier,
         factory = { webView },
         update = { wv ->
+            if (wv.webViewClient !== dynamicWebViewClient) {
+                wv.webViewClient = dynamicWebViewClient
+            }
             wv.webChromeClient =
                 if (onShowCustomView != null && onHideCustomView != null) webChromeClient else null
-                Timber.tag("RLog").i("maxWidth: ${maxWidth}")
-                Timber.tag("RLog").i("readingFont: ${context.filesDir.absolutePath}")
-                Timber.tag("RLog").i("CustomWebView: ${content}")
             wv.settings.defaultFontSize = fontSize
-            wv.loadDataWithBaseURL(
-                htmlBaseUrl,
+            wv.settings.standardFontFamily =
+                when (readingFonts) {
+                    ReadingFontsPreference.Cursive -> "cursive"
+                    ReadingFontsPreference.Monospace -> "monospace"
+                    ReadingFontsPreference.SansSerif -> "sans-serif"
+                    ReadingFontsPreference.Serif -> "serif"
+                    else -> "sans-serif"
+                }
+            val html =
                 WebViewHtml.HTML.format(
                     WebViewStyle.get(
                         fontSize = fontSize,
@@ -212,11 +225,20 @@ fun RYWebView(
                     htmlBaseUrl,
                     content,
                     WebViewScript.get(boldCharacters.value),
-                ),
-                "text/HTML",
-                "UTF-8",
-                null,
-            )
+                )
+            val contentKey = WebViewContentKey(htmlBaseUrl, html, fontSize)
+            if (wv.loadedContentKey != contentKey) {
+                Timber.tag("RLog").i("readingFont: ${context.filesDir.absolutePath}")
+                Timber.tag("RLog").i("CustomWebView: ${content}")
+                wv.loadedContentKey = contentKey
+                wv.loadDataWithBaseURL(
+                    htmlBaseUrl,
+                    html,
+                    "text/HTML",
+                    "UTF-8",
+                    null,
+                )
+            }
         },
     )
 }
