@@ -475,9 +475,9 @@ internal fun selectArticlesToMark(
 
     val relativeArticles =
         if (markAbove) {
-            articles.take(targetIndex)
+            articles.subList(0, targetIndex)
         } else {
-            articles.drop(targetIndex + 1)
+            articles.subList(targetIndex + 1, articles.size)
         }
 
     return relativeArticles.filter { !it.article.isRead }.distinctBy { it.article.id }
