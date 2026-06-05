@@ -39,3 +39,8 @@ internal fun undoMarkedRead(
         undoWithCommittedState(items.distinctBy { it.article.id })
     }
 }
+
+internal fun filterUndoMarkedIds(
+    affectedIds: Set<String>,
+    preExistingLogicalReadIds: Set<String>,
+): Set<String> = affectedIds - preExistingLogicalReadIds

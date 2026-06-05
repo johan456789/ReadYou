@@ -866,17 +866,24 @@ constructor(
             }.toSet()
         super.markAsRead(groupId, feedId, articleId, before, markRead)
         val markList = affectedIds.map { it.dollarLast() }
-        markList
-            .takeIf { it.isNotEmpty() }
-            ?.chunked(500)
-            ?.forEachIndexed { index, it ->
-                        Timber.tag("RLog").d("sync markAsRead:  ${(index * 500) + it.size}/${markList.size} num")
-                googleReaderAPI.editTag(
-                    itemIds = it,
-                    mark = if (markRead) GoogleReaderAPI.Stream.Read.tag else null,
-                    unmark = if (!markRead) GoogleReaderAPI.Stream.Read.tag else null,
-                )
-            }
+        try {
+            markList
+                .takeIf { it.isNotEmpty() }
+                ?.chunked(500)
+                ?.forEachIndexed { index, it ->
+                            Timber.tag("RLog").d("sync markAsRead:  ${(index * 500) + it.size}/${markList.size} num")
+                    googleReaderAPI.editTag(
+                        itemIds = it,
+                        mark = if (markRead) GoogleReaderAPI.Stream.Read.tag else null,
+                        unmark = if (!markRead) GoogleReaderAPI.Stream.Read.tag else null,
+                    )
+                }
+        } catch (exception: Exception) {
+            throw MarkReadStatusPartiallyAppliedException(
+                affectedIds = affectedIds,
+                cause = exception,
+            )
+        }
         return affectedIds
     }
 

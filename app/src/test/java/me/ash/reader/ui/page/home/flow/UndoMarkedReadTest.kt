@@ -71,6 +71,17 @@ class UndoMarkedReadTest {
         assertEquals(listOf("a", "b"), committedItems.map { it.article.id })
     }
 
+    @Test
+    fun `filters out articles that were already logically read before mark action`() {
+        val undoIds =
+            filterUndoMarkedIds(
+                affectedIds = setOf("a", "b", "c"),
+                preExistingLogicalReadIds = setOf("b"),
+            )
+
+        assertEquals(setOf("a", "c"), undoIds)
+    }
+
     private fun unreadArticle(id: String): ArticleWithFeed =
         ArticleWithFeed(
             article =

@@ -559,13 +559,26 @@ fun FlowPage(
 
                     MarkAsReadBar {
                         markAsRead = false
+                        val preExistingLogicalReadIds =
+                            viewModel.diffMapHolder.diffMap
+                                .asSequence()
+                                .filter { it.value.isRead }
+                                .map { it.key }
+                                .toSet()
                         viewModel.markReadStatusInBackground(
                             groupId = filterUiState.group?.id,
                             feedId = filterUiState.feed?.id,
                             articleId = null,
                             conditions = it,
                             markRead = true,
-                            onMarked = showUndoSnackbarForIds,
+                            onMarked = { affectedIds ->
+                                showUndoSnackbarForIds(
+                                    filterUndoMarkedIds(
+                                        affectedIds = affectedIds,
+                                        preExistingLogicalReadIds = preExistingLogicalReadIds,
+                                    )
+                                )
+                            },
                         )
                     }
                 }
