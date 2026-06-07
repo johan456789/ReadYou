@@ -818,11 +818,11 @@ constructor(
         articleId: String?,
         before: Date?,
         markRead: Boolean,
-    ) {
+    ): Set<String> {
         val storedUnread = !markRead
         val accountId = accountService.getCurrentAccountId()
         val googleReaderAPI = getGoogleReaderAPI()
-        val markList: List<String> =
+        val affectedIds: Set<String> =
             when {
                 groupId != null -> {
                     if (before == null) {
@@ -839,7 +839,7 @@ constructor(
                                 before = before,
                             )
                         }
-                        .map { it.id.dollarLast() }
+                        .map { it.id }
                 }
 
                 feedId != null -> {
@@ -848,11 +848,11 @@ constructor(
                         } else {
                             articleDao.queryMetadataByFeedId(accountId, feedId, isUnread = !storedUnread, before = before)
                         }
-                        .map { it.id.dollarLast() }
+                        .map { it.id }
                 }
 
                 articleId != null -> {
-                    listOf(articleId.dollarLast())
+                    listOf(articleId)
                 }
 
                 else -> {
@@ -861,21 +861,30 @@ constructor(
                         } else {
                             articleDao.queryMetadataAll(accountId, isUnread = !storedUnread, before = before)
                         }
-                        .map { it.id.dollarLast() }
+                        .map { it.id }
                 }
-            }
+            }.toSet()
         super.markAsRead(groupId, feedId, articleId, before, markRead)
-        markList
-            .takeIf { it.isNotEmpty() }
-            ?.chunked(500)
-            ?.forEachIndexed { index, it ->
-                        Timber.tag("RLog").d("sync markAsRead:  ${(index * 500) + it.size}/${markList.size} num")
-                googleReaderAPI.editTag(
-                    itemIds = it,
-                    mark = if (markRead) GoogleReaderAPI.Stream.Read.tag else null,
-                    unmark = if (!markRead) GoogleReaderAPI.Stream.Read.tag else null,
-                )
-            }
+        val markList = affectedIds.map { it.dollarLast() }
+        try {
+            markList
+                .takeIf { it.isNotEmpty() }
+                ?.chunked(500)
+                ?.forEachIndexed { index, it ->
+                            Timber.tag("RLog").d("sync markAsRead:  ${(index * 500) + it.size}/${markList.size} num")
+                    googleReaderAPI.editTag(
+                        itemIds = it,
+                        mark = if (markRead) GoogleReaderAPI.Stream.Read.tag else null,
+                        unmark = if (!markRead) GoogleReaderAPI.Stream.Read.tag else null,
+                    )
+                }
+        } catch (exception: Exception) {
+            throw MarkReadStatusPartiallyAppliedException(
+                affectedIds = affectedIds,
+                cause = exception,
+            )
+        }
+        return affectedIds
     }
 
     override suspend fun syncReadStatus(articleIds: Set<String>, markRead: Boolean): Set<String> {

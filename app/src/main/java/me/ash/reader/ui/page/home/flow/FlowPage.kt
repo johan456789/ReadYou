@@ -19,6 +19,7 @@ import androidx.compose.foundation.layout.Spacer
 import androidx.compose.foundation.layout.WindowInsets
 import androidx.compose.foundation.layout.WindowInsetsSides
 import androidx.compose.foundation.layout.fillMaxSize
+import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.height
 import androidx.compose.foundation.layout.navigationBars
 import androidx.compose.foundation.layout.only
@@ -41,6 +42,9 @@ import androidx.compose.material3.LargeTopAppBar
 import androidx.compose.material3.LocalContentColor
 import androidx.compose.material3.LocalTextStyle
 import androidx.compose.material3.MaterialTheme
+import androidx.compose.material3.SnackbarHost
+import androidx.compose.material3.SnackbarHostState
+import androidx.compose.material3.SnackbarResult
 import androidx.compose.material3.Text
 import androidx.compose.material3.TopAppBarDefaults
 import androidx.compose.material3.rememberTopAppBarState
@@ -54,6 +58,7 @@ import androidx.compose.runtime.rememberUpdatedState
 import androidx.compose.runtime.saveable.rememberSaveable
 import androidx.compose.runtime.setValue
 import androidx.compose.runtime.snapshotFlow
+import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.focus.FocusRequester
 import androidx.compose.ui.input.nestedscroll.nestedScroll
@@ -131,6 +136,8 @@ fun FlowPage(
     val sharedContent = LocalSharedContent.current
     val markAsReadOnScroll = LocalMarkAsReadOnScroll.current.value
     val context = LocalContext.current
+    val markedAsReadMessage = stringResource(R.string.marked_as_read)
+    val undoActionLabel = stringResource(R.string.undo)
 
     val openLink = LocalOpenLink.current
     val openLinkSpecificBrowser = LocalOpenLinkSpecificBrowser.current
@@ -168,6 +175,7 @@ fun FlowPage(
 
     val scope = rememberCoroutineScope()
     val focusRequester = remember { FocusRequester() }
+    val snackbarHostState = remember { SnackbarHostState() }
     var markAsRead by remember { mutableStateOf(false) }
     var onSearch by rememberSaveable { mutableStateOf(false) }
 
@@ -195,22 +203,84 @@ fun FlowPage(
         { articleWithFeed -> viewModel.diffMapHolder.updateDiff(articleWithFeed) }
     }
 
+    val showUndoSnackbarForItems: (MarkedReadUndoAction) -> Unit =
+        remember(markedAsReadMessage, undoActionLabel) {
+            { undoAction ->
+                val items = undoAction.items
+                if (items.isNotEmpty()) {
+                    scope.launch {
+                        val result =
+                            snackbarHostState.showSnackbar(
+                                message = markedAsReadMessage,
+                                actionLabel = undoActionLabel,
+                                withDismissAction = true,
+                            )
+                        if (result == SnackbarResult.ActionPerformed) {
+                            performMarkedReadUndo(
+                                action = undoAction,
+                                undoWithDiffMap = { articleArray ->
+                                    viewModel.diffMapHolder.updateDiff(
+                                        articleWithFeed = articleArray,
+                                        markRead = false,
+                                    )
+                                },
+                                undoWithCommittedState = { articleWithFeed ->
+                                    viewModel.undoReadStatus(articleWithFeed)
+                                },
+                            )
+                        }
+                    }
+                }
+            }
+        }
+
+    val showUndoSnackbarForIds: (Set<String>) -> Unit =
+        remember(markedAsReadMessage, undoActionLabel) {
+            { articleIds ->
+                if (articleIds.isNotEmpty()) {
+                    scope.launch {
+                        val result =
+                            snackbarHostState.showSnackbar(
+                                message = markedAsReadMessage,
+                                actionLabel = undoActionLabel,
+                                withDismissAction = true,
+                            )
+                        if (result == SnackbarResult.ActionPerformed) {
+                            viewModel.undoReadStatus(articleIds)
+                        }
+                    }
+                }
+            }
+        }
+
     val onMarkAboveAsRead: ((ArticleWithFeed) -> Unit)? =
-        remember {
+        remember(showUndoSnackbarForItems) {
             {
-                viewModel.markAsReadFromListPosition(
-                    articleId = it.article.id,
-                    markAbove = true,
+                showUndoSnackbarForItems(
+                    createMarkedReadUndoAction(
+                        items =
+                            viewModel.markAsReadFromListPosition(
+                                articleId = it.article.id,
+                                markAbove = true,
+                            ),
+                        deferDbCommits = viewModel.diffMapHolder.deferDbCommits,
+                    )
                 )
             }
         }
 
     val onMarkBelowAsRead: ((ArticleWithFeed) -> Unit)? =
-        remember {
+        remember(showUndoSnackbarForItems) {
             {
-                viewModel.markAsReadFromListPosition(
-                    articleId = it.article.id,
-                    markAbove = false,
+                showUndoSnackbarForItems(
+                    createMarkedReadUndoAction(
+                        items =
+                            viewModel.markAsReadFromListPosition(
+                                articleId = it.article.id,
+                                markAbove = false,
+                            ),
+                        deferDbCommits = viewModel.diffMapHolder.deferDbCommits,
+                    )
                 )
             }
         }
@@ -483,12 +553,26 @@ fun FlowPage(
 
                     MarkAsReadBar {
                         markAsRead = false
-                        viewModel.updateReadStatus(
+                        val preExistingLogicalReadIds =
+                            viewModel.diffMapHolder.diffMap
+                                .asSequence()
+                                .filter { it.value.isRead }
+                                .map { it.key }
+                                .toSet()
+                        viewModel.markReadStatusInBackground(
                             groupId = filterUiState.group?.id,
                             feedId = filterUiState.feed?.id,
                             articleId = null,
                             conditions = it,
                             markRead = true,
+                            onMarked = { affectedIds ->
+                                showUndoSnackbarForIds(
+                                    filterUndoMarkedIds(
+                                        affectedIds = affectedIds,
+                                        preExistingLogicalReadIds = preExistingLogicalReadIds,
+                                    )
+                                )
+                            },
                         )
                     }
                 }
@@ -747,5 +831,15 @@ fun FlowPage(
                         ),
             )
         }
+        SnackbarHost(
+            hostState = snackbarHostState,
+            modifier =
+                Modifier.align(Alignment.BottomCenter)
+                    .fillMaxWidth()
+                    .padding(bottom = 96.dp)
+                    .windowInsetsPadding(
+                        WindowInsets.safeContent.only(WindowInsetsSides.Horizontal)
+                    ),
+        )
     }
 }

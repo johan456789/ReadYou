@@ -337,45 +337,53 @@ constructor(
         articleId: String?,
         before: Date?,
         markRead: Boolean,
-    ) {
-        super.markAsRead(groupId, feedId, articleId, before, markRead)
+    ): Set<String> {
+        val affectedIds = super.markAsRead(groupId, feedId, articleId, before, markRead)
         val feverAPI = getFeverAPI()
         val targetStatus = if (markRead) FeverDTO.StatusEnum.Read else FeverDTO.StatusEnum.Unread
         val beforeUnixTimestamp = (before?.time ?: Date(Long.MAX_VALUE).time) / 1000
-        when {
-            groupId != null -> {
-                feverAPI.markGroup(
-                    status = targetStatus,
-                    id = groupId.dollarLast().toLong(),
-                    before = beforeUnixTimestamp,
-                )
-            }
-
-            feedId != null -> {
-                feverAPI.markFeed(
-                    status = targetStatus,
-                    id = feedId.dollarLast().toLong(),
-                    before = beforeUnixTimestamp,
-                )
-            }
-
-            articleId != null -> {
-                feverAPI.markItem(
-                    status = targetStatus,
-                    id = articleId.dollarLast(),
-                )
-            }
-
-            else -> {
-                feedDao.queryAll(accountService.getCurrentAccountId()).forEach {
-                    feverAPI.markFeed(
+        try {
+            when {
+                groupId != null -> {
+                    feverAPI.markGroup(
                         status = targetStatus,
-                        id = it.id.dollarLast().toLong(),
+                        id = groupId.dollarLast().toLong(),
                         before = beforeUnixTimestamp,
                     )
                 }
+
+                feedId != null -> {
+                    feverAPI.markFeed(
+                        status = targetStatus,
+                        id = feedId.dollarLast().toLong(),
+                        before = beforeUnixTimestamp,
+                    )
+                }
+
+                articleId != null -> {
+                    feverAPI.markItem(
+                        status = targetStatus,
+                        id = articleId.dollarLast(),
+                    )
+                }
+
+                else -> {
+                    feedDao.queryAll(accountService.getCurrentAccountId()).forEach {
+                        feverAPI.markFeed(
+                            status = targetStatus,
+                            id = it.id.dollarLast().toLong(),
+                            before = beforeUnixTimestamp,
+                        )
+                    }
+                }
             }
+        } catch (exception: Exception) {
+            throw MarkReadStatusPartiallyAppliedException(
+                affectedIds = affectedIds,
+                cause = exception,
+            )
         }
+        return affectedIds
     }
 
     @CheckResult

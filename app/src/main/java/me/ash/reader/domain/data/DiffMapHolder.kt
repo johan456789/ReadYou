@@ -283,6 +283,45 @@ class DiffMapHolder @Inject constructor(
         }
     }
 
+    fun applyReadStateWithSync(
+        articleWithFeed: List<ArticleWithFeed>,
+        markRead: Boolean,
+    ) {
+        if (articleWithFeed.isEmpty()) return
+
+        val appliedDiffs =
+            articleWithFeed
+                .distinctBy { it.article.id }
+                .map { Diff(isRead = markRead, articleWithFeed = it) }
+
+        if (shouldSyncWithRemote) {
+            appliedDiffs.forEach(::appendDiffToSync)
+        }
+
+        enqueuePendingReadStateWork {
+            persistPendingReadStateOps(appliedDiffs)
+            commitAppliedDiffsToDb(appliedDiffs.associateBy { it.articleId })
+        }
+    }
+
+    fun applyReadStateWithSync(
+        articleIds: Set<String>,
+        markRead: Boolean,
+    ) {
+        if (articleIds.isEmpty()) return
+
+        val appliedDiffs = articleIds.map { Diff(isRead = markRead, articleId = it, feedId = "") }
+
+        if (shouldSyncWithRemote) {
+            appliedDiffs.forEach(::appendDiffToSync)
+        }
+
+        enqueuePendingReadStateWork {
+            persistPendingReadStateOps(appliedDiffs)
+            commitAppliedDiffsToDb(appliedDiffs.associateBy { it.articleId })
+        }
+    }
+
     /**
      * Flushes any deferred DB commits. Call this when exiting the Unread filter view,
      * starting a sync, or when the user navigates away from the flow page.

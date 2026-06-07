@@ -147,7 +147,37 @@ constructor(
         conditions: MarkAsReadConditions,
         markRead: Boolean,
     ) {
-        applicationScope.launch(ioDispatcher) {
+        launchMarkReadStatus(
+            applicationScope = applicationScope,
+            ioDispatcher = ioDispatcher,
+            markReadStatus = { markReadStatus(groupId, feedId, articleId, conditions, markRead) },
+        )
+    }
+
+    fun markReadStatusInBackground(
+        groupId: String?,
+        feedId: String?,
+        articleId: String?,
+        conditions: MarkAsReadConditions,
+        markRead: Boolean,
+        onMarked: (Set<String>) -> Unit = {},
+    ) {
+        launchMarkReadStatus(
+            applicationScope = applicationScope,
+            ioDispatcher = ioDispatcher,
+            markReadStatus = { markReadStatus(groupId, feedId, articleId, conditions, markRead) },
+            onMarked = onMarked,
+        )
+    }
+
+    suspend fun markReadStatus(
+        groupId: String?,
+        feedId: String?,
+        articleId: String?,
+        conditions: MarkAsReadConditions,
+        markRead: Boolean,
+    ): Set<String> =
+        kotlinx.coroutines.withContext(ioDispatcher) {
             rssService
                 .get()
                 .markAsRead(
@@ -158,6 +188,13 @@ constructor(
                     markRead = markRead,
                 )
         }
+
+    fun undoReadStatus(articleWithFeed: List<ArticleWithFeed>) {
+        diffMapHolder.applyReadStateWithSync(articleWithFeed = articleWithFeed, markRead = false)
+    }
+
+    fun undoReadStatus(articleIds: Set<String>) {
+        diffMapHolder.applyReadStateWithSync(articleIds = articleIds, markRead = false)
     }
 
     fun updateStarredStatus(articleId: String?, isStarred: Boolean) {
@@ -168,16 +205,18 @@ constructor(
         }
     }
 
-    fun markAsReadFromListPosition(articleId: String, markAbove: Boolean) {
-        viewModelScope.launch(ioDispatcher) {
-            val items = selectArticlesToMark(
-                items = articleListUseCase.itemSnapshotList.items,
-                targetArticleId = articleId,
-                markAbove = markAbove,
-            )
+    fun markAsReadFromListPosition(articleId: String, markAbove: Boolean): List<ArticleWithFeed> {
+        val items = selectArticlesToMark(
+            items = articleListUseCase.itemSnapshotList.items,
+            targetArticleId = articleId,
+            markAbove = markAbove,
+            isRead = { diffMapHolder.checkIfRead(it) },
+        )
 
+        if (items.isNotEmpty()) {
             diffMapHolder.updateDiff(articleWithFeed = items.toTypedArray(), markRead = true)
         }
+        return items
     }
 
     fun loadNextFeedOrGroup() {
@@ -192,15 +231,18 @@ constructor(
         }
     }
 
-    fun markAllAsRead() {
-        viewModelScope.launch {
-            val items =
-                articleListUseCase.itemSnapshotList.items
-                    .filterIsInstance<ArticleFlowItem.Article>()
-                    .map { it.articleWithFeed }
+    fun markAllAsRead(): List<ArticleWithFeed> {
+        val items =
+            articleListUseCase.itemSnapshotList.items
+                .filterIsInstance<ArticleFlowItem.Article>()
+                .map { it.articleWithFeed }
+                .filter { !diffMapHolder.checkIfRead(it) }
+                .distinctBy { it.article.id }
 
+        if (items.isNotEmpty()) {
             diffMapHolder.updateDiff(articleWithFeed = items.toTypedArray(), markRead = true)
         }
+        return items
     }
 
     fun sync() {
@@ -468,6 +510,7 @@ internal fun selectArticlesToMark(
     items: Iterable<ArticleFlowItem>,
     targetArticleId: String,
     markAbove: Boolean,
+    isRead: (ArticleWithFeed) -> Boolean = { it.article.isRead },
 ): List<ArticleWithFeed> {
     val articles = items.filterIsInstance<ArticleFlowItem.Article>().map { it.articleWithFeed }
     val targetIndex = articles.indexOfFirst { it.article.id == targetArticleId }
@@ -480,7 +523,7 @@ internal fun selectArticlesToMark(
             articles.subList(targetIndex + 1, articles.size)
         }
 
-    return relativeArticles.filter { !it.article.isRead }.distinctBy { it.article.id }
+    return relativeArticles.filter { !isRead(it) }.distinctBy { it.article.id }
 }
 
 data class ReadingUiState(
