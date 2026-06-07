@@ -19,7 +19,6 @@ import me.ash.reader.ui.ext.atElevation
 import me.ash.reader.ui.theme.palette.onDark
 
 @OptIn(ExperimentalMaterial3Api::class)
-@Deprecated("Use m3 Scaffold instead")
 @Composable
 fun RYScaffold(
     modifier: Modifier = Modifier,

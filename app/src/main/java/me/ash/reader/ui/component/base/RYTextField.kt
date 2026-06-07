@@ -46,7 +46,6 @@ import kotlinx.coroutines.launch
 import me.ash.reader.R
 
 @OptIn(ExperimentalMaterial3Api::class)
-@Deprecated("Use overloads with text field state instead")
 @Composable
 fun RYOutlineTextField(
     modifier: Modifier = Modifier,
@@ -85,7 +84,6 @@ fun RYOutlineTextField(
     )
 }
 
-@Deprecated("Use overloads with state instead")
 @Composable
 fun RYTextField2(
     value: String,
