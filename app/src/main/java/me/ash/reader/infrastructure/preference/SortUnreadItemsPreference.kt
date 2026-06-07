@@ -44,7 +44,7 @@ sealed class SortUnreadArticlesPreference(val value: Boolean) : Preference() {
         val values = listOf(Latest, Earliest)
 
         fun fromPreferences(preferences: Preferences) =
-            when (preferences[PreferencesKey.keys[flowSortUnreadArticles]?.key as Preferences.Key<Boolean>]) {
+            when (preferences[PreferencesKey.booleanKey(flowSortUnreadArticles)]) {
                 true -> Earliest
                 false -> Latest
                 else -> default

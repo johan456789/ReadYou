@@ -36,7 +36,7 @@ sealed class FlowTopBarTonalElevationPreference(val value: Int) : Preference() {
         val values = listOf(None, Elevated)
 
         fun fromPreferences(preferences: Preferences) =
-            when (preferences[PreferencesKey.keys[flowTopBarTonalElevation]?.key as Preferences.Key<Int>]) {
+            when (preferences[PreferencesKey.intKey(flowTopBarTonalElevation)]) {
                 ElevationTokens.Level0 -> None
                 ElevationTokens.Level2 -> Elevated
                 else -> default

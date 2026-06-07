@@ -56,7 +56,7 @@ sealed class SharedContentPreference(val value: Int) : Preference() {
         val values = listOf(OnlyLink, TitleAndLink)
 
         fun fromPreferences(preferences: Preferences): SharedContentPreference =
-            when (preferences[PreferencesKey.keys[sharedContent]?.key as Preferences.Key<Int>]) {
+            when (preferences[PreferencesKey.intKey(sharedContent)]) {
                 0 -> OnlyLink
                 1 -> TitleAndLink
                 else -> default

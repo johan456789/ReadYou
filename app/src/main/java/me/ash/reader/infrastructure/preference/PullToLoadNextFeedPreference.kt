@@ -46,7 +46,7 @@ sealed class PullToLoadNextFeedPreference(val value: Int) : Preference() {
 
         fun fromPreference(preference: Preferences): PullToLoadNextFeedPreference {
             val value =
-                preference[PreferencesKey.keys[pullToLoadNextFeed]?.key as Preferences.Key<Int>]
+                preference[PreferencesKey.intKey(pullToLoadNextFeed)]
             return when (value) {
                 0 -> None
                 1 -> LoadNextFeed

@@ -24,5 +24,5 @@ object CustomPrimaryColorPreference {
     }
 
     fun fromPreferences(preferences: Preferences) =
-        preferences[PreferencesKey.keys[customPrimaryColor]?.key as Preferences.Key<String>] ?: default
+        preferences[PreferencesKey.stringKey(customPrimaryColor)] ?: default
 }

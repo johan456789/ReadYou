@@ -23,5 +23,5 @@ object ReadingTextLetterSpacingPreference {
     }
 
     fun fromPreferences(preferences: Preferences) =
-        preferences[PreferencesKey.keys[readingTextLetterSpacing]?.key as Preferences.Key<Float>] ?: default
+        preferences[PreferencesKey.floatKey(readingTextLetterSpacing)] ?: default
 }

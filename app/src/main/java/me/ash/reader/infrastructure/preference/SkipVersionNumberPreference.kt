@@ -26,5 +26,5 @@ object SkipVersionNumberPreference {
     }
 
     fun fromPreferences(preferences: Preferences) =
-        preferences[PreferencesKey.keys[skipVersionNumber]?.key as Preferences.Key<String>].toVersion()
+        preferences[PreferencesKey.stringKey(skipVersionNumber)].toVersion()
 }

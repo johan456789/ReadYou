@@ -45,7 +45,7 @@ sealed class FlowArticleListDescPreference(val value: Int) : Preference() {
         val values = listOf(NONE, SHORT, LONG)
 
         fun fromPreferences(preferences: Preferences) =
-            when (preferences[PreferencesKey.keys[flowArticleListDesc]?.key as Preferences.Key<*>]) {
+            when (preferences[PreferencesKey.intKey(flowArticleListDesc)]) {
                 0 -> NONE
                 1 -> SHORT
                 2 -> LONG

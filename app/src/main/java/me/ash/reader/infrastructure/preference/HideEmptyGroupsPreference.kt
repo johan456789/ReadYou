@@ -39,7 +39,7 @@ sealed class HideEmptyGroupsPreference(val value: Boolean) : Preference() {
         val values = listOf(ON, OFF)
 
         fun fromPreferences(preferences: Preferences) =
-            when (preferences[PreferencesKey.keys[hideEmptyGroups]?.key as Preferences.Key<Boolean>]) {
+            when (preferences[PreferencesKey.booleanKey(hideEmptyGroups)]) {
                 true -> ON
                 false -> OFF
                 else -> default

@@ -24,5 +24,5 @@ object FlowFilterBarPaddingPreference {
     }
 
     fun fromPreferences(preferences: Preferences) =
-        preferences[PreferencesKey.keys[flowFilterBarPadding]?.key as Preferences.Key<Int>] ?: default
+        preferences[PreferencesKey.intKey(flowFilterBarPadding)] ?: default
 }

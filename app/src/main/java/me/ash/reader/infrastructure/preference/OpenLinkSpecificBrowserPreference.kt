@@ -13,7 +13,6 @@ import me.ash.reader.ui.ext.PreferencesKey.Companion.openLinkAppSpecificBrowser
 import me.ash.reader.ui.ext.dataStore
 import me.ash.reader.ui.ext.put
 
-@Deprecated("Use LocalUriHandler instead")
 val LocalOpenLinkSpecificBrowser = compositionLocalOf { OpenLinkSpecificBrowserPreference.default }
 
 data class OpenLinkSpecificBrowserPreference(
@@ -52,7 +51,7 @@ data class OpenLinkSpecificBrowserPreference(
     companion object {
         val default = OpenLinkSpecificBrowserPreference(null)
         fun fromPreferences(preferences: Preferences): OpenLinkSpecificBrowserPreference {
-            val packageName = preferences[PreferencesKey.keys[openLinkAppSpecificBrowser]?.key as Preferences.Key<String>]
+            val packageName = preferences[PreferencesKey.stringKey(openLinkAppSpecificBrowser)]
             return OpenLinkSpecificBrowserPreference(packageName)
         }
     }

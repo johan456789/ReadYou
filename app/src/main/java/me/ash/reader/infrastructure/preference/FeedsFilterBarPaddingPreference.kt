@@ -24,5 +24,5 @@ object FeedsFilterBarPaddingPreference {
     }
 
     fun fromPreferences(preferences: Preferences) =
-        preferences[PreferencesKey.keys[feedsFilterBarPadding]?.key as Preferences.Key<Int>] ?: default
+        preferences[PreferencesKey.intKey(feedsFilterBarPadding)] ?: default
 }

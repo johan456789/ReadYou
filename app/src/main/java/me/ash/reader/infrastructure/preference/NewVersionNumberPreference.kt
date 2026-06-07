@@ -30,5 +30,5 @@ object NewVersionNumberPreference {
     }
 
     fun fromPreferences(preferences: Preferences) =
-        preferences[PreferencesKey.keys[newVersionNumber]?.key as Preferences.Key<String>].toVersion()
+        preferences[PreferencesKey.stringKey(newVersionNumber)].toVersion()
 }

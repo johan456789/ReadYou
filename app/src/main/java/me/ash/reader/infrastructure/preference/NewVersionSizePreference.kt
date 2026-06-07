@@ -29,5 +29,5 @@ object NewVersionSizePreference {
     }
 
     fun fromPreferences(preferences: Preferences) =
-        preferences[PreferencesKey.keys[newVersionSizeString]?.key as Preferences.Key<String>] ?: default
+        preferences[PreferencesKey.stringKey(newVersionSizeString)] ?: default
 }

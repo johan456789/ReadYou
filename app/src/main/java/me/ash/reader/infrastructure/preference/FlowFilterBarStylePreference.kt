@@ -41,7 +41,7 @@ sealed class FlowFilterBarStylePreference(val value: Int) : Preference() {
         val values = listOf(Icon, IconLabel, IconLabelOnlySelected)
 
         fun fromPreferences(preferences: Preferences) =
-            when (preferences[PreferencesKey.keys[flowFilterBarStyle]?.key as Preferences.Key<Int>]) {
+            when (preferences[PreferencesKey.intKey(flowFilterBarStyle)]) {
                 0 -> Icon
                 1 -> IconLabel
                 2 -> IconLabelOnlySelected

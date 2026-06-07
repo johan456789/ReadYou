@@ -32,7 +32,7 @@ sealed class FlowArticleListDateStickyHeaderPreference(val value: Boolean) : Pre
         val values = listOf(ON, OFF)
 
         fun fromPreferences(preferences: Preferences) =
-            when (preferences[PreferencesKey.keys[flowArticleListDateStickyHeader]?.key as Preferences.Key<Boolean>]) {
+            when (preferences[PreferencesKey.booleanKey(flowArticleListDateStickyHeader)]) {
                 true -> ON
                 false -> OFF
                 else -> default

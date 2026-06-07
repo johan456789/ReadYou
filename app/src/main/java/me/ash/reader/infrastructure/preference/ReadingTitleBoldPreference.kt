@@ -32,7 +32,7 @@ sealed class ReadingTitleBoldPreference(val value: Boolean) : Preference() {
         val values = listOf(ON, OFF)
 
         fun fromPreferences(preferences: Preferences) =
-            when (preferences[PreferencesKey.keys[readingTitleBold]?.key as Preferences.Key<Boolean>]) {
+            when (preferences[PreferencesKey.booleanKey(readingTitleBold)]) {
                 true -> ON
                 false -> OFF
                 else -> default

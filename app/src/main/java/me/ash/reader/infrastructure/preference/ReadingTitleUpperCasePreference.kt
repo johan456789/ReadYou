@@ -32,7 +32,7 @@ sealed class ReadingTitleUpperCasePreference(val value: Boolean) : Preference() 
         val values = listOf(ON, OFF)
 
         fun fromPreferences(preferences: Preferences) =
-            when (preferences[PreferencesKey.keys[readingTitleUpperCase]?.key as Preferences.Key<Boolean>]) {
+            when (preferences[PreferencesKey.booleanKey(readingTitleUpperCase)]) {
                 true -> ON
                 false -> OFF
                 else -> default

@@ -29,7 +29,7 @@ sealed class ReadingAutoHideToolbarPreference(val value: Boolean) : Preference()
         val values = listOf(ON, OFF)
 
         fun fromPreferences(preferences: Preferences) =
-            when (preferences[PreferencesKey.keys[readingAutoHideToolbar]?.key as Preferences.Key<Boolean>]) {
+            when (preferences[PreferencesKey.booleanKey(readingAutoHideToolbar)]) {
                 true -> ON
                 false -> OFF
                 else -> default

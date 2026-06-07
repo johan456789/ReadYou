@@ -41,7 +41,7 @@ sealed class FeedsFilterBarStylePreference(val value: Int) : Preference() {
         val values = listOf(Icon, IconLabel, IconLabelOnlySelected)
 
         fun fromPreferences(preferences: Preferences): FeedsFilterBarStylePreference =
-            when (preferences[PreferencesKey.keys[feedsFilterBarStyle]?.key as Preferences.Key<Int>]) {
+            when (preferences[PreferencesKey.intKey(feedsFilterBarStyle)]) {
                 0 -> Icon
                 1 -> IconLabel
                 2 -> IconLabelOnlySelected

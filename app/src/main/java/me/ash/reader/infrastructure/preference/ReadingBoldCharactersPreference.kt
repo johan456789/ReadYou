@@ -29,7 +29,7 @@ sealed class ReadingBoldCharactersPreference(val value: Boolean) : Preference() 
         val values = listOf(ON, OFF)
 
         fun fromPreferences(preferences: Preferences) =
-            when (preferences[PreferencesKey.keys[readingBoldCharacters]?.key as Preferences.Key<Boolean>]) {
+            when (preferences[PreferencesKey.booleanKey(readingBoldCharacters)]) {
                 true -> ON
                 false -> OFF
                 else -> default

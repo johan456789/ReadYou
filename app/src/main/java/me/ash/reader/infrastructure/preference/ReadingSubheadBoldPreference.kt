@@ -32,7 +32,7 @@ sealed class ReadingSubheadBoldPreference(val value: Boolean) : Preference() {
         val values = listOf(ON, OFF)
 
         fun fromPreferences(preferences: Preferences) =
-            when (preferences[PreferencesKey.keys[readingSubheadBold]?.key as Preferences.Key<Boolean>]) {
+            when (preferences[PreferencesKey.booleanKey(readingSubheadBold)]) {
                 true -> ON
                 false -> OFF
                 else -> default

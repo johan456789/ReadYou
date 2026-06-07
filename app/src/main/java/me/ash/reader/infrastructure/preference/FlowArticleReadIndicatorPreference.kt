@@ -45,7 +45,7 @@ sealed class FlowArticleReadIndicatorPreference(val value: Int) : Preference() {
         val values = listOf(ExcludingStarred, AllRead, None)
 
         fun fromPreferences(preferences: Preferences) =
-            when (preferences[PreferencesKey.keys[flowArticleListReadIndicator]?.key as Preferences.Key<Int>]) {
+            when (preferences[PreferencesKey.intKey(flowArticleListReadIndicator)]) {
                 0 -> ExcludingStarred
                 1 -> AllRead
                 2 -> None

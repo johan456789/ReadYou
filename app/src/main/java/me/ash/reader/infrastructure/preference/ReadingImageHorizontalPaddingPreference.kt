@@ -24,5 +24,5 @@ object ReadingImageHorizontalPaddingPreference {
     }
 
     fun fromPreferences(preferences: Preferences) =
-        preferences[PreferencesKey.keys[readingImageHorizontalPadding]?.key as Preferences.Key<Int>] ?: default
+        preferences[PreferencesKey.intKey(readingImageHorizontalPadding)] ?: default
 }
