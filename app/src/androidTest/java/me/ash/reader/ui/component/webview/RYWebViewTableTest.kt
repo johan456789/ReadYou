@@ -123,6 +123,27 @@ class RYWebViewTableTest {
         assertEquals("rgb(17, 17, 17)", metrics.getString("nestedHeaderColor"))
     }
 
+    @Test
+    fun inlineLinksInsideDivCalloutsRemainInline() {
+        loadArticle(CALLOUT_HTML)
+
+        val metrics = evaluateJavascript(
+            """
+            (function() {
+                const callout = document.querySelector('.kg-callout-text');
+                const link = callout.querySelector('a');
+                return JSON.stringify({
+                    calloutDisplay: getComputedStyle(callout).display,
+                    linkDisplay: getComputedStyle(link).display
+                });
+            })()
+            """.trimIndent()
+        )
+
+        assertEquals("block", metrics.getString("calloutDisplay"))
+        assertEquals("inline", metrics.getString("linkDisplay"))
+    }
+
     private fun loadArticle(content: String) {
         val pageLoaded = CountDownLatch(1)
         val html = WebViewHtml.HTML.format(
@@ -255,6 +276,19 @@ class RYWebViewTableTest {
                     </td>
                 </tr>
             </table>
+        """
+
+        const val CALLOUT_HTML = """
+            <div class="kg-card kg-callout-card kg-callout-card-blue">
+                <div class="kg-callout-emoji">💡</div>
+                <div class="kg-callout-text">
+                    <b><strong style="white-space: pre-wrap;">TIP:</strong></b>
+                    If you are looking for a personal VPN, you should get one that has a verified
+                    <a href="https://example.com/no-logs">no-logs policy</a>,
+                    a large <a href="https://example.com/network">server network</a>,
+                    and modern <a href="https://example.com/protocols">protocols</a>.
+                </div>
+            </div>
         """
     }
 }

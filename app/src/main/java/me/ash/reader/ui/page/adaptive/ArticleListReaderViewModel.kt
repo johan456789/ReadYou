@@ -205,20 +205,13 @@ constructor(
         }
     }
 
-    fun markAsReadFromListByDate(date: Date, isBefore: Boolean): List<ArticleWithFeed> {
-        val items =
-            articleListUseCase.itemSnapshotList
-                .filterIsInstance<ArticleFlowItem.Article>()
-                .map { it.articleWithFeed }
-                .filter {
-                    val isRead = diffMapHolder.checkIfRead(it)
-                    if (isBefore) {
-                        date > it.article.date && !isRead
-                    } else {
-                        date < it.article.date && !isRead
-                    }
-                }
-                .distinctBy { it.article.id }
+    fun markAsReadFromListPosition(articleId: String, markAbove: Boolean): List<ArticleWithFeed> {
+        val items = selectArticlesToMark(
+            items = articleListUseCase.itemSnapshotList.items,
+            targetArticleId = articleId,
+            markAbove = markAbove,
+            isRead = { diffMapHolder.checkIfRead(it) },
+        )
 
         if (items.isNotEmpty()) {
             diffMapHolder.updateDiff(articleWithFeed = items.toTypedArray(), markRead = true)
@@ -512,6 +505,26 @@ constructor(
 }
 
 data class FlowUiState(val pagerData: PagerData, val nextFilterState: FilterState? = null)
+
+internal fun selectArticlesToMark(
+    items: Iterable<ArticleFlowItem>,
+    targetArticleId: String,
+    markAbove: Boolean,
+    isRead: (ArticleWithFeed) -> Boolean = { it.article.isRead },
+): List<ArticleWithFeed> {
+    val articles = items.filterIsInstance<ArticleFlowItem.Article>().map { it.articleWithFeed }
+    val targetIndex = articles.indexOfFirst { it.article.id == targetArticleId }
+    if (targetIndex == -1) return emptyList()
+
+    val relativeArticles =
+        if (markAbove) {
+            articles.subList(0, targetIndex)
+        } else {
+            articles.subList(targetIndex + 1, articles.size)
+        }
+
+    return relativeArticles.filter { !isRead(it) }.distinctBy { it.article.id }
+}
 
 data class ReadingUiState(
     val articleWithFeed: ArticleWithFeed? = null,

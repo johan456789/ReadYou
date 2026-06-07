@@ -91,9 +91,7 @@ import me.ash.reader.infrastructure.preference.LocalOpenLink
 import me.ash.reader.infrastructure.preference.LocalOpenLinkSpecificBrowser
 import me.ash.reader.infrastructure.preference.LocalSettings
 import me.ash.reader.infrastructure.preference.LocalSharedContent
-import me.ash.reader.infrastructure.preference.LocalSortUnreadArticles
 import me.ash.reader.infrastructure.preference.PullToLoadNextFeedPreference
-import me.ash.reader.infrastructure.preference.SortUnreadArticlesPreference
 import me.ash.reader.ui.component.FilterBar
 import me.ash.reader.ui.component.base.FeedbackIconButton
 import me.ash.reader.ui.component.base.RYExtensibleVisibility
@@ -255,19 +253,15 @@ fun FlowPage(
             }
         }
 
-    val sortByEarliest =
-        filterUiState.filter.isUnread() &&
-            LocalSortUnreadArticles.current == SortUnreadArticlesPreference.Earliest
-
     val onMarkAboveAsRead: ((ArticleWithFeed) -> Unit)? =
-        remember(sortByEarliest, showUndoSnackbarForItems) {
+        remember(showUndoSnackbarForItems) {
             {
                 showUndoSnackbarForItems(
                     createMarkedReadUndoAction(
                         items =
-                            viewModel.markAsReadFromListByDate(
-                                date = it.article.date,
-                                isBefore = sortByEarliest,
+                            viewModel.markAsReadFromListPosition(
+                                articleId = it.article.id,
+                                markAbove = true,
                             ),
                         deferDbCommits = viewModel.diffMapHolder.deferDbCommits,
                     )
@@ -276,14 +270,14 @@ fun FlowPage(
         }
 
     val onMarkBelowAsRead: ((ArticleWithFeed) -> Unit)? =
-        remember(sortByEarliest, showUndoSnackbarForItems) {
+        remember(showUndoSnackbarForItems) {
             {
                 showUndoSnackbarForItems(
                     createMarkedReadUndoAction(
                         items =
-                            viewModel.markAsReadFromListByDate(
-                                date = it.article.date,
-                                isBefore = !sortByEarliest,
+                            viewModel.markAsReadFromListPosition(
+                                articleId = it.article.id,
+                                markAbove = false,
                             ),
                         deferDbCommits = viewModel.diffMapHolder.deferDbCommits,
                     )

@@ -10,13 +10,15 @@ import android.webkit.WebChromeClient
 import android.webkit.WebView
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.runtime.Composable
+import androidx.compose.runtime.DisposableEffect
+import androidx.compose.runtime.compositionLocalOf
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
+import androidx.compose.runtime.rememberUpdatedState
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.graphics.toArgb
-import androidx.compose.ui.platform.LocalConfiguration
 import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.viewinterop.AndroidView
@@ -42,6 +44,8 @@ import me.ash.reader.ui.ext.openURL
 import me.ash.reader.ui.ext.surfaceColorAtElevation
 import me.ash.reader.ui.theme.palette.alwaysLight
 
+internal val LocalWebViewCreatedForTest = compositionLocalOf<((WebView) -> Unit)?> { null }
+
 /**
  * Custom WebView that detects horizontal gestures and tells parent views not to intercept.
  * This allows horizontal scrolling in code blocks to work smoothly without triggering
@@ -52,6 +56,7 @@ class HorizontalScrollAwareWebView(context: Context) : WebView(context) {
     private var startY = 0f
     private var isHorizontalGesture: Boolean? = null
     private val touchSlop = ViewConfiguration.get(context).scaledTouchSlop.toFloat()
+    var loadedContentKey: WebViewContentKey? = null
 
     @SuppressLint("ClickableViewAccessibility")
     override fun dispatchTouchEvent(event: MotionEvent): Boolean {
@@ -82,6 +87,8 @@ class HorizontalScrollAwareWebView(context: Context) : WebView(context) {
     }
 }
 
+data class WebViewContentKey(val baseUrl: String, val html: String, val fontSize: Int)
+
 @Composable
 fun RYWebView(
     modifier: Modifier = Modifier,
@@ -94,7 +101,6 @@ fun RYWebView(
     onHideCustomView: (() -> Unit)? = null,
 ) {
     val context = LocalContext.current
-    val maxWidth = LocalConfiguration.current.screenWidthDp.dp.value
     val openLink = LocalOpenLink.current
     val openLinkSpecificBrowser = LocalOpenLinkSpecificBrowser.current
     val tonalElevation = LocalReadingPageTonalElevation.current
@@ -120,34 +126,44 @@ fun RYWebView(
     val codeBgColor: Int =
         MaterialTheme.colorScheme.surfaceColorAtElevation((tonalElevation.value + 6).dp).toArgb()
     val boldCharacters = LocalReadingBoldCharacters.current
+    val onWebViewCreatedForTest = LocalWebViewCreatedForTest.current
 
-    val webChromeClient = remember(onShowCustomView, onHideCustomView) {
-        if (onShowCustomView != null && onHideCustomView != null) {
-            RYWebChromeClient(
-                onShowCustomViewCallback = onShowCustomView,
-                onHideCustomViewCallback = onHideCustomView,
-            )
-        } else null
+    val currentOpenLink by rememberUpdatedState(openLink)
+    val currentOpenLinkSpecificBrowser by rememberUpdatedState(openLinkSpecificBrowser)
+    val dynamicWebViewClient = remember(context, refererDomain) {
+        WebViewClient(
+            context = context,
+            refererDomain = refererDomain,
+            onOpenLink = { url ->
+                context.openURL(url, currentOpenLink, currentOpenLinkSpecificBrowser)
+            },
+        )
+    }
+
+    val onShowCustomViewState by rememberUpdatedState(onShowCustomView)
+    val onHideCustomViewState by rememberUpdatedState(onHideCustomView)
+    val webChromeClient = remember {
+        RYWebChromeClient(
+            onShowCustomViewCallback = { view, callback ->
+                onShowCustomViewState?.invoke(view, callback)
+            },
+            onHideCustomViewCallback = {
+                onHideCustomViewState?.invoke()
+            },
+        )
     }
 
     val webView by
-        remember(backgroundColor, webChromeClient) {
+        remember {
             mutableStateOf(
                 WebViewLayout.get(
                     context = context,
                     readingFontsPreference = readingFonts,
-                    webViewClient =
-                        WebViewClient(
-                            context = context,
-                            refererDomain = refererDomain,
-                            onOpenLink = { url ->
-                                context.openURL(url, openLink, openLinkSpecificBrowser)
-                            },
-                        ),
-                    webChromeClient = webChromeClient,
+                    webViewClient = dynamicWebViewClient,
+                    webChromeClient = null,
                     onImageClick = onImageClick,
                     onLinkLongPress = onLinkLongPress,
-                )
+                ).also { onWebViewCreatedForTest?.invoke(it) }
             )
         }
 
@@ -159,16 +175,31 @@ fun RYWebView(
         } else null
     val htmlBaseUrl = baseUrl ?: "about:blank"
 
+    DisposableEffect(Unit) {
+        onDispose {
+            webView.releaseArticleMedia(webChromeClient)
+        }
+    }
+
     AndroidView(
         modifier = modifier,
         factory = { webView },
         update = { wv ->
-                Timber.tag("RLog").i("maxWidth: ${maxWidth}")
-                Timber.tag("RLog").i("readingFont: ${context.filesDir.absolutePath}")
-                Timber.tag("RLog").i("CustomWebView: ${content}")
+            if (wv.webViewClient !== dynamicWebViewClient) {
+                wv.webViewClient = dynamicWebViewClient
+            }
+            wv.webChromeClient =
+                if (onShowCustomView != null && onHideCustomView != null) webChromeClient else null
             wv.settings.defaultFontSize = fontSize
-            wv.loadDataWithBaseURL(
-                htmlBaseUrl,
+            wv.settings.standardFontFamily =
+                when (readingFonts) {
+                    ReadingFontsPreference.Cursive -> "cursive"
+                    ReadingFontsPreference.Monospace -> "monospace"
+                    ReadingFontsPreference.SansSerif -> "sans-serif"
+                    ReadingFontsPreference.Serif -> "serif"
+                    else -> "sans-serif"
+                }
+            val html =
                 WebViewHtml.HTML.format(
                     WebViewStyle.get(
                         fontSize = fontSize,
@@ -194,11 +225,32 @@ fun RYWebView(
                     htmlBaseUrl,
                     content,
                     WebViewScript.get(boldCharacters.value),
-                ),
-                "text/HTML",
-                "UTF-8",
-                null,
-            )
+                )
+            val contentKey = WebViewContentKey(htmlBaseUrl, html, fontSize)
+            if (wv.loadedContentKey != contentKey) {
+                Timber.tag("RLog").i("readingFont: ${context.filesDir.absolutePath}")
+                Timber.tag("RLog").i("CustomWebView: ${content}")
+                wv.loadedContentKey = contentKey
+                wv.loadDataWithBaseURL(
+                    htmlBaseUrl,
+                    html,
+                    "text/HTML",
+                    "UTF-8",
+                    null,
+                )
+            }
         },
     )
+}
+
+private fun WebView.releaseArticleMedia(webChromeClient: RYWebChromeClient?) {
+    webChromeClient?.releaseCustomView()
+    (parent as? android.view.ViewGroup)?.removeView(this)
+    runCatching { stopLoading() }
+    runCatching { loadUrl("about:blank") }
+    runCatching { onPause() }
+    runCatching { removeAllViews() }
+    runCatching { this.webChromeClient = null }
+    runCatching { this.webViewClient = android.webkit.WebViewClient() }
+    runCatching { destroy() }
 }
