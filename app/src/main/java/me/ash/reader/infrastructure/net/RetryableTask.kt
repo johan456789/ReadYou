@@ -65,7 +65,7 @@ inline fun <R, T> RetryableTaskResult<T>.fold(
     }
     return when (this) {
         is RetryableTaskResult.Failure -> onFailure(finalException)
-        is RetryableTaskResult.Success<*> -> onSuccess(value as T)
+        is RetryableTaskResult.Success -> onSuccess(value)
     }
 }
 
@@ -76,7 +76,7 @@ inline fun <T> RetryableTaskResult<T>.mapFailure(
     contract { callsInPlace(onFailure, InvocationKind.AT_MOST_ONCE) }
     return when (this) {
         is RetryableTaskResult.Failure -> RetryableTaskResult.Failure(onFailure(finalException))
-        is RetryableTaskResult.Success<*> -> this as RetryableTaskResult<T>
+        is RetryableTaskResult.Success -> this
     }
 }
 

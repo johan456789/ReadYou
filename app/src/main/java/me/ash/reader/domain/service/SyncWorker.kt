@@ -63,8 +63,7 @@ constructor(
 
     companion object {
         private const val SYNC_WORK_NAME_PERIODIC = "ReadYou"
-        @Deprecated("do not use")
-        private const val READER_WORK_NAME_PERIODIC = "FETCH_FULL_CONTENT_PERIODIC"
+        private const val LEGACY_READER_WORK_NAME_PERIODIC = "FETCH_FULL_CONTENT_PERIODIC"
         private const val POST_SYNC_WORK_NAME = "POST_SYNC_WORK"
 
         private const val SYNC_ONETIME_NAME = "SYNC_ONETIME"
@@ -80,7 +79,7 @@ constructor(
 
         fun cancelPeriodicWork(workManager: WorkManager) {
             workManager.cancelUniqueWork(SYNC_WORK_NAME_PERIODIC)
-            workManager.cancelUniqueWork(READER_WORK_NAME_PERIODIC)
+            workManager.cancelUniqueWork(LEGACY_READER_WORK_NAME_PERIODIC)
         }
 
         fun enqueueOneTimeWork(workManager: WorkManager, inputData: Data = workDataOf()) {
@@ -152,7 +151,7 @@ constructor(
                     .build(),
             )
 
-            workManager.cancelUniqueWork(READER_WORK_NAME_PERIODIC)
+            workManager.cancelUniqueWork(LEGACY_READER_WORK_NAME_PERIODIC)
         }
     }
 }

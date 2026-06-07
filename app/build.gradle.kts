@@ -1,6 +1,5 @@
 import java.io.FileInputStream
 import java.util.Properties
-import org.jetbrains.kotlin.compose.compiler.gradle.ComposeFeatureFlag
 import org.jetbrains.kotlin.gradle.dsl.JvmTarget
 
 plugins {
@@ -127,7 +126,6 @@ android {
         resources.excludes.add("rome-utils-*.jar")
     }
     androidResources { generateLocaleConfig = true }
-    composeCompiler { featureFlags = setOf(ComposeFeatureFlag.PausableComposition) }
     namespace = "me.ash.reader"
 }
 

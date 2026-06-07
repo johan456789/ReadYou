@@ -31,7 +31,7 @@ import javax.inject.Inject
 
 @HiltViewModel
 class AccountViewModel @Inject constructor(
-    @ApplicationContext private val context: Context,
+    @param:ApplicationContext private val context: Context,
     private val accountService: AccountService,
     private val rssService: RssService,
     private val opmlService: OpmlService,
