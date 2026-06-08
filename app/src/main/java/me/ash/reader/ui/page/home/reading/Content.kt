@@ -16,12 +16,16 @@ import androidx.compose.foundation.verticalScroll
 import androidx.compose.material3.ExperimentalMaterial3ExpressiveApi
 import androidx.compose.material3.LoadingIndicator
 import androidx.compose.runtime.Composable
+import androidx.compose.runtime.getValue
+import androidx.compose.runtime.produceState
 import androidx.compose.runtime.remember
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.platform.LocalUriHandler
 import androidx.compose.ui.unit.dp
 import java.util.Date
+import kotlinx.coroutines.Dispatchers
+import kotlinx.coroutines.withContext
 import me.ash.reader.ui.component.reader.LocalTextContentWidth
 import me.ash.reader.ui.component.scrollbar.drawVerticalScrollIndicator
 import me.ash.reader.ui.component.webview.RYWebView
@@ -73,8 +77,11 @@ fun Content(
     if (isLoading) {
         Column { LoadingIndicator(modifier = Modifier.size(56.dp)) }
     } else {
-        val normalizedContent = remember(content, link) {
-            ArticleImageUrlNormalizer.normalize(content, link)
+        val normalizedContent by produceState(initialValue = content, content, link) {
+            value =
+                withContext(Dispatchers.Default) {
+                    ArticleImageUrlNormalizer.normalize(content, link)
+                }
         }
 
         Column(
