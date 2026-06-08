@@ -20,14 +20,17 @@ object ArticleImageUrlNormalizer {
     private fun normalizeImageElement(image: Element, baseUrl: String?) {
         val srcset = image.attr("srcset").takeIf { it.isNotBlank() }
         val src = image.attr("src").takeIf { it.isNotBlank() }
+        val upgradedSrc = src
+            ?.let { resolveUrl(it, baseUrl) }
+            ?.let { upgradeToHttps(it) }
 
         if (!srcset.isNullOrBlank()) {
-            val secureCandidates = parseSrcset(srcset)
+            val resolvedCandidates = parseSrcset(srcset)
                 .mapNotNull { candidate ->
                     val resolvedUrl = resolveUrl(candidate.url, baseUrl) ?: return@mapNotNull null
                     candidate.copy(url = resolvedUrl)
                 }
-                .filter { isHttps(it.url) }
+            val secureCandidates = resolvedCandidates.filter { isHttps(it.url) }
 
             if (secureCandidates.isNotEmpty()) {
                 val preferredCandidate = secureCandidates.first()
@@ -35,18 +38,17 @@ object ArticleImageUrlNormalizer {
                 image.attr("srcset", secureCandidates.joinToString(", ") { it.toSrcsetEntry() })
                 return
             }
-        }
 
-        val upgradedSrc = src
-            ?.let { resolveUrl(it, baseUrl) }
-            ?.let { upgradeToHttps(it) }
+            val upgradedCandidates = resolvedCandidates.map { it.copy(url = upgradeToHttps(it.url)) }
+            if (upgradedCandidates.isNotEmpty()) {
+                image.attr("src", upgradedSrc ?: upgradedCandidates.first().url)
+                image.attr("srcset", upgradedCandidates.joinToString(", ") { it.toSrcsetEntry() })
+                return
+            }
+        }
 
         if (!upgradedSrc.isNullOrBlank()) {
             image.attr("src", upgradedSrc)
-        }
-
-        if (!srcset.isNullOrBlank()) {
-            image.removeAttr("srcset")
         }
     }
 

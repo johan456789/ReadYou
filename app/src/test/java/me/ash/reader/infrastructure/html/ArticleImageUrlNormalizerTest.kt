@@ -2,7 +2,6 @@ package me.ash.reader.infrastructure.html
 
 import org.jsoup.Jsoup
 import org.junit.Assert.assertEquals
-import org.junit.Assert.assertFalse
 import org.junit.Test
 
 class ArticleImageUrlNormalizerTest {
@@ -40,7 +39,7 @@ class ArticleImageUrlNormalizerTest {
     }
 
     @Test
-    fun `normalize upgrades src to https and removes insecure srcset when no secure candidate exists`() {
+    fun `normalize upgrades src and srcset to https when no secure candidate exists`() {
         val html =
             """
             <p>
@@ -61,6 +60,36 @@ class ArticleImageUrlNormalizerTest {
         val image = Jsoup.parseBodyFragment(normalized).selectFirst("img")!!
 
         assertEquals("https://example.com/image.jpg", image.attr("src"))
-        assertFalse(image.hasAttr("srcset"))
+        assertEquals(
+            "https://example.com/image-320.jpg 320w, https://example.com/image-640.jpg 640w",
+            image.attr("srcset"),
+        )
+    }
+
+    @Test
+    fun `normalize promotes upgraded srcset candidate when image has no src`() {
+        val html =
+            """
+            <p>
+                <img
+                    alt="Only srcset"
+                    srcset="http://example.com/image-320.jpg 320w, http://example.com/image-640.jpg 640w"
+                />
+            </p>
+            """.trimIndent()
+
+        val normalized =
+            ArticleImageUrlNormalizer.normalize(
+                html = html,
+                baseUrl = "https://example.com/article",
+            )
+
+        val image = Jsoup.parseBodyFragment(normalized).selectFirst("img")!!
+
+        assertEquals("https://example.com/image-320.jpg", image.attr("src"))
+        assertEquals(
+            "https://example.com/image-320.jpg 320w, https://example.com/image-640.jpg 640w",
+            image.attr("srcset"),
+        )
     }
 }
