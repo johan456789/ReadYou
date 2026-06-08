@@ -43,7 +43,9 @@ class OpmlService @Inject constructor(
     suspend fun saveToDatabase(inputStream: InputStream) {
         withContext(ioDispatcher) {
             val accountId = accountService.getCurrentAccountId()
-            val defaultGroup = groupDao.queryById(getDefaultGroupId(accountId))!!
+            val defaultGroup =
+                groupDao.queryById(getDefaultGroupId(accountId))
+                    ?: throw IllegalStateException("Default group not found for account $accountId")
             val groupWithFeedList =
                 OPMLDataSource.parseFileInputStream(inputStream, defaultGroup, accountId)
             groupWithFeedList.forEach { groupWithFeed ->
