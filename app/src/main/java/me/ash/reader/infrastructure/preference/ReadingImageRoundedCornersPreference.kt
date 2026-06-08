@@ -24,5 +24,5 @@ object ReadingImageRoundedCornersPreference {
     }
 
     fun fromPreferences(preferences: Preferences) =
-        preferences[PreferencesKey.keys[readingImageRoundedCorners]?.key as Preferences.Key<Int>] ?: default
+        preferences[PreferencesKey.intKey(readingImageRoundedCorners)] ?: default
 }

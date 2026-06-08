@@ -60,7 +60,7 @@ sealed class ReadingSubheadAlignPreference(val value: Int) : Preference() {
         val values = listOf(Start, End, Center, Justify)
 
         fun fromPreferences(preferences: Preferences): ReadingSubheadAlignPreference =
-            when (preferences[PreferencesKey.keys[readingSubheadAlign]?.key as Preferences.Key<Int>]) {
+            when (preferences[PreferencesKey.intKey(readingSubheadAlign)]) {
                 0 -> Start
                 1 -> End
                 2 -> Center

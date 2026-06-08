@@ -25,5 +25,5 @@ object ThemeIndexPreference {
     }
 
     fun fromPreferences(preferences: Preferences) =
-        preferences[PreferencesKey.keys[themeIndex]?.key as Preferences.Key<Int>] ?: default
+        preferences[PreferencesKey.intKey(themeIndex)] ?: default
 }

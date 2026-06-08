@@ -65,7 +65,7 @@ sealed class BasicFontsPreference(val value: Int) : Preference() {
         val values = listOf(GoogleSans, System, External)
 
         fun fromPreferences(preferences: Preferences): BasicFontsPreference =
-            when (preferences[PreferencesKey.keys[basicFonts]?.key as Preferences.Key<Int>]) {
+            when (preferences[PreferencesKey.intKey(basicFonts)]) {
                 0 -> System
                 1 -> GoogleSans
                 5 -> External

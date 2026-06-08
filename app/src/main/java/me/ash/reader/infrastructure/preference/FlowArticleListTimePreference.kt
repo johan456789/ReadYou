@@ -32,7 +32,7 @@ sealed class FlowArticleListTimePreference(val value: Boolean) : Preference() {
         val values = listOf(ON, OFF)
 
         fun fromPreferences(preferences: Preferences) =
-            when (preferences[PreferencesKey.keys[flowArticleListTime]?.key as Preferences.Key<Boolean>]) {
+            when (preferences[PreferencesKey.booleanKey(flowArticleListTime)]) {
                 true -> ON
                 false -> OFF
                 else -> default

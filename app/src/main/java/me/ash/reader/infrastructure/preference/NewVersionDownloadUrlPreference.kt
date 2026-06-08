@@ -24,5 +24,5 @@ object NewVersionDownloadUrlPreference {
     }
 
     fun fromPreferences(preferences: Preferences) =
-        preferences[PreferencesKey.keys[newVersionDownloadUrl]?.key as Preferences.Key<String>] ?: default
+        preferences[PreferencesKey.stringKey(newVersionDownloadUrl)] ?: default
 }

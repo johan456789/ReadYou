@@ -38,7 +38,7 @@ sealed class InitialPagePreference(val value: Int) : Preference() {
         val values = listOf(FeedsPage, FlowPage)
 
         fun fromPreferences(preferences: Preferences) =
-            when (preferences[PreferencesKey.keys[initialPage]?.key as Preferences.Key<Int>]) {
+            when (preferences[PreferencesKey.intKey(initialPage)]) {
                 0 -> FeedsPage
                 1 -> FlowPage
                 else -> default

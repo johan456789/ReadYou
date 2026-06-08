@@ -50,7 +50,7 @@ sealed class InitialFilterPreference(val value: Int) : Preference() {
         val values = listOf(Starred, Unread, All)
 
         fun fromPreferences(preferences: Preferences) =
-            when (preferences[PreferencesKey.keys[initialFilter]?.key as Preferences.Key<Int>]) {
+            when (preferences[PreferencesKey.intKey(initialFilter)]) {
                 0 -> Starred
                 1 -> Unread
                 2 -> All

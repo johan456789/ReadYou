@@ -72,7 +72,7 @@ sealed class ReadingFontsPreference(val value: Int) : Preference() {
         val values = listOf(GoogleSans, System, Serif, SansSerif, Monospace, Cursive, External)
 
         fun fromPreferences(preferences: Preferences): ReadingFontsPreference =
-            when (preferences[PreferencesKey.keys[readingFonts]?.key as Preferences.Key<Int>]) {
+            when (preferences[PreferencesKey.intKey(readingFonts)]) {
                 0 -> System
                 1 -> Serif
                 2 -> SansSerif

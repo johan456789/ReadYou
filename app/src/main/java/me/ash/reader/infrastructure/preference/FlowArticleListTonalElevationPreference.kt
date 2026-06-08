@@ -47,7 +47,7 @@ sealed class FlowArticleListTonalElevationPreference(val value: Int) : Preferenc
         val values = listOf(Level0, Level1, Level2, Level3, Level4, Level5)
 
         fun fromPreferences(preferences: Preferences) =
-            when (preferences[PreferencesKey.keys[flowArticleListTonalElevation]?.key as Preferences.Key<Int>]) {
+            when (preferences[PreferencesKey.intKey(flowArticleListTonalElevation)]) {
                 ElevationTokens.Level0 -> Level0
                 ElevationTokens.Level1 -> Level1
                 ElevationTokens.Level2 -> Level2

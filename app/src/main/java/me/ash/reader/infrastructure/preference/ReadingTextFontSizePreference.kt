@@ -23,5 +23,5 @@ object ReadingTextFontSizePreference {
     }
 
     fun fromPreferences(preferences: Preferences) =
-        preferences[PreferencesKey.keys[readingTextFontSize]?.key as Preferences.Key<Int>] ?: default
+        preferences[PreferencesKey.intKey(readingTextFontSize)] ?: default
 }

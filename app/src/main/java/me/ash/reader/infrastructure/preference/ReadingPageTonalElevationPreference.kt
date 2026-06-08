@@ -36,7 +36,7 @@ sealed class ReadingPageTonalElevationPreference(val value: Int) : Preference() 
         val values = listOf(Outlined, Elevated)
 
         fun fromPreferences(preferences: Preferences) =
-            when (preferences[PreferencesKey.keys[readingPageTonalElevation]?.key as Preferences.Key<Int>]) {
+            when (preferences[PreferencesKey.intKey(readingPageTonalElevation)]) {
                 ElevationTokens.Level0 -> Outlined
                 ElevationTokens.Level2 -> Elevated
                 else -> default

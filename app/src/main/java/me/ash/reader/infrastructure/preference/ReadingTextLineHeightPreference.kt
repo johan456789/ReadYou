@@ -25,5 +25,5 @@ data object ReadingTextLineHeightPreference {
     fun Float.coerceToRange() = coerceIn(range)
 
     fun fromPreferences(preferences: Preferences) =
-        preferences[PreferencesKey.keys[readingTextLineHeight]?.key as Preferences.Key<Float>] ?: default
+        preferences[PreferencesKey.floatKey(readingTextLineHeight)] ?: default
 }

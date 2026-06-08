@@ -69,7 +69,7 @@ sealed class ReadingTextAlignPreference(val value: Int) : Preference() {
         val values = listOf(Start, End, Center, Justify)
 
         fun fromPreferences(preferences: Preferences): ReadingTextAlignPreference =
-            when (preferences[PreferencesKey.keys[readingTextAlign]?.key as Preferences.Key<Int>]) {
+            when (preferences[PreferencesKey.intKey(readingTextAlign)]) {
                 0 -> Start
                 1 -> End
                 2 -> Center

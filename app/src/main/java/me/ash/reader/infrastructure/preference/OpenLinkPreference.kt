@@ -11,7 +11,6 @@ import me.ash.reader.ui.ext.PreferencesKey.Companion.openLink
 import me.ash.reader.ui.ext.dataStore
 import me.ash.reader.ui.ext.put
 
-@Deprecated("Use LocalUriHandler instead")
 val LocalOpenLink =
     compositionLocalOf<OpenLinkPreference> { OpenLinkPreference.default }
 
@@ -48,7 +47,7 @@ sealed class OpenLinkPreference(val value: Int) : Preference() {
         val values = listOf(AutoPreferCustomTabs, AutoPreferDefaultBrowser, CustomTabs, DefaultBrowser, SpecificBrowser, AlwaysAsk)
 
         fun fromPreferences(preferences: Preferences) =
-            when (preferences[PreferencesKey.keys[openLink]?.key as Preferences.Key<Int>]) {
+            when (preferences[PreferencesKey.intKey(openLink)]) {
                 0 -> AutoPreferCustomTabs
                 1 -> AutoPreferDefaultBrowser
                 2 -> CustomTabs

@@ -39,7 +39,7 @@ sealed class MarkAsReadOnScrollPreference(val value: Boolean) : Preference() {
         val values = listOf(ON, OFF)
 
         fun fromPreferences(preferences: Preferences) =
-            when (preferences[PreferencesKey.keys[markAsReadOnScroll]?.key as Preferences.Key<Boolean>]) {
+            when (preferences[PreferencesKey.booleanKey(markAsReadOnScroll)]) {
                 true -> ON
                 false -> OFF
                 else -> default

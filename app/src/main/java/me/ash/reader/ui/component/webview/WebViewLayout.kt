@@ -7,6 +7,7 @@ import timber.log.Timber
 import android.webkit.JavascriptInterface
 import me.ash.reader.infrastructure.preference.ReadingFontsPreference
 
+@Suppress("DEPRECATION")
 object WebViewLayout {
 
     @SuppressLint("SetJavaScriptEnabled")

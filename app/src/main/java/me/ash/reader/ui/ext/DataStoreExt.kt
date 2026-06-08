@@ -29,10 +29,8 @@ val Context.skipVersionNumber: String
 val Context.isFirstLaunch: Boolean
     get() = this.dataStore.get(PreferencesKey.isFirstLaunch) ?: true
 
-@Deprecated("Use AccountService to retrieve the current account")
 val Context.currentAccountId: Int
     get() = this.dataStore.get(PreferencesKey.currentAccountId) ?: 1
-@Deprecated("Use AccountService to retrieve the current account")
 val Context.currentAccountType: Int
     get() = this.dataStore.get(PreferencesKey.currentAccountType) ?: 1
 
@@ -45,37 +43,21 @@ val Context.languages: Int
     get() = this.dataStore.get(PreferencesKey.languages) ?: 0
 
 suspend fun DataStore<Preferences>.put(dataStoreKeys: String, value: Any) {
-    val key = PreferencesKey.keys[dataStoreKeys]?.key ?: return
+    val key = PreferencesKey.keys[dataStoreKeys] ?: return
     this.edit {
         withContext(Dispatchers.IO) {
-            when (value) {
-                is Int -> {
-                    it[key as Preferences.Key<Int>] = value
-                }
-                is Long -> {
-                    it[key as Preferences.Key<Long>] = value
-                }
-                is String -> {
-                    it[key as Preferences.Key<String>] = value
-                }
-                is Boolean -> {
-                    it[key as Preferences.Key<Boolean>] = value
-                }
-                is Float -> {
-                    it[key as Preferences.Key<Float>] = value
-                }
-                is Double -> {
-                    it[key as Preferences.Key<Double>] = value
-                }
-                else -> {
-                    throw IllegalArgumentException("Unsupported type")
-                }
+            when {
+                key is PreferencesKey.IntKey && value is Int -> it[key.key] = value
+                key is PreferencesKey.LongKey && value is Long -> it[key.key] = value
+                key is PreferencesKey.StringKey && value is String -> it[key.key] = value
+                key is PreferencesKey.BooleanKey && value is Boolean -> it[key.key] = value
+                key is PreferencesKey.FloatKey && value is Float -> it[key.key] = value
+                else -> throw IllegalArgumentException("Unsupported type")
             }
         }
     }
 }
 
-@Suppress("UNCHECKED_CAST")
 fun <T> DataStore<Preferences>.get(key: String): T? {
     return runBlocking {
         this@get.data
@@ -89,9 +71,8 @@ fun <T> DataStore<Preferences>.get(key: String): T? {
                 }
             }
             .map { preferences ->
-                PreferencesKey.keys[key]?.let { typedKey ->
-                    preferences[typedKey.key as Preferences.Key<T>]
-                }
+                @Suppress("UNCHECKED_CAST")
+                PreferencesKey.keys[key]?.let { typedKey -> typedKey.get(preferences) as T? }
             }
             .first()
     }
@@ -100,33 +81,54 @@ fun <T> DataStore<Preferences>.get(key: String): T? {
 sealed interface PreferencesKey {
     val name: String
     val key: Preferences.Key<*>
+    fun get(preferences: Preferences): Any?
 
     data class IntKey(
         override val name: String,
         override val key: Preferences.Key<Int> = intPreferencesKey(name),
-    ) : PreferencesKey
+    ) : PreferencesKey {
+        override fun get(preferences: Preferences): Int? = preferences[key]
+    }
 
     data class LongKey(
         override val name: String,
         override val key: Preferences.Key<Long> = longPreferencesKey(name),
-    ) : PreferencesKey
+    ) : PreferencesKey {
+        override fun get(preferences: Preferences): Long? = preferences[key]
+    }
 
     data class StringKey(
         override val name: String,
         override val key: Preferences.Key<String> = stringPreferencesKey(name),
-    ) : PreferencesKey
+    ) : PreferencesKey {
+        override fun get(preferences: Preferences): String? = preferences[key]
+    }
 
     data class BooleanKey(
         override val name: String,
         override val key: Preferences.Key<Boolean> = booleanPreferencesKey(name),
-    ) : PreferencesKey
+    ) : PreferencesKey {
+        override fun get(preferences: Preferences): Boolean? = preferences[key]
+    }
 
     data class FloatKey(
         override val name: String,
         override val key: Preferences.Key<Float> = floatPreferencesKey(name),
-    ) : PreferencesKey
+    ) : PreferencesKey {
+        override fun get(preferences: Preferences): Float? = preferences[key]
+    }
 
     companion object {
+        fun intKey(name: String): Preferences.Key<Int> = intPreferencesKey(name)
+
+        fun longKey(name: String): Preferences.Key<Long> = longPreferencesKey(name)
+
+        fun stringKey(name: String): Preferences.Key<String> = stringPreferencesKey(name)
+
+        fun booleanKey(name: String): Preferences.Key<Boolean> = booleanPreferencesKey(name)
+
+        fun floatKey(name: String): Preferences.Key<Float> = floatPreferencesKey(name)
+
         // Version
         const val isFirstLaunch = "isFirstLaunch"
         const val newVersionPublishDate = "newVersionPublishDate"
@@ -235,7 +237,7 @@ sealed interface PreferencesKey {
                 BooleanKey(flowArticleListFeedIcon),
                 BooleanKey(flowArticleListFeedName),
                 BooleanKey(flowArticleListImage),
-                BooleanKey(flowArticleListDesc),
+                IntKey(flowArticleListDesc),
                 BooleanKey(flowArticleListTime),
                 BooleanKey(flowArticleListDateStickyHeader),
                 IntKey(flowArticleListTonalElevation),
@@ -268,7 +270,7 @@ sealed interface PreferencesKey {
                 IntKey(swipeEndAction),
                 BooleanKey(markAsReadOnScroll),
                 BooleanKey(hideEmptyGroups),
-                BooleanKey(pullToLoadNextFeed),
+                IntKey(pullToLoadNextFeed),
                 BooleanKey(pullToSwitchArticle),
                 IntKey(openLink),
                 StringKey(openLinkAppSpecificBrowser),

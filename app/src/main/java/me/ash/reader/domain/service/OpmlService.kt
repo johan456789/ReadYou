@@ -14,7 +14,6 @@ import me.ash.reader.domain.repository.FeedDao
 import me.ash.reader.domain.repository.GroupDao
 import me.ash.reader.infrastructure.di.IODispatcher
 import me.ash.reader.infrastructure.rss.OPMLDataSource
-import me.ash.reader.ui.ext.currentAccountId
 import me.ash.reader.ui.ext.getDefaultGroupId
 import java.io.InputStream
 import java.util.*
@@ -43,9 +42,12 @@ class OpmlService @Inject constructor(
     @Throws(Exception::class)
     suspend fun saveToDatabase(inputStream: InputStream) {
         withContext(ioDispatcher) {
-            val defaultGroup = groupDao.queryById(getDefaultGroupId(context.currentAccountId))!!
+            val accountId = accountService.getCurrentAccountId()
+            val defaultGroup =
+                groupDao.queryById(getDefaultGroupId(accountId))
+                    ?: throw IllegalStateException("Default group not found for account $accountId")
             val groupWithFeedList =
-                OPMLDataSource.parseFileInputStream(inputStream, defaultGroup, context.currentAccountId)
+                OPMLDataSource.parseFileInputStream(inputStream, defaultGroup, accountId)
             groupWithFeedList.forEach { groupWithFeed ->
                 if (groupWithFeed.group != defaultGroup) {
                     groupDao.insert(groupWithFeed.group)

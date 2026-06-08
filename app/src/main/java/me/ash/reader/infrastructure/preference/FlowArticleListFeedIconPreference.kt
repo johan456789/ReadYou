@@ -32,7 +32,7 @@ sealed class FlowArticleListFeedIconPreference(val value: Boolean) : Preference(
         val values = listOf(ON, OFF)
 
         fun fromPreferences(preferences: Preferences) =
-            when (preferences[PreferencesKey.keys[flowArticleListFeedIcon]?.key as Preferences.Key<Boolean>]) {
+            when (preferences[PreferencesKey.booleanKey(flowArticleListFeedIcon)]) {
                 true -> ON
                 false -> OFF
                 else -> default

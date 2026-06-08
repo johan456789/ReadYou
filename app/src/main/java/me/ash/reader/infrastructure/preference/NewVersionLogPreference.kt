@@ -24,5 +24,5 @@ object NewVersionLogPreference {
     }
 
     fun fromPreferences(preferences: Preferences) =
-        preferences[PreferencesKey.keys[newVersionLog]?.key as Preferences.Key<String>] ?: default
+        preferences[PreferencesKey.stringKey(newVersionLog)] ?: default
 }

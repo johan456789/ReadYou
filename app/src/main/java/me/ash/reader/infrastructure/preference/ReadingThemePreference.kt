@@ -121,7 +121,7 @@ sealed class ReadingThemePreference(val value: Int) : Preference() {
         val values = listOf(MaterialYou, Reeder, Paper, Custom)
 
         fun fromPreferences(preferences: Preferences): ReadingThemePreference =
-            when (preferences[PreferencesKey.keys[readingTheme]?.key as Preferences.Key<Int>]) {
+            when (preferences[PreferencesKey.intKey(readingTheme)]) {
                 0 -> MaterialYou
                 1 -> Reeder
                 2 -> Paper

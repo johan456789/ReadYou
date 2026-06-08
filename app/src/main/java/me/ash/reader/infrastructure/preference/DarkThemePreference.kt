@@ -49,7 +49,7 @@ sealed class DarkThemePreference(val value: Int) : Preference() {
         val values = listOf(UseDeviceTheme, ON, OFF)
 
         fun fromPreferences(preferences: Preferences) =
-            when (preferences[PreferencesKey.keys[darkTheme]?.key as Preferences.Key<Int>]) {
+            when (preferences[PreferencesKey.intKey(darkTheme)]) {
                 0 -> UseDeviceTheme
                 1 -> ON
                 2 -> OFF

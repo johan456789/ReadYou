@@ -24,5 +24,5 @@ object NewVersionPublishDatePreference {
     }
 
     fun fromPreferences(preferences: Preferences) =
-        preferences[PreferencesKey.keys[newVersionPublishDate]?.key as Preferences.Key<String>] ?: default
+        preferences[PreferencesKey.stringKey(newVersionPublishDate)] ?: default
 }

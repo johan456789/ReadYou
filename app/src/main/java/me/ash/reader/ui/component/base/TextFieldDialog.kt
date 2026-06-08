@@ -21,7 +21,6 @@ import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.window.DialogProperties
 import me.ash.reader.R
 
-@Deprecated("Use overload with TextFieldState instead")
 @Composable
 fun TextFieldDialog(
     modifier: Modifier = Modifier,

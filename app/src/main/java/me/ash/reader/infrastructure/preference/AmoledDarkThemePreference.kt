@@ -29,7 +29,7 @@ sealed class AmoledDarkThemePreference(val value: Boolean) : Preference() {
         val values = listOf(ON, OFF)
 
         fun fromPreferences(preferences: Preferences) =
-            when (preferences[PreferencesKey.keys[amoledDarkTheme]?.key as Preferences.Key<Boolean>]) {
+            when (preferences[PreferencesKey.booleanKey(amoledDarkTheme)]) {
                 true -> ON
                 false -> OFF
                 else -> default
