@@ -20,6 +20,7 @@ import me.ash.reader.domain.model.article.Article
 import me.ash.reader.domain.model.feed.Feed
 import me.ash.reader.domain.repository.FeedDao
 import me.ash.reader.infrastructure.di.IODispatcher
+import me.ash.reader.infrastructure.html.ArticleImageUrlNormalizer
 import me.ash.reader.infrastructure.html.Readability
 import me.ash.reader.ui.ext.currentAccountId
 import me.ash.reader.ui.ext.decodeHTML
@@ -112,7 +113,7 @@ constructor(
                     if (h1Element != null && h1Element.hasText() && h1Element.text() == title) {
                         h1Element.remove()
                     }
-                    articleContent.toString()
+                    ArticleImageUrlNormalizer.normalize(articleContent.toString(), link)
                 } ?: throw IOException("articleContent is null")
             } else throw IOException(response.message)
         }

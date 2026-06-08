@@ -25,6 +25,7 @@ import java.util.Date
 import me.ash.reader.ui.component.reader.LocalTextContentWidth
 import me.ash.reader.ui.component.scrollbar.drawVerticalScrollIndicator
 import me.ash.reader.ui.component.webview.RYWebView
+import me.ash.reader.infrastructure.html.ArticleImageUrlNormalizer
 import me.ash.reader.ui.ext.extractDomain
 import me.ash.reader.ui.ext.roundClick
 
@@ -72,6 +73,10 @@ fun Content(
     if (isLoading) {
         Column { LoadingIndicator(modifier = Modifier.size(56.dp)) }
     } else {
+        val normalizedContent = remember(content, link) {
+            ArticleImageUrlNormalizer.normalize(content, link)
+        }
+
         Column(
             modifier =
                 modifier
@@ -87,7 +92,7 @@ fun Content(
 
                 RYWebView(
                     modifier = Modifier.fillMaxSize(),
-                    content = content,
+                    content = normalizedContent,
                     baseUrl = link,
                     refererDomain = link.extractDomain(),
                     onImageClick = onImageClick,
