@@ -3,8 +3,9 @@ package me.ash.reader.ui.component.webview
 import android.annotation.SuppressLint
 import android.content.Context
 import android.graphics.Color
-import timber.log.Timber
 import android.webkit.JavascriptInterface
+import android.webkit.WebSettings
+import timber.log.Timber
 import me.ash.reader.infrastructure.preference.ReadingFontsPreference
 
 @Suppress("DEPRECATION")
@@ -52,6 +53,7 @@ object WebViewLayout {
                     }
                 domStorageEnabled = true
                 javaScriptEnabled = true
+                mixedContentMode = WebSettings.MIXED_CONTENT_COMPATIBILITY_MODE
                 mediaPlaybackRequiresUserGesture = false
                 addJavascriptInterface(
                     object : JavaScriptInterface {

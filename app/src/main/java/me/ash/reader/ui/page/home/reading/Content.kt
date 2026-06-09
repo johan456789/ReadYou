@@ -16,20 +16,15 @@ import androidx.compose.foundation.verticalScroll
 import androidx.compose.material3.ExperimentalMaterial3ExpressiveApi
 import androidx.compose.material3.LoadingIndicator
 import androidx.compose.runtime.Composable
-import androidx.compose.runtime.getValue
-import androidx.compose.runtime.produceState
 import androidx.compose.runtime.remember
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.platform.LocalUriHandler
 import androidx.compose.ui.unit.dp
 import java.util.Date
-import kotlinx.coroutines.Dispatchers
-import kotlinx.coroutines.withContext
 import me.ash.reader.ui.component.reader.LocalTextContentWidth
 import me.ash.reader.ui.component.scrollbar.drawVerticalScrollIndicator
 import me.ash.reader.ui.component.webview.RYWebView
-import me.ash.reader.infrastructure.html.ArticleImageUrlNormalizer
 import me.ash.reader.ui.ext.extractDomain
 import me.ash.reader.ui.ext.roundClick
 
@@ -77,13 +72,6 @@ fun Content(
     if (isLoading) {
         Column { LoadingIndicator(modifier = Modifier.size(56.dp)) }
     } else {
-        val normalizedContent by produceState<String?>(initialValue = null, content, link) {
-            value =
-                withContext(Dispatchers.Default) {
-                    ArticleImageUrlNormalizer.normalize(content, link)
-                }
-        }
-
         Column(
             modifier =
                 modifier
@@ -97,18 +85,16 @@ fun Content(
                 Spacer(modifier = Modifier.height(64.dp))
                 headline()
 
-                normalizedContent?.let {
-                    RYWebView(
-                        modifier = Modifier.fillMaxSize(),
-                        content = it,
-                        baseUrl = link,
-                        refererDomain = link.extractDomain(),
-                        onImageClick = onImageClick,
-                        onLinkLongPress = onLinkLongPress,
-                        onShowCustomView = onShowCustomView,
-                        onHideCustomView = onHideCustomView,
-                    )
-                } ?: LoadingIndicator(modifier = Modifier.size(56.dp))
+                RYWebView(
+                    modifier = Modifier.fillMaxSize(),
+                    content = content,
+                    baseUrl = link,
+                    refererDomain = link.extractDomain(),
+                    onImageClick = onImageClick,
+                    onLinkLongPress = onLinkLongPress,
+                    onShowCustomView = onShowCustomView,
+                    onHideCustomView = onHideCustomView,
+                )
                 Spacer(modifier = Modifier.height(128.dp))
                 Spacer(modifier = Modifier.height(contentPadding.calculateBottomPadding()))
             }
