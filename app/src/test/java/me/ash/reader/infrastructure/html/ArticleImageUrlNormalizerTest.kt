@@ -120,4 +120,55 @@ class ArticleImageUrlNormalizerTest {
             image.attr("srcset"),
         )
     }
+
+    @Test
+    fun `normalize leaves data uri src unchanged`() {
+        val html =
+            """
+            <p>
+                <img
+                    alt="Inline image"
+                    src="data:image/png;base64,iVBORw0KGgoAAAANSUhEUgAAAAUA"
+                />
+            </p>
+            """.trimIndent()
+
+        val normalized =
+            ArticleImageUrlNormalizer.normalize(
+                html = html,
+                baseUrl = "https://example.com/article",
+            )
+
+        val image = Jsoup.parseBodyFragment(normalized).selectFirst("img")!!
+
+        assertEquals("data:image/png;base64,iVBORw0KGgoAAAANSUhEUgAAAAUA", image.attr("src"))
+    }
+
+    @Test
+    fun `normalize leaves data uri srcset unchanged`() {
+        val html =
+            """
+            <p>
+                <img
+                    alt="Inline responsive image"
+                    src="http://example.com/fallback.jpg"
+                    srcset="data:image/svg+xml;base64,PHN2Zy8+ 1x, https://example.com/image.jpg 2x"
+                />
+            </p>
+            """.trimIndent()
+
+        val normalized =
+            ArticleImageUrlNormalizer.normalize(
+                html = html,
+                baseUrl = "https://example.com/article",
+            )
+
+        val image = Jsoup.parseBodyFragment(normalized).selectFirst("img")!!
+
+        assertEquals("http://example.com/fallback.jpg", image.attr("src"))
+        assertEquals(
+            "data:image/svg+xml;base64,PHN2Zy8+ 1x, https://example.com/image.jpg 2x",
+            image.attr("srcset"),
+        )
+    }
 }

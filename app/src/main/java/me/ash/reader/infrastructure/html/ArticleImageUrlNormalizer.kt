@@ -20,6 +20,8 @@ object ArticleImageUrlNormalizer {
     private fun normalizeImageElement(image: Element, baseUrl: String?) {
         val srcset = image.attr("srcset").takeIf { it.isNotBlank() }
         val src = image.attr("src").takeIf { it.isNotBlank() }
+        if (containsDataUri(src) || containsDataUri(srcset)) return
+
         val resolvedSrc = src?.let { resolveUrl(it, baseUrl) }
         val shouldUpgradeToHttps = shouldUpgradeToHttps(baseUrl)
         val upgradedSrc = resolvedSrc?.takeIf { shouldUpgradeToHttps }?.let { upgradeToHttps(it) }
@@ -99,6 +101,10 @@ object ArticleImageUrlNormalizer {
 
     private fun shouldUpgradeToHttps(baseUrl: String?): Boolean {
         return baseUrl?.startsWith("https://", ignoreCase = true) == true
+    }
+
+    private fun containsDataUri(value: String?): Boolean {
+        return value?.contains("data:", ignoreCase = true) == true
     }
 
     private data class SrcsetCandidate(
