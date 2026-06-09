@@ -20,9 +20,9 @@ object ArticleImageUrlNormalizer {
     private fun normalizeImageElement(image: Element, baseUrl: String?) {
         val srcset = image.attr("srcset").takeIf { it.isNotBlank() }
         val src = image.attr("src").takeIf { it.isNotBlank() }
-        val upgradedSrc = src
-            ?.let { resolveUrl(it, baseUrl) }
-            ?.let { upgradeToHttps(it) }
+        val resolvedSrc = src?.let { resolveUrl(it, baseUrl) }
+        val shouldUpgradeToHttps = shouldUpgradeToHttps(baseUrl)
+        val upgradedSrc = resolvedSrc?.takeIf { shouldUpgradeToHttps }?.let { upgradeToHttps(it) }
 
         if (!srcset.isNullOrBlank()) {
             val resolvedCandidates = parseSrcset(srcset)
@@ -39,16 +39,22 @@ object ArticleImageUrlNormalizer {
                 return
             }
 
-            val upgradedCandidates = resolvedCandidates.map { it.copy(url = upgradeToHttps(it.url)) }
-            if (upgradedCandidates.isNotEmpty()) {
-                image.attr("src", upgradedSrc ?: upgradedCandidates.first().url)
-                image.attr("srcset", upgradedCandidates.joinToString(", ") { it.toSrcsetEntry() })
+            val fallbackCandidates =
+                if (shouldUpgradeToHttps) {
+                    resolvedCandidates.map { it.copy(url = upgradeToHttps(it.url)) }
+                } else {
+                    resolvedCandidates
+                }
+            if (fallbackCandidates.isNotEmpty()) {
+                image.attr("src", upgradedSrc ?: resolvedSrc ?: fallbackCandidates.first().url)
+                image.attr("srcset", fallbackCandidates.joinToString(", ") { it.toSrcsetEntry() })
                 return
             }
         }
 
-        if (!upgradedSrc.isNullOrBlank()) {
-            image.attr("src", upgradedSrc)
+        when {
+            !upgradedSrc.isNullOrBlank() -> image.attr("src", upgradedSrc)
+            !resolvedSrc.isNullOrBlank() -> image.attr("src", resolvedSrc)
         }
     }
 
@@ -89,6 +95,10 @@ object ArticleImageUrlNormalizer {
 
     private fun isHttps(url: String): Boolean {
         return url.startsWith("https://", ignoreCase = true)
+    }
+
+    private fun shouldUpgradeToHttps(baseUrl: String?): Boolean {
+        return baseUrl?.startsWith("https://", ignoreCase = true) == true
     }
 
     private data class SrcsetCandidate(

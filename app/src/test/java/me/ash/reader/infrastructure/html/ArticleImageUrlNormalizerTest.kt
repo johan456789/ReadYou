@@ -92,4 +92,32 @@ class ArticleImageUrlNormalizerTest {
             image.attr("srcset"),
         )
     }
+
+    @Test
+    fun `normalize preserves http image urls when article base url is http`() {
+        val html =
+            """
+            <p>
+                <img
+                    alt="HTTP only"
+                    src="http://example.com/image.jpg"
+                    srcset="http://example.com/image-320.jpg 320w, http://example.com/image-640.jpg 640w"
+                />
+            </p>
+            """.trimIndent()
+
+        val normalized =
+            ArticleImageUrlNormalizer.normalize(
+                html = html,
+                baseUrl = "http://example.com/article",
+            )
+
+        val image = Jsoup.parseBodyFragment(normalized).selectFirst("img")!!
+
+        assertEquals("http://example.com/image.jpg", image.attr("src"))
+        assertEquals(
+            "http://example.com/image-320.jpg 320w, http://example.com/image-640.jpg 640w",
+            image.attr("srcset"),
+        )
+    }
 }
