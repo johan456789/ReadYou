@@ -14,6 +14,7 @@ import kotlinx.coroutines.CoroutineDispatcher
 import kotlinx.coroutines.CoroutineScope
 import kotlinx.coroutines.FlowPreview
 import kotlinx.coroutines.delay
+import kotlinx.coroutines.withContext
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.SharingStarted
 import kotlinx.coroutines.flow.StateFlow
@@ -329,25 +330,12 @@ constructor(
 
     fun initData(articleId: String, listIndex: Int? = null) {
         viewModelScope.launch {
-            val snapshotList = articleListUseCase.itemSnapshotList
-
-            val itemByIndex =
-                listIndex?.let { snapshotList.getOrNull(it) as? ArticleFlowItem.Article }
-
-            val itemFromList =
-                if (itemByIndex != null && itemByIndex.articleWithFeed.article.id != articleId) {
-                    itemByIndex
-                } else {
-                    snapshotList.find { item ->
-                        item is ArticleFlowItem.Article &&
-                            item.articleWithFeed.article.id == articleId
-                    } as? ArticleFlowItem.Article
-                }
-
-            val item =
-                itemByIndex?.articleWithFeed
-                    ?: (itemFromList?.articleWithFeed
-                        ?: rssService.get().findArticleById(articleId)!!)
+            val item = resolveArticleWithFeed(articleId = articleId, listIndex = listIndex)
+            if (item == null) {
+                Timber.tag(TAG).w("initData: article not ready for id=$articleId")
+                _readerState.update { it.copy(content = ReaderState.Loading) }
+                return@launch
+            }
 
             if (!diffMapHolder.checkIfRead(item)) {
                 diffMapHolder.updateDiff(item, markRead = true)
@@ -371,6 +359,43 @@ constructor(
                 }
             }
         }
+    }
+
+    private suspend fun resolveArticleWithFeed(
+        articleId: String,
+        listIndex: Int? = null,
+    ): ArticleWithFeed? {
+        repeat(10) { attempt ->
+            val snapshotList = articleListUseCase.itemSnapshotList
+
+            val itemByIndex =
+                listIndex?.let { snapshotList.getOrNull(it) as? ArticleFlowItem.Article }
+
+            val itemFromList =
+                if (itemByIndex != null && itemByIndex.articleWithFeed.article.id != articleId) {
+                    itemByIndex
+                } else {
+                    snapshotList.find { item ->
+                        item is ArticleFlowItem.Article &&
+                            item.articleWithFeed.article.id == articleId
+                    } as? ArticleFlowItem.Article
+                }
+
+            val resolvedItem =
+                itemByIndex?.articleWithFeed
+                    ?: itemFromList?.articleWithFeed
+                    ?: withContext(ioDispatcher) {
+                        rssService.get().findArticleById(articleId)
+                    }
+
+            if (resolvedItem != null) return resolvedItem
+
+            if (attempt < 9) {
+                delay(100L)
+            }
+        }
+
+        return null
     }
 
     fun clearReadingData() {
