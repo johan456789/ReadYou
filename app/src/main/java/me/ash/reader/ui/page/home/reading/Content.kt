@@ -77,7 +77,7 @@ fun Content(
     if (isLoading) {
         Column { LoadingIndicator(modifier = Modifier.size(56.dp)) }
     } else {
-        val normalizedContent by produceState(initialValue = content, content, link) {
+        val normalizedContent by produceState<String?>(initialValue = null, content, link) {
             value =
                 withContext(Dispatchers.Default) {
                     ArticleImageUrlNormalizer.normalize(content, link)
@@ -97,16 +97,18 @@ fun Content(
                 Spacer(modifier = Modifier.height(64.dp))
                 headline()
 
-                RYWebView(
-                    modifier = Modifier.fillMaxSize(),
-                    content = normalizedContent,
-                    baseUrl = link,
-                    refererDomain = link.extractDomain(),
-                    onImageClick = onImageClick,
-                    onLinkLongPress = onLinkLongPress,
-                    onShowCustomView = onShowCustomView,
-                    onHideCustomView = onHideCustomView,
-                )
+                normalizedContent?.let {
+                    RYWebView(
+                        modifier = Modifier.fillMaxSize(),
+                        content = it,
+                        baseUrl = link,
+                        refererDomain = link.extractDomain(),
+                        onImageClick = onImageClick,
+                        onLinkLongPress = onLinkLongPress,
+                        onShowCustomView = onShowCustomView,
+                        onHideCustomView = onHideCustomView,
+                    )
+                } ?: LoadingIndicator(modifier = Modifier.size(56.dp))
                 Spacer(modifier = Modifier.height(128.dp))
                 Spacer(modifier = Modifier.height(contentPadding.calculateBottomPadding()))
             }
