@@ -52,6 +52,7 @@ object WebViewLayout {
                     }
                 domStorageEnabled = true
                 javaScriptEnabled = true
+                mixedContentMode = android.webkit.WebSettings.MIXED_CONTENT_COMPATIBILITY_MODE
                 mediaPlaybackRequiresUserGesture = false
                 addJavascriptInterface(
                     object : JavaScriptInterface {
