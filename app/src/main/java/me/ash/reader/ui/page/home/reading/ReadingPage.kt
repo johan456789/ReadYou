@@ -40,8 +40,10 @@ import androidx.compose.ui.Modifier
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.platform.LocalHapticFeedback
+import androidx.compose.ui.platform.LocalDensity
 import androidx.compose.ui.unit.IntOffset
 import androidx.compose.ui.unit.TextUnit
+import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.isSpecified
 import androidx.compose.ui.unit.sp
 import androidx.compose.ui.viewinterop.AndroidView
@@ -53,6 +55,7 @@ import kotlinx.coroutines.launch
 import me.ash.reader.R
 import me.ash.reader.ui.component.webview.LinkActionDialog
 import me.ash.reader.ui.component.webview.LinkActionData
+import me.ash.reader.ui.component.webview.WebViewScrollSnapshot
 import me.ash.reader.infrastructure.android.TextToSpeechManager
 import me.ash.reader.infrastructure.preference.LocalPullToSwitchArticle
 import me.ash.reader.infrastructure.preference.LocalReadingAutoHideToolbar
@@ -79,6 +82,7 @@ fun ReadingPage(
 ) {
     val context = LocalContext.current
     val hapticFeedback = LocalHapticFeedback.current
+    val density = LocalDensity.current
     val isPullToSwitchArticleEnabled = LocalPullToSwitchArticle.current.value
     val readingUiState = viewModel.readingUiState.collectAsStateValue()
     val readerState = viewModel.readerStateStateFlow.collectAsStateValue()
@@ -96,6 +100,18 @@ fun ReadingPage(
 
     var isReaderScrollingDown by remember { mutableStateOf(false) }
     var showFullScreenImageViewer by remember { mutableStateOf(false) }
+    var webViewScrollSnapshot by remember(contentStateKey, readerState.articleId) {
+        mutableStateOf(
+            WebViewScrollSnapshot(
+                scrollY = 0,
+                maxScrollY = 0,
+                isAtTop = true,
+                isAtBottom = true,
+            )
+        )
+    }
+    var headlineHeightPx by remember(contentStateKey, readerState.articleId) { mutableStateOf(0) }
+    var scrollToTopRequest by remember(contentStateKey, readerState.articleId) { mutableStateOf(0) }
     
     // Track scroll position for toolbar visibility
     var isScrollable by remember { mutableStateOf(false) }
@@ -136,6 +152,7 @@ fun ReadingPage(
     //    }
 
     var bringToTop by remember { mutableStateOf(false) }
+    val collapsedHeaderOffsetPx = with(density) { 64.dp.toPx() }.toInt() + headlineHeightPx
 
     LinkActionDialog(
         visible = showLinkActionDialog,
@@ -242,6 +259,7 @@ fun ReadingPage(
 
                                 LaunchedEffect(bringToTop) {
                                     if (bringToTop) {
+                                        scrollToTopRequest += 1
                                         scope
                                             .launch {
                                                 scrollState.animateScrollTo(0)
@@ -252,23 +270,39 @@ fun ReadingPage(
 
                                 showTopDivider =
                                     snapshotFlow {
-                                            scrollState.value >= 120
+                                            scrollState.value >= 120 || !webViewScrollSnapshot.isAtTop
                                         }
                                         .collectAsStateValue(initial = false)
 
+                                LaunchedEffect(scrollState, webViewScrollSnapshot, collapsedHeaderOffsetPx) {
+                                    snapshotFlow { scrollState.value }
+                                        .collect { position ->
+                                            if (!webViewScrollSnapshot.isAtTop &&
+                                                collapsedHeaderOffsetPx > 0 &&
+                                                position < collapsedHeaderOffsetPx
+                                            ) {
+                                                scrollState.scrollTo(collapsedHeaderOffsetPx)
+                                            }
+                                        }
+                                }
+
                                 // Track scroll position for toolbar visibility
-                                LaunchedEffect(scrollState) {
+                                LaunchedEffect(scrollState, webViewScrollSnapshot) {
                                     var lastPosition = scrollState.value
                                     snapshotFlow {
                                         Triple(
                                             scrollState.value,
                                             scrollState.maxValue,
-                                            scrollState.maxValue > 0
+                                            scrollState.maxValue > 0 || webViewScrollSnapshot.maxScrollY > 0
                                         )
                                     }.distinctUntilChanged().collect { (position, maxScroll, scrollable) ->
                                         isScrollable = scrollable
-                                        isAtTop = ReaderToolbarState.isAtTop(position)
-                                        isAtBottom = ReaderToolbarState.isAtBottom(position, maxScroll)
+                                        isAtTop =
+                                            ReaderToolbarState.isAtTop(position) &&
+                                                webViewScrollSnapshot.isAtTop
+                                        isAtBottom =
+                                            ReaderToolbarState.isAtBottom(position, maxScroll) &&
+                                                webViewScrollSnapshot.isAtBottom
                                         // Track scroll direction for toolbar visibility
                                         val delta = position - lastPosition
                                         if (abs(delta) > 2) {
@@ -313,9 +347,14 @@ fun ReadingPage(
                                             publishedDate = publishedDate,
                                             isLoading = content is ReaderState.Loading,
                                             scrollState = scrollState,
+                                            scrollToTopRequest = scrollToTopRequest,
+                                            onHeadlineMeasured = { headlineHeightPx = it },
                                             onImageClick = { imgUrl, altText ->
                                                 currentImageData = ImageData(imgUrl, altText)
                                                 showFullScreenImageViewer = true
+                                            },
+                                            onScrollSnapshotChange = {
+                                                webViewScrollSnapshot = it
                                             },
                                             onLinkLongPress = { url, text ->
                                                 linkActionData = LinkActionData(
