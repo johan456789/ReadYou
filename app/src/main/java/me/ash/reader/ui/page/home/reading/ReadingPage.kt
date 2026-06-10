@@ -70,6 +70,13 @@ import me.ash.reader.ui.page.home.reading.tts.TtsButton
 private const val UPWARD = 1
 private const val DOWNWARD = -1
 
+private data class ToolbarScrollSample(
+    val position: Int,
+    val maxScroll: Int,
+    val webViewSnapshot: WebViewScrollSnapshot,
+    val scrollable: Boolean,
+)
+
 @OptIn(ExperimentalFoundationApi::class, ExperimentalMaterialApi::class)
 @Composable
 fun ReadingPage(
@@ -288,27 +295,37 @@ fun ReadingPage(
 
                                 // Track scroll position for toolbar visibility
                                 LaunchedEffect(scrollState, webViewScrollSnapshot) {
-                                    var lastPosition = scrollState.value
+                                    var lastPosition =
+                                        scrollState.value.coerceAtMost(collapsedHeaderOffsetPx) +
+                                            webViewScrollSnapshot.scrollY
                                     snapshotFlow {
-                                        Triple(
-                                            scrollState.value,
-                                            scrollState.maxValue,
-                                            scrollState.maxValue > 0 || webViewScrollSnapshot.maxScrollY > 0
+                                        ToolbarScrollSample(
+                                            position = scrollState.value,
+                                            maxScroll = scrollState.maxValue,
+                                            webViewSnapshot = webViewScrollSnapshot,
+                                            scrollable =
+                                                scrollState.maxValue > 0 ||
+                                                    webViewScrollSnapshot.maxScrollY > 0
                                         )
-                                    }.distinctUntilChanged().collect { (position, maxScroll, scrollable) ->
-                                        isScrollable = scrollable
+                                    }.distinctUntilChanged().collect { sample ->
+                                        isScrollable = sample.scrollable
                                         isAtTop =
-                                            ReaderToolbarState.isAtTop(position) &&
-                                                webViewScrollSnapshot.isAtTop
+                                            ReaderToolbarState.isAtTop(sample.position) &&
+                                                sample.webViewSnapshot.isAtTop
                                         isAtBottom =
-                                            ReaderToolbarState.isAtBottom(position, maxScroll) &&
-                                                webViewScrollSnapshot.isAtBottom
+                                            ReaderToolbarState.isAtBottom(
+                                                sample.position,
+                                                sample.maxScroll,
+                                            ) && sample.webViewSnapshot.isAtBottom
                                         // Track scroll direction for toolbar visibility
-                                        val delta = position - lastPosition
+                                        val combinedPosition =
+                                            sample.position.coerceAtMost(collapsedHeaderOffsetPx) +
+                                                sample.webViewSnapshot.scrollY
+                                        val delta = combinedPosition - lastPosition
                                         if (abs(delta) > 2) {
                                             isReaderScrollingDown = delta > 0
                                         }
-                                        lastPosition = position
+                                        lastPosition = combinedPosition
                                     }
                                 }
 
