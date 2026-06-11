@@ -294,7 +294,7 @@ fun ReadingPage(
                                 }
 
                                 // Track scroll position for toolbar visibility
-                                LaunchedEffect(scrollState, webViewScrollSnapshot) {
+                                LaunchedEffect(scrollState, collapsedHeaderOffsetPx) {
                                     var lastPosition =
                                         scrollState.value.coerceAtMost(collapsedHeaderOffsetPx) +
                                             webViewScrollSnapshot.scrollY
