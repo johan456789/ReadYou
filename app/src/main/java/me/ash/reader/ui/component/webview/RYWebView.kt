@@ -191,7 +191,7 @@ fun RYWebView(
     val webView by
         remember {
             mutableStateOf(
-                WebViewLayout.acquire(
+                WebViewLayout.obtain(
                     context = context,
                     readingFontsPreference = readingFonts,
                     webViewClient = dynamicWebViewClient,
@@ -212,6 +212,7 @@ fun RYWebView(
     val articleHtml by
         produceState<String?>(initialValue = null, content, htmlBaseUrl, fontSize, fontPath, lineHeight, letterSpacing, textMargin, textColor, textBold, textAlign, boldTextColor, subheadBold, subheadUpperCase, imgMargin, imgBorderRadius, linkTextColor, codeTextColor, codeBgColor, selectionTextColor, selectionBgColor, boldCharacters.value) {
             val buildStartedAtMs = SystemClock.elapsedRealtime()
+            value = null
             value =
                 withContext(Dispatchers.Default) {
                     WebViewHtml.HTML.format(
@@ -250,7 +251,7 @@ fun RYWebView(
 
     DisposableEffect(Unit) {
         onDispose {
-            WebViewLayout.release(webView)
+            WebViewLayout.recycle(webView)
         }
     }
 

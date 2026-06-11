@@ -2,13 +2,14 @@ package me.ash.reader.ui.component.webview
 
 import android.annotation.SuppressLint
 import android.content.Context
+import android.content.MutableContextWrapper
 import android.graphics.Color
 import android.webkit.JavascriptInterface
 import me.ash.reader.infrastructure.preference.ReadingFontsPreference
 
 @Suppress("DEPRECATION")
 object WebViewLayout {
-    private var pooledWebView: HorizontalScrollAwareWebView? = null
+    private var retainedWebView: HorizontalScrollAwareWebView? = null
     private const val PREWARM_BASE_URL = "about:blank"
     private const val PREWARM_HTML =
         """
@@ -25,27 +26,15 @@ object WebViewLayout {
         context: Context,
         readingFontsPreference: ReadingFontsPreference,
     ) {
-        if (pooledWebView != null) return
-        pooledWebView =
-            createWebView(
-                context = context,
+        if (retainedWebView != null) return
+        retainedWebView =
+            buildRetainedWebView(
+                context = context.applicationContext,
                 readingFontsPreference = readingFontsPreference,
-                webViewClient = android.webkit.WebViewClient(),
-                webChromeClient = null,
-                onImageClick = null,
-                onLinkLongPress = null,
-            ).also { webView ->
-                webView.loadDataWithBaseURL(
-                    PREWARM_BASE_URL,
-                    PREWARM_HTML,
-                    "text/html",
-                    "UTF-8",
-                    null,
-                )
-            }
+            )
     }
 
-    fun acquire(
+    fun obtain(
         context: Context,
         readingFontsPreference: ReadingFontsPreference,
         webViewClient: WebViewClient,
@@ -54,9 +43,11 @@ object WebViewLayout {
         onLinkLongPress: ((url: String, text: String) -> Unit)? = null,
     ): HorizontalScrollAwareWebView {
         val webView =
-            pooledWebView?.also { pooledWebView = null }
-                ?: createWebView(
-                    context = context,
+            retainedWebView?.also {
+                retainedWebView = null
+                (it.context as? MutableContextWrapper)?.baseContext = context
+            } ?: createWebView(
+                    context = MutableContextWrapper(context),
                     readingFontsPreference = readingFontsPreference,
                     webViewClient = webViewClient,
                     webChromeClient = webChromeClient,
@@ -74,7 +65,8 @@ object WebViewLayout {
         return webView
     }
 
-    fun release(webView: HorizontalScrollAwareWebView) {
+    fun recycle(webView: HorizontalScrollAwareWebView) {
+        (webView.webChromeClient as? RYWebChromeClient)?.releaseCustomView()
         (webView.parent as? android.view.ViewGroup)?.removeView(webView)
         webView.loadedContentKey = null
         webView.onScrollSnapshotChanged = null
@@ -88,7 +80,9 @@ object WebViewLayout {
         runCatching { webView.scrollTo(0, 0) }
         runCatching { webView.webChromeClient = null }
         runCatching { webView.webViewClient = android.webkit.WebViewClient() }
-        pooledWebView = webView
+        (webView.context as? MutableContextWrapper)?.baseContext = webView.context.applicationContext
+        retainedWebView?.let(::destroyRetainedWebView)
+        retainedWebView = webView
     }
 
     @SuppressLint("SetJavaScriptEnabled")
@@ -100,7 +94,7 @@ object WebViewLayout {
         onImageClick: ((imgUrl: String, altText: String) -> Unit)? = null,
         onLinkLongPress: ((url: String, text: String) -> Unit)? = null,
     ): HorizontalScrollAwareWebView =
-        acquire(
+        obtain(
             context = context,
             readingFontsPreference = readingFontsPreference,
             webViewClient = webViewClient,
@@ -108,6 +102,27 @@ object WebViewLayout {
             onImageClick = onImageClick,
             onLinkLongPress = onLinkLongPress,
         )
+
+    private fun buildRetainedWebView(
+        context: Context,
+        readingFontsPreference: ReadingFontsPreference,
+    ): HorizontalScrollAwareWebView =
+        createWebView(
+            context = MutableContextWrapper(context),
+            readingFontsPreference = readingFontsPreference,
+            webViewClient = android.webkit.WebViewClient(),
+            webChromeClient = null,
+            onImageClick = null,
+            onLinkLongPress = null,
+        ).also { webView ->
+            webView.loadDataWithBaseURL(
+                PREWARM_BASE_URL,
+                PREWARM_HTML,
+                "text/html",
+                "UTF-8",
+                null,
+            )
+        }
 
     @SuppressLint("SetJavaScriptEnabled")
     private fun createWebView(
@@ -188,5 +203,13 @@ object WebViewLayout {
                 isAlgorithmicDarkeningAllowed = true
             }
         }
+    }
+
+    private fun destroyRetainedWebView(webView: HorizontalScrollAwareWebView) {
+        (webView.parent as? android.view.ViewGroup)?.removeView(webView)
+        runCatching { webView.stopLoading() }
+        runCatching { webView.loadUrl("about:blank") }
+        runCatching { webView.removeAllViews() }
+        runCatching { webView.destroy() }
     }
 }

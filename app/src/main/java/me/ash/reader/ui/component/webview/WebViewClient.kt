@@ -192,7 +192,7 @@ class WebViewClient(
 }
 
 private fun String.isLikelyMediaResource(): Boolean {
-    val path = substringBefore('?').lowercase()
+    val path = substringBefore('#').substringBefore('?').lowercase()
     return path.endsWith(".jpg") ||
         path.endsWith(".jpeg") ||
         path.endsWith(".png") ||
