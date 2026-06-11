@@ -2,6 +2,7 @@ package me.ash.reader.ui.component.webview
 
 import android.annotation.SuppressLint
 import android.content.Context
+import android.os.SystemClock
 import timber.log.Timber
 import android.view.MotionEvent
 import android.view.View
@@ -14,6 +15,7 @@ import androidx.compose.runtime.DisposableEffect
 import androidx.compose.runtime.compositionLocalOf
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableStateOf
+import androidx.compose.runtime.produceState
 import androidx.compose.runtime.remember
 import androidx.compose.runtime.rememberUpdatedState
 import androidx.compose.ui.Modifier
@@ -22,6 +24,8 @@ import androidx.compose.ui.graphics.toArgb
 import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.viewinterop.AndroidView
+import kotlinx.coroutines.Dispatchers
+import kotlinx.coroutines.withContext
 import kotlin.math.abs
 import me.ash.reader.infrastructure.preference.LocalOpenLink
 import me.ash.reader.infrastructure.preference.LocalOpenLinkSpecificBrowser
@@ -65,6 +69,8 @@ class HorizontalScrollAwareWebView(context: Context) : WebView(context) {
     private val touchSlop = ViewConfiguration.get(context).scaledTouchSlop.toFloat()
     var loadedContentKey: WebViewContentKey? = null
     var onScrollSnapshotChanged: ((WebViewScrollSnapshot) -> Unit)? = null
+    var onImageClick: ((imgUrl: String, altText: String) -> Unit)? = null
+    var onLinkLongPress: ((url: String, text: String) -> Unit)? = null
     var handledScrollToTopRequest: Int = 0
 
     fun emitScrollSnapshot() {
@@ -185,7 +191,7 @@ fun RYWebView(
     val webView by
         remember {
             mutableStateOf(
-                WebViewLayout.get(
+                WebViewLayout.acquire(
                     context = context,
                     readingFontsPreference = readingFonts,
                     webViewClient = dynamicWebViewClient,
@@ -203,10 +209,48 @@ fun RYWebView(
             "/android_res/font/google_sans_flex.ttf"
         } else null
     val htmlBaseUrl = baseUrl ?: "about:blank"
+    val articleHtml by
+        produceState<String?>(initialValue = null, content, htmlBaseUrl, fontSize, fontPath, lineHeight, letterSpacing, textMargin, textColor, textBold, textAlign, boldTextColor, subheadBold, subheadUpperCase, imgMargin, imgBorderRadius, linkTextColor, codeTextColor, codeBgColor, selectionTextColor, selectionBgColor, boldCharacters.value) {
+            val buildStartedAtMs = SystemClock.elapsedRealtime()
+            value =
+                withContext(Dispatchers.Default) {
+                    WebViewHtml.HTML.format(
+                        WebViewStyle.get(
+                            fontSize = fontSize,
+                            fontPath = fontPath,
+                            lineHeight = lineHeight,
+                            letterSpacing = letterSpacing,
+                            textMargin = textMargin,
+                            textColor = textColor,
+                            textBold = textBold,
+                            textAlign = textAlign,
+                            boldTextColor = boldTextColor,
+                            subheadBold = subheadBold,
+                            subheadUpperCase = subheadUpperCase,
+                            imgMargin = imgMargin,
+                            imgBorderRadius = imgBorderRadius,
+                            linkTextColor = linkTextColor,
+                            codeTextColor = codeTextColor,
+                            codeBgColor = codeBgColor,
+                            tableMargin = textMargin,
+                            selectionTextColor = selectionTextColor,
+                            selectionBgColor = selectionBgColor,
+                        ),
+                        htmlBaseUrl,
+                        content,
+                        WebViewScript.get(boldCharacters.value),
+                    )
+                }
+            Timber.tag("RYWebViewPerf").d(
+                "html build in %d ms (%d chars)",
+                SystemClock.elapsedRealtime() - buildStartedAtMs,
+                value?.length ?: 0,
+            )
+        }
 
     DisposableEffect(Unit) {
         onDispose {
-            webView.releaseArticleMedia(webChromeClient)
+            WebViewLayout.release(webView)
         }
     }
 
@@ -229,37 +273,9 @@ fun RYWebView(
                     ReadingFontsPreference.Serif -> "serif"
                     else -> "sans-serif"
                 }
-            val html =
-                WebViewHtml.HTML.format(
-                    WebViewStyle.get(
-                        fontSize = fontSize,
-                        fontPath = fontPath,
-                        lineHeight = lineHeight,
-                        letterSpacing = letterSpacing,
-                        textMargin = textMargin,
-                        textColor = textColor,
-                        textBold = textBold,
-                        textAlign = textAlign,
-                        boldTextColor = boldTextColor,
-                        subheadBold = subheadBold,
-                        subheadUpperCase = subheadUpperCase,
-                        imgMargin = imgMargin,
-                        imgBorderRadius = imgBorderRadius,
-                        linkTextColor = linkTextColor,
-                        codeTextColor = codeTextColor,
-                        codeBgColor = codeBgColor,
-                        tableMargin = textMargin,
-                        selectionTextColor = selectionTextColor,
-                        selectionBgColor = selectionBgColor,
-                    ),
-                    htmlBaseUrl,
-                    content,
-                    WebViewScript.get(boldCharacters.value),
-                )
+            val html = articleHtml ?: return@AndroidView
             val contentKey = WebViewContentKey(htmlBaseUrl, html, fontSize)
             if (wv.loadedContentKey != contentKey) {
-                Timber.tag("RLog").i("readingFont: ${context.filesDir.absolutePath}")
-                Timber.tag("RLog").i("CustomWebView: ${content}")
                 wv.loadedContentKey = contentKey
                 wv.loadDataWithBaseURL(
                     htmlBaseUrl,
@@ -279,16 +295,4 @@ fun RYWebView(
             }
         },
     )
-}
-
-private fun WebView.releaseArticleMedia(webChromeClient: RYWebChromeClient?) {
-    webChromeClient?.releaseCustomView()
-    (parent as? android.view.ViewGroup)?.removeView(this)
-    runCatching { stopLoading() }
-    runCatching { loadUrl("about:blank") }
-    runCatching { onPause() }
-    runCatching { removeAllViews() }
-    runCatching { this.webChromeClient = null }
-    runCatching { this.webViewClient = android.webkit.WebViewClient() }
-    runCatching { destroy() }
 }

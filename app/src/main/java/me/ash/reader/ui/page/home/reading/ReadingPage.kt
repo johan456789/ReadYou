@@ -59,7 +59,9 @@ import me.ash.reader.ui.component.webview.WebViewScrollSnapshot
 import me.ash.reader.infrastructure.android.TextToSpeechManager
 import me.ash.reader.infrastructure.preference.LocalPullToSwitchArticle
 import me.ash.reader.infrastructure.preference.LocalReadingAutoHideToolbar
+import me.ash.reader.infrastructure.preference.LocalReadingFonts
 import me.ash.reader.infrastructure.preference.LocalReadingTextLineHeight
+import me.ash.reader.ui.component.webview.WebViewLayout
 import me.ash.reader.ui.ext.collectAsStateValue
 import me.ash.reader.ui.ext.showToast
 import me.ash.reader.ui.page.adaptive.ArticleListReaderViewModel
@@ -88,6 +90,7 @@ fun ReadingPage(
     onNavigateToStylePage: () -> Unit,
 ) {
     val context = LocalContext.current
+    val readingFonts = LocalReadingFonts.current
     val hapticFeedback = LocalHapticFeedback.current
     val density = LocalDensity.current
     val isPullToSwitchArticleEnabled = LocalPullToSwitchArticle.current.value
@@ -151,6 +154,11 @@ fun ReadingPage(
     )
 
     var showTopDivider by remember { mutableStateOf(false) }
+
+    DisposableEffect(context, readingFonts) {
+        WebViewLayout.prewarm(context, readingFonts)
+        onDispose {}
+    }
 
     //    LaunchedEffect(readerState.listIndex) {
     //        readerState.listIndex?.let {
