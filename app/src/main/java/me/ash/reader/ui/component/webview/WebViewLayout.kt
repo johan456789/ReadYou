@@ -9,6 +9,17 @@ import me.ash.reader.infrastructure.preference.ReadingFontsPreference
 @Suppress("DEPRECATION")
 object WebViewLayout {
     private var pooledWebView: HorizontalScrollAwareWebView? = null
+    private const val PREWARM_BASE_URL = "about:blank"
+    private const val PREWARM_HTML =
+        """
+        <!DOCTYPE html>
+        <html>
+        <head>
+            <meta name="viewport" content="width=device-width, initial-scale=1" />
+        </head>
+        <body></body>
+        </html>
+        """
 
     fun prewarm(
         context: Context,
@@ -23,7 +34,15 @@ object WebViewLayout {
                 webChromeClient = null,
                 onImageClick = null,
                 onLinkLongPress = null,
-            )
+            ).also { webView ->
+                webView.loadDataWithBaseURL(
+                    PREWARM_BASE_URL,
+                    PREWARM_HTML,
+                    "text/html",
+                    "UTF-8",
+                    null,
+                )
+            }
     }
 
     fun acquire(
