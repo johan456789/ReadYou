@@ -46,6 +46,13 @@ import me.ash.reader.ui.theme.palette.alwaysLight
 
 internal val LocalWebViewCreatedForTest = compositionLocalOf<((WebView) -> Unit)?> { null }
 
+data class WebViewScrollSnapshot(
+    val scrollY: Int,
+    val maxScrollY: Int,
+    val isAtTop: Boolean,
+    val isAtBottom: Boolean,
+)
+
 /**
  * Custom WebView that detects horizontal gestures and tells parent views not to intercept.
  * This allows horizontal scrolling in code blocks to work smoothly without triggering
@@ -57,6 +64,25 @@ class HorizontalScrollAwareWebView(context: Context) : WebView(context) {
     private var isHorizontalGesture: Boolean? = null
     private val touchSlop = ViewConfiguration.get(context).scaledTouchSlop.toFloat()
     var loadedContentKey: WebViewContentKey? = null
+    var onScrollSnapshotChanged: ((WebViewScrollSnapshot) -> Unit)? = null
+    var handledScrollToTopRequest: Int = 0
+
+    fun emitScrollSnapshot() {
+        val maxScrollY = (computeVerticalScrollRange() - computeVerticalScrollExtent()).coerceAtLeast(0)
+        onScrollSnapshotChanged?.invoke(
+            WebViewScrollSnapshot(
+                scrollY = scrollY,
+                maxScrollY = maxScrollY,
+                isAtTop = !canScrollVertically(-1),
+                isAtBottom = !canScrollVertically(1),
+            )
+        )
+    }
+
+    override fun onScrollChanged(l: Int, t: Int, oldl: Int, oldt: Int) {
+        super.onScrollChanged(l, t, oldl, oldt)
+        emitScrollSnapshot()
+    }
 
     @SuppressLint("ClickableViewAccessibility")
     override fun dispatchTouchEvent(event: MotionEvent): Boolean {
@@ -95,10 +121,12 @@ fun RYWebView(
     content: String,
     baseUrl: String? = null,
     refererDomain: String? = null,
+    scrollToTopRequest: Int = 0,
     onImageClick: ((imgUrl: String, altText: String) -> Unit)? = null,
     onLinkLongPress: ((url: String, text: String) -> Unit)? = null,
     onShowCustomView: ((View, WebChromeClient.CustomViewCallback) -> Unit)? = null,
     onHideCustomView: (() -> Unit)? = null,
+    onScrollSnapshotChange: ((WebViewScrollSnapshot) -> Unit)? = null,
 ) {
     val context = LocalContext.current
     val openLink = LocalOpenLink.current
@@ -130,6 +158,7 @@ fun RYWebView(
 
     val currentOpenLink by rememberUpdatedState(openLink)
     val currentOpenLinkSpecificBrowser by rememberUpdatedState(openLinkSpecificBrowser)
+    val onScrollSnapshotChangeState by rememberUpdatedState(onScrollSnapshotChange)
     val dynamicWebViewClient = remember(context, refererDomain) {
         WebViewClient(
             context = context,
@@ -185,6 +214,7 @@ fun RYWebView(
         modifier = modifier,
         factory = { webView },
         update = { wv ->
+            wv.onScrollSnapshotChanged = { snapshot -> onScrollSnapshotChangeState?.invoke(snapshot) }
             if (wv.webViewClient !== dynamicWebViewClient) {
                 wv.webViewClient = dynamicWebViewClient
             }
@@ -238,6 +268,14 @@ fun RYWebView(
                     "UTF-8",
                     null,
                 )
+                wv.post { wv.emitScrollSnapshot() }
+            }
+            if (scrollToTopRequest != 0 && scrollToTopRequest != wv.handledScrollToTopRequest) {
+                wv.handledScrollToTopRequest = scrollToTopRequest
+                wv.post {
+                    wv.scrollTo(0, 0)
+                    wv.emitScrollSnapshot()
+                }
             }
         },
     )

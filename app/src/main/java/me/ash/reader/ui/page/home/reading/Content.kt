@@ -19,14 +19,15 @@ import androidx.compose.runtime.Composable
 import androidx.compose.runtime.remember
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
+import androidx.compose.ui.layout.onSizeChanged
 import androidx.compose.ui.platform.LocalUriHandler
 import androidx.compose.ui.unit.dp
 import java.util.Date
 import me.ash.reader.ui.component.reader.LocalTextContentWidth
 import me.ash.reader.ui.component.scrollbar.drawVerticalScrollIndicator
 import me.ash.reader.ui.component.webview.RYWebView
+import me.ash.reader.ui.component.webview.WebViewScrollSnapshot
 import me.ash.reader.ui.ext.extractDomain
-import me.ash.reader.ui.ext.roundClick
 
 @OptIn(ExperimentalMaterial3ExpressiveApi::class)
 @Composable
@@ -41,10 +42,13 @@ fun Content(
     scrollState: ScrollState,
     isLoading: Boolean,
     contentPadding: PaddingValues = PaddingValues(),
+    scrollToTopRequest: Int = 0,
+    onHeadlineMeasured: ((Int) -> Unit)? = null,
     onImageClick: ((imgUrl: String, altText: String) -> Unit)? = null,
     onLinkLongPress: ((url: String, text: String) -> Unit)? = null,
     onShowCustomView: ((View, WebChromeClient.CustomViewCallback) -> Unit)? = null,
     onHideCustomView: (() -> Unit)? = null,
+    onScrollSnapshotChange: ((WebViewScrollSnapshot) -> Unit)? = null,
 ) {
     val textContentWidth = LocalTextContentWidth.current
     val maxWidthModifier = Modifier.widthIn(max = textContentWidth)
@@ -55,7 +59,13 @@ fun Content(
 
     val headline =
         @Composable {
-            Column(modifier = Modifier.then(maxWidthModifier).padding(horizontal = 12.dp)) {
+            Column(
+                modifier =
+                    Modifier
+                        .then(maxWidthModifier)
+                        .padding(horizontal = 12.dp)
+                        .onSizeChanged { onHeadlineMeasured?.invoke(it.height) }
+            ) {
                 DisableSelection {
                     Metadata(
                         feedName = feedName,
@@ -90,10 +100,12 @@ fun Content(
                     content = content,
                     baseUrl = link,
                     refererDomain = link.extractDomain(),
+                    scrollToTopRequest = scrollToTopRequest,
                     onImageClick = onImageClick,
                     onLinkLongPress = onLinkLongPress,
                     onShowCustomView = onShowCustomView,
                     onHideCustomView = onHideCustomView,
+                    onScrollSnapshotChange = onScrollSnapshotChange,
                 )
                 Spacer(modifier = Modifier.height(128.dp))
                 Spacer(modifier = Modifier.height(contentPadding.calculateBottomPadding()))
