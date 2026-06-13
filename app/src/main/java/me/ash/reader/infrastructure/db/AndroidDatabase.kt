@@ -29,7 +29,7 @@ import java.util.*
         ArchivedArticle::class,
         PendingReadStateOp::class,
     ],
-    version = 11,
+    version = 12,
     autoMigrations = [
         AutoMigration(from = 5, to = 6),
         AutoMigration(from = 6, to = 7),
@@ -93,6 +93,7 @@ val allMigrations = arrayOf(
     MIGRATION_3_4,
     MIGRATION_4_5,
     MIGRATION_10_11,
+    MIGRATION_11_12,
 )
 
 @Suppress("ClassName")
@@ -197,5 +198,64 @@ object MIGRATION_10_11 : Migration(10, 11) {
             )
             """.trimIndent()
         )
+    }
+}
+
+@Suppress("ClassName")
+object MIGRATION_11_12 : Migration(11, 12) {
+
+    override fun migrate(db: SupportSQLiteDatabase) {
+        db.execSQL(
+            """
+            CREATE TABLE IF NOT EXISTS `account_new` (
+                `id` INTEGER PRIMARY KEY AUTOINCREMENT,
+                `name` TEXT NOT NULL,
+                `type` INTEGER NOT NULL,
+                `updateAt` INTEGER,
+                `lastArticleId` TEXT,
+                `syncInterval` INTEGER NOT NULL DEFAULT 30,
+                `syncOnStart` INTEGER NOT NULL DEFAULT 0,
+                `syncOnlyOnWiFi` INTEGER NOT NULL DEFAULT 0,
+                `syncOnlyWhenCharging` INTEGER NOT NULL DEFAULT 0,
+                `keepArchived` INTEGER NOT NULL DEFAULT 0,
+                `syncBlockList` TEXT NOT NULL DEFAULT '',
+                `securityKey` TEXT DEFAULT '${DESUtils.empty}'
+            )
+            """.trimIndent()
+        )
+        db.execSQL(
+            """
+            INSERT INTO `account_new` (
+                `id`,
+                `name`,
+                `type`,
+                `updateAt`,
+                `lastArticleId`,
+                `syncInterval`,
+                `syncOnStart`,
+                `syncOnlyOnWiFi`,
+                `syncOnlyWhenCharging`,
+                `keepArchived`,
+                `syncBlockList`,
+                `securityKey`
+            )
+            SELECT
+                `id`,
+                `name`,
+                `type`,
+                `updateAt`,
+                `lastArticleId`,
+                `syncInterval`,
+                `syncOnStart`,
+                `syncOnlyOnWiFi`,
+                `syncOnlyWhenCharging`,
+                `keepArchived`,
+                `syncBlockList`,
+                `securityKey`
+            FROM `account`
+            """.trimIndent()
+        )
+        db.execSQL("DROP TABLE `account`")
+        db.execSQL("ALTER TABLE `account_new` RENAME TO `account`")
     }
 }
