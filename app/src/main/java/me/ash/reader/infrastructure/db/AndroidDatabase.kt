@@ -29,7 +29,7 @@ import java.util.*
         ArchivedArticle::class,
         PendingReadStateOp::class,
     ],
-    version = 11,
+    version = 12,
     autoMigrations = [
         AutoMigration(from = 5, to = 6),
         AutoMigration(from = 6, to = 7),
@@ -93,6 +93,7 @@ val allMigrations = arrayOf(
     MIGRATION_3_4,
     MIGRATION_4_5,
     MIGRATION_10_11,
+    MIGRATION_11_12,
 )
 
 @Suppress("ClassName")
@@ -195,6 +196,19 @@ object MIGRATION_10_11 : Migration(10, 11) {
                 SELECT id FROM account
                 WHERE type = ${AccountType.Local.id}
             )
+            """.trimIndent()
+        )
+    }
+}
+
+@Suppress("ClassName")
+object MIGRATION_11_12 : Migration(11, 12) {
+
+    override fun migrate(db: SupportSQLiteDatabase) {
+        db.execSQL(
+            """
+            UPDATE account
+            SET keepArchived = ${KeepArchivedPreference.Always.value}
             """.trimIndent()
         )
     }
