@@ -41,12 +41,21 @@ class WebViewClient(
             } catch (e: Exception) {
                 Timber.tag("RLog").e(e, "WebView shouldInterceptRequest")
             }
-        } else if (url != null && url.isUrl()) {
+        } else if (
+            url != null &&
+            url.isUrl() &&
+            !refererDomain.isNullOrBlank() &&
+            request?.isForMainFrame == false
+        ) {
             try {
                 var connection = URI.create(url).toURL().openConnection() as HttpURLConnection
+                connection.connectTimeout = RESOURCE_TIMEOUT_MS
+                connection.readTimeout = RESOURCE_TIMEOUT_MS
                 if (connection.responseCode == 403) {
                     connection.disconnect()
                     connection = URI.create(url).toURL().openConnection() as HttpURLConnection
+                    connection.connectTimeout = RESOURCE_TIMEOUT_MS
+                    connection.readTimeout = RESOURCE_TIMEOUT_MS
                     connection.setRequestProperty("Referer", refererDomain)
                     val inputStream = DataInputStream(connection.inputStream)
                     return WebResourceResponse(connection.contentType, "UTF-8", inputStream)
@@ -97,6 +106,8 @@ class WebViewClient(
     }
 
     companion object {
+        private const val RESOURCE_TIMEOUT_MS = 3_000
+
         private const val OnImgClickScript = """
             javascript:(function() {
                 var imgs = document.getElementsByTagName("img");

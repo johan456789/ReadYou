@@ -90,6 +90,7 @@ import me.ash.reader.infrastructure.preference.LocalFlowTopBarTonalElevation
 import me.ash.reader.infrastructure.preference.LocalMarkAsReadOnScroll
 import me.ash.reader.infrastructure.preference.LocalOpenLink
 import me.ash.reader.infrastructure.preference.LocalOpenLinkSpecificBrowser
+import me.ash.reader.infrastructure.preference.LocalReadingFonts
 import me.ash.reader.infrastructure.preference.LocalSettings
 import me.ash.reader.infrastructure.preference.LocalSharedContent
 import me.ash.reader.infrastructure.preference.PullToLoadNextFeedPreference
@@ -100,6 +101,7 @@ import me.ash.reader.ui.component.base.RYScaffold
 import me.ash.reader.ui.component.scrollbar.VerticalScrollIndicatorFactory
 import me.ash.reader.ui.component.scrollbar.drawVerticalScrollIndicator
 import me.ash.reader.ui.component.scrollbar.scrollIndicator
+import me.ash.reader.ui.component.webview.WebViewLayout
 import me.ash.reader.ui.ext.collectAsStateValue
 import me.ash.reader.ui.ext.openURL
 import me.ash.reader.ui.motion.Direction
@@ -137,6 +139,7 @@ fun FlowPage(
     val sharedContent = LocalSharedContent.current
     val markAsReadOnScroll = LocalMarkAsReadOnScroll.current.value
     val context = LocalContext.current
+    val readingFonts = LocalReadingFonts.current
     val markedAsReadMessage = stringResource(R.string.marked_as_read)
     val undoActionLabel = stringResource(R.string.undo)
 
@@ -148,6 +151,10 @@ fun FlowPage(
 
     val flowUiState = viewModel.flowUiState.collectAsStateValue()
     if (flowUiState == null) return
+
+    LaunchedEffect(context, readingFonts) {
+        WebViewLayout.prewarm(context, readingFonts)
+    }
 
     val pagerData: PagerData = flowUiState.pagerData
 

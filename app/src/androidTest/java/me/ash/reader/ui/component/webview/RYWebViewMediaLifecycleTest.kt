@@ -10,7 +10,8 @@ import androidx.compose.runtime.setValue
 import androidx.compose.ui.test.junit4.createAndroidComposeRule
 import androidx.test.ext.junit.runners.AndroidJUnit4
 import org.junit.Assert.assertNotNull
-import org.junit.Assert.assertThrows
+import org.junit.Assert.assertEquals
+import org.junit.Assert.assertNull
 import org.junit.Rule
 import org.junit.Test
 import org.junit.runner.RunWith
@@ -22,7 +23,7 @@ class RYWebViewMediaLifecycleTest {
     val composeRule = createAndroidComposeRule<ComponentActivity>()
 
     @Test
-    fun articleWebViewIsDestroyedWhenRemovedFromComposition() {
+    fun articleWebViewIsRecycledWhenRemovedFromComposition() {
         var showArticle by mutableStateOf(true)
         var articleWebView: WebView? = null
 
@@ -49,12 +50,11 @@ class RYWebViewMediaLifecycleTest {
 
         assertNotNull(articleWebView)
         composeRule.runOnUiThread {
-            assertThrows(
-                "Expected a removed article WebView to be destroyed so in-page audio/video cannot keep running.",
-                IllegalStateException::class.java,
-            ) {
-                articleWebView!!.evaluateJavascript("document.querySelector('audio').paused", null)
-            }
+            val webView = articleWebView as HorizontalScrollAwareWebView
+            assertNull(webView.parent)
+            assertNull(webView.loadedContentKey)
+            assertNull(webView.webChromeClient)
+            assertEquals(0, webView.scrollY)
         }
     }
 
