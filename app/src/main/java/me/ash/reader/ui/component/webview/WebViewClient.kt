@@ -45,8 +45,7 @@ class WebViewClient(
             url != null &&
             url.isUrl() &&
             !refererDomain.isNullOrBlank() &&
-            request?.isForMainFrame == false &&
-            url.isLikelyMediaResource()
+            request?.isForMainFrame == false
         ) {
             try {
                 var connection = URI.create(url).toURL().openConnection() as HttpURLConnection
@@ -189,20 +188,4 @@ class WebViewClient(
             })()
             """
     }
-}
-
-private fun String.isLikelyMediaResource(): Boolean {
-    val path = substringBefore('#').substringBefore('?').lowercase()
-    return path.endsWith(".jpg") ||
-        path.endsWith(".jpeg") ||
-        path.endsWith(".png") ||
-        path.endsWith(".gif") ||
-        path.endsWith(".webp") ||
-        path.endsWith(".bmp") ||
-        path.endsWith(".svg") ||
-        path.endsWith(".avif") ||
-        path.endsWith(".mp4") ||
-        path.endsWith(".webm") ||
-        path.endsWith(".m3u8") ||
-        path.endsWith(".ogg")
 }
