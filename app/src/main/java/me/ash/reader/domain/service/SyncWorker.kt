@@ -29,6 +29,7 @@ constructor(
         val feedId = data.getString("feedId")
         val groupId = data.getString("groupId")
         val excludedReadStateIds = diffMapHolder.prepareReadStateForSync(accountId)
+        val isPeriodicRun = tags.contains(PERIODIC_WORK_TAG)
 
         return rssService
             .get()
@@ -39,8 +40,10 @@ constructor(
                 excludedReadStateIds = excludedReadStateIds,
             )
             .also {
-                rssService.get().clearKeepArchivedArticles().forEach {
-                    readerCacheHelper.deleteCacheFor(articleId = it.id)
+                if (isPeriodicRun) {
+                    rssService.get().clearKeepArchivedArticles().forEach {
+                        readerCacheHelper.deleteCacheFor(articleId = it.id)
+                    }
                 }
                 workManager
                     .beginUniqueWork(
