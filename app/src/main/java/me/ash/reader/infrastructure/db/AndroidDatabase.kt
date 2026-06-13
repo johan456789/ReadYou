@@ -138,7 +138,7 @@ object MIGRATION_2_3 : Migration(2, 3) {
         )
         db.execSQL(
             """
-            ALTER TABLE account ADD COLUMN keepArchived INTEGER NOT NULL DEFAULT ${KeepArchivedPreference.default.value}
+            ALTER TABLE account ADD COLUMN keepArchived INTEGER NOT NULL DEFAULT 2592000000
             """.trimIndent()
         )
         db.execSQL(
