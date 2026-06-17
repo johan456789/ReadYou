@@ -8,7 +8,6 @@ import dagger.assisted.AssistedInject
 import java.util.concurrent.TimeUnit
 import me.ash.reader.domain.data.DiffMapHolder
 import me.ash.reader.domain.model.account.Account
-import me.ash.reader.infrastructure.rss.ReaderCacheHelper
 
 @HiltWorker
 class SyncWorker
@@ -18,7 +17,6 @@ constructor(
     @Assisted workerParams: WorkerParameters,
     private val rssService: RssService,
     private val diffMapHolder: DiffMapHolder,
-    private val readerCacheHelper: ReaderCacheHelper,
     private val workManager: WorkManager,
 ) : CoroutineWorker(context, workerParams) {
 
@@ -39,9 +37,6 @@ constructor(
                 excludedReadStateIds = excludedReadStateIds,
             )
             .also {
-                rssService.get().clearKeepArchivedArticles().forEach {
-                    readerCacheHelper.deleteCacheFor(articleId = it.id)
-                }
                 workManager
                     .beginUniqueWork(
                         uniqueWorkName = POST_SYNC_WORK_NAME,

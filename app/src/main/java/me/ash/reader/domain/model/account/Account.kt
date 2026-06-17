@@ -31,7 +31,7 @@ data class Account(
     val syncOnlyOnWiFi: SyncOnlyOnWiFiPreference = SyncOnlyOnWiFiPreference.default,
     @field:ColumnInfo(defaultValue = "0")
     val syncOnlyWhenCharging: SyncOnlyWhenChargingPreference = SyncOnlyWhenChargingPreference.default,
-    @field:ColumnInfo(defaultValue = "2592000000")
+    @field:ColumnInfo(defaultValue = "0")
     val keepArchived: KeepArchivedPreference = KeepArchivedPreference.default,
     @field:ColumnInfo(defaultValue = "")
     val syncBlockList: SyncBlockList = SyncBlockListPreference.default,
