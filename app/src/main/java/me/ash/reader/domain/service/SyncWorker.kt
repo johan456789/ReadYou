@@ -86,6 +86,7 @@ constructor(
 
         fun cancelPeriodicWork(workManager: WorkManager) {
             workManager.cancelUniqueWork(SYNC_WORK_NAME_PERIODIC)
+            workManager.cancelUniqueWork(SYNC_DEFERRED_PERIODIC_NAME)
             workManager.cancelUniqueWork(LEGACY_READER_WORK_NAME_PERIODIC)
         }
 
