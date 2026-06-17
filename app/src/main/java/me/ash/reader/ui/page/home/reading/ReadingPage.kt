@@ -36,6 +36,7 @@ import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
 import androidx.compose.runtime.rememberCoroutineScope
+import androidx.compose.runtime.rememberUpdatedState
 import androidx.compose.runtime.saveable.rememberSaveable
 import androidx.compose.runtime.setValue
 import androidx.compose.runtime.snapshotFlow
@@ -556,6 +557,8 @@ private fun Modifier.swipeToSwitchArticle(
 
     val layoutDirection = LocalLayoutDirection.current
     val thresholdPx = with(LocalDensity.current) { 96.dp.toPx() }
+    val currentOnLoadPrevious by rememberUpdatedState(onLoadPrevious)
+    val currentOnLoadNext by rememberUpdatedState(onLoadNext)
 
     return pointerInput(enabled, canLoadPrevious, canLoadNext, layoutDirection, thresholdPx) {
         awaitEachGesture {
@@ -585,8 +588,8 @@ private fun Modifier.swipeToSwitchArticle(
                 }
 
             when (direction) {
-                ArticleSwipeDirection.Previous -> if (canLoadPrevious) onLoadPrevious()
-                ArticleSwipeDirection.Next -> if (canLoadNext) onLoadNext()
+                ArticleSwipeDirection.Previous -> if (canLoadPrevious) currentOnLoadPrevious()
+                ArticleSwipeDirection.Next -> if (canLoadNext) currentOnLoadNext()
             }
         }
     }

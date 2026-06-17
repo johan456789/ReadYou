@@ -157,9 +157,8 @@ object WebViewLayout {
 
                     @JavascriptInterface
                     override fun onHorizontalScrollableTouchStart(isScrollable: Boolean) {
-                        this@apply.touchStartsInHorizontalScrollableContent = isScrollable
-                        if (isScrollable) {
-                            this@apply.parent?.requestDisallowInterceptTouchEvent(true)
+                        this@apply.post {
+                            this@apply.touchStartsInHorizontalScrollableContent = isScrollable
                         }
                     }
                 },
