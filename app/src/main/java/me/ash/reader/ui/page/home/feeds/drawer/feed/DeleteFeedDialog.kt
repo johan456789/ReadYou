@@ -6,7 +6,6 @@ import androidx.compose.material3.Icon
 import androidx.compose.material3.Text
 import androidx.compose.material3.TextButton
 import androidx.compose.runtime.Composable
-import androidx.compose.runtime.rememberCoroutineScope
 import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.res.stringResource
 import androidx.hilt.lifecycle.viewmodel.compose.hiltViewModel
@@ -23,8 +22,8 @@ fun DeleteFeedDialog(
 ) {
     val context = LocalContext.current
     val feedOptionUiState = feedOptionViewModel.feedOptionUiState.collectAsStateValue()
-    val scope = rememberCoroutineScope()
     val toastString = stringResource(R.string.delete_toast, feedName)
+    val errorToast = stringResource(R.string.server_unreachable)
 
     RYDialog(
         visible = feedOptionUiState.deleteDialogVisible,
@@ -46,11 +45,16 @@ fun DeleteFeedDialog(
         confirmButton = {
             TextButton(
                 onClick = {
-                    feedOptionViewModel.delete {
-                        feedOptionViewModel.hideDeleteDialog()
-                        onConfirm()
-                        context.showToast(toastString)
-                    }
+                    feedOptionViewModel.delete(
+                        onSuccess = {
+                            feedOptionViewModel.hideDeleteDialog()
+                            onConfirm()
+                            context.showToast(toastString)
+                        },
+                        onFailure = {
+                            context.showToast(errorToast)
+                        },
+                    )
                 }
             ) {
                 Text(

@@ -22,6 +22,7 @@ import me.ash.reader.infrastructure.di.ApplicationScope
 import me.ash.reader.infrastructure.di.IODispatcher
 import me.ash.reader.infrastructure.di.MainDispatcher
 import me.ash.reader.infrastructure.rss.RssHelper
+import timber.log.Timber
 
 @OptIn(ExperimentalMaterialApi::class)
 @HiltViewModel
@@ -128,11 +129,20 @@ constructor(
         }
     }
 
-    fun delete(callback: () -> Unit = {}) {
+    fun delete(
+        onSuccess: () -> Unit = {},
+        onFailure: (Throwable) -> Unit = {},
+    ) {
         _feedOptionUiState.value.feed?.let {
             applicationScope.launch(ioDispatcher) {
-                rssService.get().deleteFeed(it)
-                withContext(mainDispatcher) { callback() }
+                runCatching {
+                    rssService.get().deleteFeed(it)
+                }.onSuccess {
+                    withContext(mainDispatcher) { onSuccess() }
+                }.onFailure { throwable ->
+                    Timber.tag("RLog").w(throwable, "Failed to unsubscribe feed ${it.id}")
+                    withContext(mainDispatcher) { onFailure(throwable) }
+                }
             }
         }
     }
