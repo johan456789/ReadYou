@@ -105,6 +105,38 @@ document.querySelectorAll("table").forEach(function(table) {
     wrapper.appendChild(table);
 });
 
+function isHorizontallyScrollableElement(element) {
+    if (!element || element === document.documentElement || element === document.body) {
+        return false;
+    }
+
+    const style = window.getComputedStyle(element);
+    const canOverflowX = /(auto|scroll|overlay)/.test(style.overflowX);
+    return canOverflowX && element.scrollWidth > element.clientWidth + 1;
+}
+
+function touchStartsInHorizontalScrollableContent(touch) {
+    if (!touch) {
+        return false;
+    }
+
+    let element = document.elementFromPoint(touch.clientX, touch.clientY);
+    while (element && element !== document.body) {
+        if (isHorizontallyScrollableElement(element)) {
+            return true;
+        }
+        element = element.parentElement;
+    }
+    return false;
+}
+
+document.addEventListener("touchstart", function(event) {
+    const isScrollable = touchStartsInHorizontalScrollableContent(event.touches && event.touches[0]);
+    if (window.${JavaScriptInterface.NAME} && window.${JavaScriptInterface.NAME}.onHorizontalScrollableTouchStart) {
+        window.${JavaScriptInterface.NAME}.onHorizontalScrollableTouchStart(isScrollable);
+    }
+}, { capture: true, passive: true });
+
 var images = document.querySelectorAll("img");
 
 images.forEach(function(img) {

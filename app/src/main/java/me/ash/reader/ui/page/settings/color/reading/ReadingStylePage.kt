@@ -45,6 +45,7 @@ import me.ash.reader.infrastructure.preference.LocalReadingBoldCharacters
 import me.ash.reader.infrastructure.preference.LocalReadingFonts
 import me.ash.reader.infrastructure.preference.LocalReadingPageTonalElevation
 import me.ash.reader.infrastructure.preference.LocalReadingTheme
+import me.ash.reader.infrastructure.preference.LocalSwipeToSwitchArticle
 import me.ash.reader.infrastructure.preference.ReadingFontsPreference
 import me.ash.reader.infrastructure.preference.ReadingPageTonalElevationPreference
 import me.ash.reader.infrastructure.preference.ReadingThemePreference
@@ -80,6 +81,7 @@ fun ReadingStylePage(
     val fonts = LocalReadingFonts.current
     val autoHideToolbar = LocalReadingAutoHideToolbar.current
     val pullToSwitchArticle = LocalPullToSwitchArticle.current
+    val swipeToSwitchArticle = LocalSwipeToSwitchArticle.current
     val boldCharacters = LocalReadingBoldCharacters.current
 
     var tonalElevationDialogVisible by remember { mutableStateOf(false) }
@@ -192,6 +194,13 @@ fun ReadingStylePage(
                         onClick = { pullToSwitchArticle.toggle(context, scope) }) {
                         RYSwitch(activated = pullToSwitchArticle.value, onClick = {
                             pullToSwitchArticle.toggle(context, scope)
+                        })
+                    }
+                    SettingItem(
+                        title = stringResource(id = R.string.swipe_to_switch_article),
+                        onClick = { swipeToSwitchArticle.toggle(context, scope) }) {
+                        RYSwitch(activated = swipeToSwitchArticle.value, onClick = {
+                            swipeToSwitchArticle.toggle(context, scope)
                         })
                     }
                     Subtitle(

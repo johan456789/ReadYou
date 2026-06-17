@@ -35,6 +35,7 @@ import me.ash.reader.infrastructure.preference.LocalPullToSwitchArticle
 import me.ash.reader.infrastructure.preference.LocalSettings
 import me.ash.reader.infrastructure.preference.LocalSharedContent
 import me.ash.reader.infrastructure.preference.LocalSortUnreadArticles
+import me.ash.reader.infrastructure.preference.LocalSwipeToSwitchArticle
 import me.ash.reader.infrastructure.preference.OpenLinkPreference
 import me.ash.reader.infrastructure.preference.PullToLoadNextFeedPreference
 import me.ash.reader.infrastructure.preference.SharedContentPreference
@@ -65,6 +66,7 @@ fun InteractionPage(
     val hideEmptyGroups = LocalHideEmptyGroups.current
     val sortUnreadArticles = LocalSortUnreadArticles.current
     val pullToSwitchArticle = LocalPullToSwitchArticle.current
+    val swipeToSwitchArticle = LocalSwipeToSwitchArticle.current
     val openLink = LocalOpenLink.current
     val openLinkSpecificBrowser = LocalOpenLinkSpecificBrowser.current
     val sharedContent = LocalSharedContent.current
@@ -196,6 +198,13 @@ fun InteractionPage(
                         onClick = { pullToSwitchArticle.toggle(context, scope) }) {
                         RYSwitch(activated = pullToSwitchArticle.value) {
                             pullToSwitchArticle.toggle(context, scope)
+                        }
+                    }
+                    SettingItem(
+                        title = stringResource(id = R.string.swipe_to_switch_article),
+                        onClick = { swipeToSwitchArticle.toggle(context, scope) }) {
+                        RYSwitch(activated = swipeToSwitchArticle.value) {
+                            swipeToSwitchArticle.toggle(context, scope)
                         }
                     }
                     Spacer(modifier = Modifier.height(24.dp))

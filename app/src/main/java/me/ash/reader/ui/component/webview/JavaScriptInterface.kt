@@ -10,6 +10,9 @@ interface JavaScriptInterface {
     @JavascriptInterface
     fun onLinkLongPress(url: String?, text: String?)
 
+    @JavascriptInterface
+    fun onHorizontalScrollableTouchStart(isScrollable: Boolean)
+
     companion object {
 
         const val NAME = "JavaScriptInterface"
