@@ -8,6 +8,8 @@ import dagger.assisted.AssistedInject
 import java.util.concurrent.TimeUnit
 import me.ash.reader.domain.data.DiffMapHolder
 import me.ash.reader.domain.model.account.Account
+import me.ash.reader.infrastructure.android.ForegroundSyncController
+import timber.log.Timber
 
 @HiltWorker
 class SyncWorker
@@ -21,6 +23,14 @@ constructor(
 ) : CoroutineWorker(context, workerParams) {
 
     override suspend fun doWork(): Result {
+        if (
+            tags.contains(PERIODIC_WORK_TAG) &&
+                ForegroundSyncController.tryRecordMissedPeriodicSync()
+        ) {
+            Timber.tag(TAG).d("Deferring periodic sync tick while reader is active")
+            return Result.success()
+        }
+
         val data = inputData
         val accountId = data.getInt("accountId", -1)
         require(accountId != -1)
@@ -57,11 +67,13 @@ constructor(
     }
 
     companion object {
+        private const val TAG = "SyncWorker"
         private const val SYNC_WORK_NAME_PERIODIC = "ReadYou"
         private const val LEGACY_READER_WORK_NAME_PERIODIC = "FETCH_FULL_CONTENT_PERIODIC"
         private const val POST_SYNC_WORK_NAME = "POST_SYNC_WORK"
 
         private const val SYNC_ONETIME_NAME = "SYNC_ONETIME"
+        private const val SYNC_DEFERRED_PERIODIC_NAME = "SYNC_DEFERRED_PERIODIC"
 
         const val SYNC_TAG = "SYNC_TAG"
         const val READER_TAG = "READER_TAG"
@@ -74,6 +86,7 @@ constructor(
 
         fun cancelPeriodicWork(workManager: WorkManager) {
             workManager.cancelUniqueWork(SYNC_WORK_NAME_PERIODIC)
+            workManager.cancelUniqueWork(SYNC_DEFERRED_PERIODIC_NAME)
             workManager.cancelUniqueWork(LEGACY_READER_WORK_NAME_PERIODIC)
         }
 
@@ -105,10 +118,28 @@ constructor(
                 .enqueue()
         }
 
+        fun enqueueDeferredPeriodicCatchUpWork(account: Account, workManager: WorkManager) {
+            workManager
+                .beginUniqueWork(
+                    SYNC_DEFERRED_PERIODIC_NAME,
+                    ExistingWorkPolicy.REPLACE,
+                    OneTimeWorkRequestBuilder<SyncWorker>()
+                        .setConstraints(buildPeriodicConstraints(account))
+                        .setBackoffCriteria(
+                            backoffPolicy = BackoffPolicy.EXPONENTIAL,
+                            backoffDelay = 30,
+                            timeUnit = TimeUnit.SECONDS,
+                        )
+                        .setInputData(workDataOf("accountId" to account.id))
+                        .addTag(SYNC_TAG)
+                        .addTag(PERIODIC_WORK_TAG)
+                        .build(),
+                )
+                .enqueue()
+        }
+
         fun enqueuePeriodicWork(account: Account, workManager: WorkManager) {
             val syncInterval = account.syncInterval
-            val syncOnlyWhenCharging = account.syncOnlyWhenCharging
-            val syncOnlyOnWiFi = account.syncOnlyOnWiFi
             val workState =
                 workManager
                     .getWorkInfosForUniqueWork(SYNC_WORK_NAME_PERIODIC)
@@ -125,15 +156,7 @@ constructor(
                 SYNC_WORK_NAME_PERIODIC,
                 policy,
                 PeriodicWorkRequestBuilder<SyncWorker>(syncInterval.value, TimeUnit.MINUTES)
-                    .setConstraints(
-                        Constraints.Builder()
-                            .setRequiresCharging(syncOnlyWhenCharging.value)
-                            .setRequiredNetworkType(
-                                if (syncOnlyOnWiFi.value) NetworkType.UNMETERED
-                                else NetworkType.CONNECTED
-                            )
-                            .build()
-                    )
+                    .setConstraints(buildPeriodicConstraints(account))
                     .setBackoffCriteria(
                         backoffPolicy = BackoffPolicy.EXPONENTIAL,
                         backoffDelay = 30,
@@ -148,5 +171,13 @@ constructor(
 
             workManager.cancelUniqueWork(LEGACY_READER_WORK_NAME_PERIODIC)
         }
+
+        private fun buildPeriodicConstraints(account: Account): Constraints =
+            Constraints.Builder()
+                .setRequiresCharging(account.syncOnlyWhenCharging.value)
+                .setRequiredNetworkType(
+                    if (account.syncOnlyOnWiFi.value) NetworkType.UNMETERED else NetworkType.CONNECTED
+                )
+                .build()
     }
 }
