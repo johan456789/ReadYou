@@ -12,6 +12,7 @@ import androidx.activity.result.contract.ActivityResultContracts
 import androidx.appcompat.app.AppCompatActivity
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.DisposableEffect
+import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.remember
 import androidx.compose.runtime.rememberCoroutineScope
 import androidx.core.app.NotificationManagerCompat
@@ -22,6 +23,7 @@ import androidx.navigation3.runtime.NavKey
 import androidx.navigation3.runtime.rememberNavBackStack
 import androidx.profileinstaller.ProfileInstallerInitializer
 import androidx.work.WorkManager
+import androidx.work.workDataOf
 import coil.ImageLoader
 import dagger.hilt.android.AndroidEntryPoint
 import java.lang.reflect.Field
@@ -30,6 +32,7 @@ import kotlinx.coroutines.delay
 import kotlinx.coroutines.launch
 import me.ash.reader.domain.data.FilterStateUseCase
 import me.ash.reader.domain.service.AccountService
+import me.ash.reader.domain.service.SyncWorker
 import me.ash.reader.domain.service.WidgetUpdateWorker
 import me.ash.reader.infrastructure.compose.ProvideCompositionLocals
 import me.ash.reader.infrastructure.preference.AccountSettingsProvider
@@ -138,11 +141,29 @@ class MainActivity : AppCompatActivity() {
 
                             val backStack = rememberNavBackStack(*startDestination.toTypedArray())
 
+                            ReadingSyncEffect(backStack)
                             NewIntentHandlerEffect(backStack, subscribeViewModel)
                             AppEntry(backStack)
                         }
                     }
                 }
+            }
+        }
+    }
+
+    @Composable
+    private fun ReadingSyncEffect(backStack: NavBackStack<NavKey>) {
+        val isReadingRouteActive = backStack.lastOrNull() is Route.Reading
+
+        LaunchedEffect(isReadingRouteActive) {
+            ForegroundSyncController.updateReaderActive(isReadingRouteActive)
+            drainDeferredPeriodicSync()
+        }
+
+        DisposableEffect(Unit) {
+            onDispose {
+                ForegroundSyncController.updateReaderActive(false)
+                drainDeferredPeriodicSync()
             }
         }
     }
@@ -212,8 +233,25 @@ class MainActivity : AppCompatActivity() {
     }
 
     override fun onResume() {
+        ForegroundSyncController.updateAppInForeground(true)
+        drainDeferredPeriodicSync()
         WidgetUpdateWorker.enqueueOneTimeWork(workManager)
         super.onResume()
+    }
+
+    override fun onPause() {
+        ForegroundSyncController.updateAppInForeground(false)
+        drainDeferredPeriodicSync()
+        super.onPause()
+    }
+
+    private fun drainDeferredPeriodicSync() {
+        if (!ForegroundSyncController.consumeDeferredPeriodicSyncIfReady()) return
+
+        SyncWorker.enqueueOneTimeWork(
+            workManager = workManager,
+            inputData = workDataOf("accountId" to accountService.getCurrentAccountId()),
+        )
     }
 }
 

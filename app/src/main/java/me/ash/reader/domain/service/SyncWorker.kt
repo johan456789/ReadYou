@@ -8,6 +8,8 @@ import dagger.assisted.AssistedInject
 import java.util.concurrent.TimeUnit
 import me.ash.reader.domain.data.DiffMapHolder
 import me.ash.reader.domain.model.account.Account
+import me.ash.reader.infrastructure.android.ForegroundSyncController
+import timber.log.Timber
 
 @HiltWorker
 class SyncWorker
@@ -21,6 +23,12 @@ constructor(
 ) : CoroutineWorker(context, workerParams) {
 
     override suspend fun doWork(): Result {
+        if (tags.contains(PERIODIC_WORK_TAG) && ForegroundSyncController.shouldDeferPeriodicSync()) {
+            Timber.tag(TAG).d("Deferring periodic sync while reader is active")
+            ForegroundSyncController.markDeferredPeriodicSyncPending()
+            return Result.success()
+        }
+
         val data = inputData
         val accountId = data.getInt("accountId", -1)
         require(accountId != -1)
@@ -57,6 +65,7 @@ constructor(
     }
 
     companion object {
+        private const val TAG = "SyncWorker"
         private const val SYNC_WORK_NAME_PERIODIC = "ReadYou"
         private const val LEGACY_READER_WORK_NAME_PERIODIC = "FETCH_FULL_CONTENT_PERIODIC"
         private const val POST_SYNC_WORK_NAME = "POST_SYNC_WORK"
