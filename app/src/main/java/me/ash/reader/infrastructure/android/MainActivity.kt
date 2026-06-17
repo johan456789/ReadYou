@@ -23,7 +23,6 @@ import androidx.navigation3.runtime.NavKey
 import androidx.navigation3.runtime.rememberNavBackStack
 import androidx.profileinstaller.ProfileInstallerInitializer
 import androidx.work.WorkManager
-import androidx.work.workDataOf
 import coil.ImageLoader
 import dagger.hilt.android.AndroidEntryPoint
 import java.lang.reflect.Field
@@ -248,10 +247,10 @@ class MainActivity : AppCompatActivity() {
     private fun drainDeferredPeriodicSync() {
         if (!ForegroundSyncController.consumeDeferredPeriodicSyncIfReady()) return
 
-        SyncWorker.enqueueOneTimeWork(
-            workManager = workManager,
-            inputData = workDataOf("accountId" to accountService.getCurrentAccountId()),
-        )
+        val account = accountService.getCurrentAccount()
+        if (account.id == null || account.id == -1) return
+
+        SyncWorker.enqueueDeferredPeriodicCatchUpWork(account = account, workManager = workManager)
     }
 }
 

@@ -24,10 +24,22 @@ class ForegroundSyncControllerTest {
     }
 
     @Test
+    fun `missed periodic sync is recorded only while app is foreground and reader is active`() {
+        assertFalse(ForegroundSyncController.tryRecordMissedPeriodicSync())
+
+        ForegroundSyncController.updateAppInForeground(true)
+        assertFalse(ForegroundSyncController.tryRecordMissedPeriodicSync())
+
+        ForegroundSyncController.updateAppInForeground(true)
+        ForegroundSyncController.updateReaderActive(true)
+        assertTrue(ForegroundSyncController.tryRecordMissedPeriodicSync())
+    }
+
+    @Test
     fun `deferred periodic sync is consumed after leaving the reader`() {
         ForegroundSyncController.updateAppInForeground(true)
         ForegroundSyncController.updateReaderActive(true)
-        ForegroundSyncController.markDeferredPeriodicSyncPending()
+        assertTrue(ForegroundSyncController.tryRecordMissedPeriodicSync())
 
         assertFalse(ForegroundSyncController.consumeDeferredPeriodicSyncIfReady())
 
@@ -40,7 +52,7 @@ class ForegroundSyncControllerTest {
     fun `deferred periodic sync is consumed after app leaves foreground`() {
         ForegroundSyncController.updateAppInForeground(true)
         ForegroundSyncController.updateReaderActive(true)
-        ForegroundSyncController.markDeferredPeriodicSyncPending()
+        assertTrue(ForegroundSyncController.tryRecordMissedPeriodicSync())
 
         ForegroundSyncController.updateAppInForeground(false)
 

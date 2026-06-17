@@ -1,41 +1,53 @@
 package me.ash.reader.infrastructure.android
 
-import java.util.concurrent.atomic.AtomicBoolean
 import timber.log.Timber
 
 /**
- * Tracks whether periodic sync should be deferred while the user is actively reading.
+ * Tracks whether a periodic sync tick was missed while the user was actively reading.
  */
 object ForegroundSyncController {
-    @Volatile private var appInForeground = false
-    @Volatile private var readerActive = false
+    private var appInForeground = false
+    private var readerActive = false
 
-    private val deferredPeriodicSyncPending = AtomicBoolean(false)
+    private var missedPeriodicSyncPending = false
 
+    @Synchronized
     fun updateAppInForeground(inForeground: Boolean) {
         appInForeground = inForeground
         Timber.tag(TAG).d("updateAppInForeground($inForeground)")
     }
 
+    @Synchronized
     fun updateReaderActive(active: Boolean) {
         readerActive = active
         Timber.tag(TAG).d("updateReaderActive($active)")
     }
 
-    fun shouldDeferPeriodicSync(): Boolean = appInForeground && readerActive
+    @Synchronized fun shouldDeferPeriodicSync(): Boolean = appInForeground && readerActive
 
-    fun markDeferredPeriodicSyncPending() {
-        deferredPeriodicSyncPending.set(true)
-        Timber.tag(TAG).d("markDeferredPeriodicSyncPending()")
+    @Synchronized
+    fun tryRecordMissedPeriodicSync(): Boolean {
+        if (!shouldDeferPeriodicSync()) return false
+
+        missedPeriodicSyncPending = true
+        Timber.tag(TAG).d("tryRecordMissedPeriodicSync(): missed tick recorded")
+        return true
     }
 
+    @Synchronized
     fun consumeDeferredPeriodicSyncIfReady(): Boolean =
-        if (!shouldDeferPeriodicSync()) deferredPeriodicSyncPending.getAndSet(false) else false
+        if (!shouldDeferPeriodicSync() && missedPeriodicSyncPending) {
+            missedPeriodicSyncPending = false
+            true
+        } else {
+            false
+        }
 
+    @Synchronized
     internal fun resetForTest() {
         appInForeground = false
         readerActive = false
-        deferredPeriodicSyncPending.set(false)
+        missedPeriodicSyncPending = false
     }
 
     private const val TAG = "ForegroundSync"
