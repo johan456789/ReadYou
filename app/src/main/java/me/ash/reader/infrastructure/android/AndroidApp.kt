@@ -26,6 +26,7 @@ import me.ash.reader.infrastructure.di.IODispatcher
 import me.ash.reader.infrastructure.net.NetworkDataSource
 import me.ash.reader.infrastructure.preference.SettingsProvider
 import me.ash.reader.infrastructure.rss.OPMLDataSource
+import me.ash.reader.infrastructure.rss.ReaderCacheHelper
 import me.ash.reader.infrastructure.rss.RssHelper
 import me.ash.reader.ui.ext.del
 import me.ash.reader.ui.ext.getLatestApk
@@ -87,6 +88,8 @@ class AndroidApp : Application(), Configuration.Provider {
 
     @Inject lateinit var diffMapHolder: DiffMapHolder
 
+    @Inject lateinit var readerCacheHelper: ReaderCacheHelper
+
     /**
      * When the application startup.
      * 1. Set the uncaught exception handler
@@ -131,6 +134,15 @@ class AndroidApp : Application(), Configuration.Provider {
 
     private suspend fun workerInit() {
         rssService.get().initSync()
+        applicationScope.launch(ioDispatcher) {
+            runCatching {
+                rssService.get().clearKeepArchivedArticles().forEach {
+                    readerCacheHelper.deleteCacheFor(articleId = it.id)
+                }
+            }.onFailure {
+                Timber.w(it, "Startup archive cleanup failed")
+            }
+        }
     }
 
     private suspend fun repairCurrentAccountData() {
