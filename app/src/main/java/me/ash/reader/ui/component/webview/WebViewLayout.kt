@@ -73,7 +73,7 @@ object WebViewLayout {
         webView.onImageClick = null
         webView.onLinkLongPress = null
         webView.handledScrollToTopRequest = 0
-        webView.touchStartsInHorizontalScrollableContent = false
+        webView.resetTouchStartsInHorizontalScrollableContent()
         runCatching { webView.stopLoading() }
         runCatching { webView.loadUrl("about:blank") }
         runCatching { webView.onPause() }
@@ -157,9 +157,7 @@ object WebViewLayout {
 
                     @JavascriptInterface
                     override fun onHorizontalScrollableTouchStart(isScrollable: Boolean) {
-                        this@apply.post {
-                            this@apply.touchStartsInHorizontalScrollableContent = isScrollable
-                        }
+                        this@apply.setTouchStartsInHorizontalScrollableContent(isScrollable)
                     }
                 },
                 JavaScriptInterface.NAME,
