@@ -544,6 +544,7 @@ private fun ArticlePager(
     var isDraggingPager by remember { mutableStateOf(false) }
     var shouldSnapOffset by remember { mutableStateOf(false) }
     var pendingSettleTarget by remember { mutableStateOf<ArticleSwipeSettleTarget?>(null) }
+    var displayedArticleId by remember { mutableStateOf(currentPage.articleId) }
     val currentOnLoadPrevious by rememberUpdatedState(onLoadPrevious)
     val currentOnLoadNext by rememberUpdatedState(onLoadNext)
     val positivePage = if (layoutDirection == LayoutDirection.Ltr) previousPage else nextPage
@@ -582,8 +583,11 @@ private fun ArticlePager(
                 }
             },
         )
+    val isArticleCommitFrame = displayedArticleId != currentPage.articleId
+    val pageOffsetPx = if (isArticleCommitFrame) 0f else animatedOffsetPx
 
     LaunchedEffect(currentPage.articleId) {
+        displayedArticleId = currentPage.articleId
         pendingSettleTarget = null
         isDraggingPager = false
         shouldSnapOffset = true
@@ -620,7 +624,7 @@ private fun ArticlePager(
                             .fillMaxSize()
                             .offset {
                                 IntOffset(
-                                    x = (-pageWidthPx + animatedOffsetPx).roundToInt(),
+                                    x = (-pageWidthPx + pageOffsetPx).roundToInt(),
                                     y = 0,
                                 )
                             },
@@ -635,7 +639,7 @@ private fun ArticlePager(
                             .fillMaxSize()
                             .offset {
                                 IntOffset(
-                                    x = (pageWidthPx + animatedOffsetPx).roundToInt(),
+                                    x = (pageWidthPx + pageOffsetPx).roundToInt(),
                                     y = 0,
                                 )
                             },
@@ -649,7 +653,7 @@ private fun ArticlePager(
                         .fillMaxSize()
                         .offset {
                             IntOffset(
-                                x = animatedOffsetPx.roundToInt(),
+                                x = pageOffsetPx.roundToInt(),
                                 y = 0,
                             )
                         },
