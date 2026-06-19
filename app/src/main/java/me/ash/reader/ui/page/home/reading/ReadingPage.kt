@@ -34,6 +34,7 @@ import androidx.compose.runtime.rememberUpdatedState
 import androidx.compose.runtime.saveable.rememberSaveable
 import androidx.compose.runtime.setValue
 import androidx.compose.runtime.snapshotFlow
+import androidx.compose.runtime.withFrameNanos
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clipToBounds
@@ -541,6 +542,7 @@ private fun ArticlePager(
     val layoutDirection = LocalLayoutDirection.current
     var targetOffsetPx by remember { mutableFloatStateOf(0f) }
     var isDraggingPager by remember { mutableStateOf(false) }
+    var shouldSnapOffset by remember { mutableStateOf(false) }
     var pendingSettleTarget by remember { mutableStateOf<ArticleSwipeSettleTarget?>(null) }
     val currentOnLoadPrevious by rememberUpdatedState(onLoadPrevious)
     val currentOnLoadNext by rememberUpdatedState(onLoadNext)
@@ -551,9 +553,12 @@ private fun ArticlePager(
     val animatedOffsetPx by
         animateFloatAsState(
             targetValue = targetOffsetPx,
-            animationSpec = if (isDraggingPager) snap() else spring(),
+            animationSpec = if (isDraggingPager || shouldSnapOffset) snap() else spring(),
             label = "ArticlePagerOffset",
             finishedListener = {
+                if (shouldSnapOffset) {
+                    shouldSnapOffset = false
+                }
                 when (pendingSettleTarget) {
                     ArticleSwipeSettleTarget.Positive -> {
                         pendingSettleTarget = null
@@ -581,7 +586,10 @@ private fun ArticlePager(
     LaunchedEffect(currentPage.articleId) {
         pendingSettleTarget = null
         isDraggingPager = false
+        shouldSnapOffset = true
         targetOffsetPx = 0f
+        withFrameNanos { }
+        shouldSnapOffset = false
     }
 
     Box(
