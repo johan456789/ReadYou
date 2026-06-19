@@ -34,7 +34,6 @@ import androidx.compose.runtime.rememberUpdatedState
 import androidx.compose.runtime.saveable.rememberSaveable
 import androidx.compose.runtime.setValue
 import androidx.compose.runtime.snapshotFlow
-import androidx.compose.runtime.withFrameNanos
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clipToBounds
@@ -483,6 +482,12 @@ internal enum class ArticleSwipeSettleTarget {
     Negative,
 }
 
+private data class ArticlePagerSession(
+    val fromPage: ArticlePageContent,
+    val toPage: ArticlePageContent,
+    val target: ArticleSwipeSettleTarget,
+)
+
 internal fun settleArticleSwipeTarget(
     offsetPx: Float,
     pageWidthPx: Float,
@@ -543,14 +548,11 @@ private fun ArticlePager(
     var targetOffsetPx by remember { mutableFloatStateOf(0f) }
     var isDraggingPager by remember { mutableStateOf(false) }
     var shouldSnapOffset by remember { mutableStateOf(false) }
-    var pendingSettleTarget by remember { mutableStateOf<ArticleSwipeSettleTarget?>(null) }
-    var displayedArticleId by remember { mutableStateOf(currentPage.articleId) }
+    var session by remember { mutableStateOf<ArticlePagerSession?>(null) }
+    var pendingCommitSession by remember { mutableStateOf<ArticlePagerSession?>(null) }
+    var pendingClearSession by remember { mutableStateOf(false) }
     val currentOnLoadPrevious by rememberUpdatedState(onLoadPrevious)
     val currentOnLoadNext by rememberUpdatedState(onLoadNext)
-    val positivePage = if (layoutDirection == LayoutDirection.Ltr) previousPage else nextPage
-    val negativePage = if (layoutDirection == LayoutDirection.Ltr) nextPage else previousPage
-    val canMovePositive = positivePage != null
-    val canMoveNegative = negativePage != null
     val animatedOffsetPx by
         animateFloatAsState(
             targetValue = targetOffsetPx,
@@ -560,9 +562,13 @@ private fun ArticlePager(
                 if (shouldSnapOffset) {
                     shouldSnapOffset = false
                 }
-                when (pendingSettleTarget) {
+                if (pendingClearSession) {
+                    session = null
+                    pendingClearSession = false
+                }
+                when (pendingCommitSession?.target) {
                     ArticleSwipeSettleTarget.Positive -> {
-                        pendingSettleTarget = null
+                        pendingCommitSession = null
                         if (layoutDirection == LayoutDirection.Ltr) {
                             currentOnLoadPrevious()
                         } else {
@@ -571,7 +577,7 @@ private fun ArticlePager(
                     }
 
                     ArticleSwipeSettleTarget.Negative -> {
-                        pendingSettleTarget = null
+                        pendingCommitSession = null
                         if (layoutDirection == LayoutDirection.Ltr) {
                             currentOnLoadNext()
                         } else {
@@ -583,17 +589,14 @@ private fun ArticlePager(
                 }
             },
         )
-    val isArticleCommitFrame = displayedArticleId != currentPage.articleId
-    val pageOffsetPx = if (isArticleCommitFrame) 0f else animatedOffsetPx
 
     LaunchedEffect(currentPage.articleId) {
-        displayedArticleId = currentPage.articleId
-        pendingSettleTarget = null
+        session = null
+        pendingCommitSession = null
+        pendingClearSession = false
         isDraggingPager = false
         shouldSnapOffset = true
         targetOffsetPx = 0f
-        withFrameNanos { }
-        shouldSnapOffset = false
     }
 
     Box(
@@ -601,72 +604,98 @@ private fun ArticlePager(
             modifier
                 .clipToBounds()
                 .pagerDrag(
-                    enabled = enabled,
+                    enabled = enabled && pendingCommitSession == null,
                     offset = targetOffsetPx,
-                    onOffsetChange = { targetOffsetPx = it },
-                    canMovePositive = canMovePositive,
-                    canMoveNegative = canMoveNegative,
+                    currentPage = currentPage,
+                    previousPage = previousPage,
+                    nextPage = nextPage,
                     layoutDirection = layoutDirection,
-                    onDragStateChange = { isDraggingPager = it },
-                    onSettle = { target, settleOffset ->
-                        pendingSettleTarget = target
+                    onDragStart = { newSession, initialOffset ->
+                        session = newSession
+                        pendingClearSession = false
+                        isDraggingPager = true
+                        targetOffsetPx = initialOffset
+                    },
+                    onDrag = { targetOffsetPx = it },
+                    onCancel = {
+                        session = null
+                        pendingClearSession = false
+                        isDraggingPager = false
+                        targetOffsetPx = 0f
+                    },
+                    onSettle = { settledSession, settleOffset ->
+                        session = settledSession
+                        pendingCommitSession = settledSession
+                        pendingClearSession = false
+                        isDraggingPager = false
                         targetOffsetPx = settleOffset
+                    },
+                    onSettleBack = {
+                        pendingClearSession = true
+                        isDraggingPager = false
+                        targetOffsetPx = 0f
                     },
                 )
     ) {
         BoxWithConstraints(modifier = Modifier.fillMaxSize()) {
             val pageWidthPx = with(LocalDensity.current) { maxWidth.toPx() }
-            positivePage?.let { page ->
+            val activeSession = session
+            if (activeSession != null) {
                 ArticlePageSurface(
-                    page = page,
+                    page = activeSession.toPage,
                     modifier =
                         Modifier
                             .fillMaxSize()
                             .offset {
                                 IntOffset(
-                                    x = (-pageWidthPx + pageOffsetPx).roundToInt(),
+                                    x =
+                                        targetPageOffset(
+                                                target = activeSession.target,
+                                                pageWidthPx = pageWidthPx,
+                                                offsetPx = animatedOffsetPx,
+                                            )
+                                            .roundToInt(),
                                     y = 0,
                                 )
                             },
                     contentPadding = contentPadding,
                 )
-            }
-            negativePage?.let { page ->
                 ArticlePageSurface(
-                    page = page,
+                    page = activeSession.fromPage,
                     modifier =
-                        Modifier
+                        currentContentModifier
                             .fillMaxSize()
                             .offset {
                                 IntOffset(
-                                    x = (pageWidthPx + pageOffsetPx).roundToInt(),
+                                    x = animatedOffsetPx.roundToInt(),
                                     y = 0,
                                 )
                             },
                     contentPadding = contentPadding,
+                    scrollState = currentScrollState,
+                    scrollToTopRequest = scrollToTopRequest,
+                    onHeadlineMeasured = onCurrentHeadlineMeasured,
+                    onImageClick = onCurrentImageClick,
+                    onLinkLongPress = onCurrentLinkLongPress,
+                    onShowCustomView = onCurrentShowCustomView,
+                    onHideCustomView = onCurrentHideCustomView,
+                    onScrollSnapshotChange = onCurrentScrollSnapshotChange,
+                )
+            } else {
+                ArticlePageSurface(
+                    page = currentPage,
+                    modifier = currentContentModifier.fillMaxSize(),
+                    contentPadding = contentPadding,
+                    scrollState = currentScrollState,
+                    scrollToTopRequest = scrollToTopRequest,
+                    onHeadlineMeasured = onCurrentHeadlineMeasured,
+                    onImageClick = onCurrentImageClick,
+                    onLinkLongPress = onCurrentLinkLongPress,
+                    onShowCustomView = onCurrentShowCustomView,
+                    onHideCustomView = onCurrentHideCustomView,
+                    onScrollSnapshotChange = onCurrentScrollSnapshotChange,
                 )
             }
-            ArticlePageSurface(
-                page = currentPage,
-                modifier =
-                    currentContentModifier
-                        .fillMaxSize()
-                        .offset {
-                            IntOffset(
-                                x = pageOffsetPx.roundToInt(),
-                                y = 0,
-                            )
-                        },
-                contentPadding = contentPadding,
-                scrollState = currentScrollState,
-                scrollToTopRequest = scrollToTopRequest,
-                onHeadlineMeasured = onCurrentHeadlineMeasured,
-                onImageClick = onCurrentImageClick,
-                onLinkLongPress = onCurrentLinkLongPress,
-                onShowCustomView = onCurrentShowCustomView,
-                onHideCustomView = onCurrentHideCustomView,
-                onScrollSnapshotChange = onCurrentScrollSnapshotChange,
-            )
         }
     }
 }
@@ -675,68 +704,91 @@ private fun ArticlePager(
 private fun Modifier.pagerDrag(
     enabled: Boolean,
     offset: Float,
-    onOffsetChange: (Float) -> Unit,
-    canMovePositive: Boolean,
-    canMoveNegative: Boolean,
+    currentPage: ArticlePageContent,
+    previousPage: ArticlePageContent?,
+    nextPage: ArticlePageContent?,
     layoutDirection: LayoutDirection,
-    onDragStateChange: (Boolean) -> Unit,
-    onSettle: (ArticleSwipeSettleTarget?, Float) -> Unit,
+    onDragStart: (ArticlePagerSession, Float) -> Unit,
+    onDrag: (Float) -> Unit,
+    onCancel: () -> Unit,
+    onSettle: (ArticlePagerSession, Float) -> Unit,
+    onSettleBack: () -> Unit,
 ): Modifier {
     if (!enabled) return this
 
-    val currentOnOffsetChange by rememberUpdatedState(onOffsetChange)
-    val currentOnDragStateChange by rememberUpdatedState(onDragStateChange)
+    val currentOnDragStart by rememberUpdatedState(onDragStart)
+    val currentOnDrag by rememberUpdatedState(onDrag)
+    val currentOnCancel by rememberUpdatedState(onCancel)
     val currentOnSettle by rememberUpdatedState(onSettle)
+    val currentOnSettleBack by rememberUpdatedState(onSettleBack)
 
-    return pointerInput(enabled, canMovePositive, canMoveNegative, layoutDirection) {
+    return pointerInput(enabled, currentPage, previousPage, nextPage, layoutDirection) {
         awaitEachGesture {
             val down = awaitFirstDown(requireUnconsumed = false)
             var pageWidth = size.width.toFloat()
             var dragOffset = offset
+            var activeSession: ArticlePagerSession? = null
             val drag =
                 awaitHorizontalTouchSlopOrCancellation(down.id) { change, overSlop ->
                     pageWidth = size.width.toFloat()
-                    currentOnDragStateChange(true)
-                    dragOffset =
-                        constrainedPagerOffset(
-                            offset = dragOffset + overSlop,
-                            pageWidth = pageWidth,
-                            canMovePositive = canMovePositive,
-                            canMoveNegative = canMoveNegative,
+                    val target =
+                        if (overSlop >= 0f) {
+                            ArticleSwipeSettleTarget.Positive
+                        } else {
+                            ArticleSwipeSettleTarget.Negative
+                        }
+                    val toPage =
+                        targetPage(
+                            target = target,
+                            layoutDirection = layoutDirection,
+                            previousPage = previousPage,
+                            nextPage = nextPage,
                         )
-                    currentOnOffsetChange(dragOffset)
+                    if (toPage == null) {
+                        activeSession = null
+                        dragOffset = 0f
+                    } else {
+                        ArticlePagerSession(
+                                fromPage = currentPage,
+                                toPage = toPage,
+                                target = target,
+                            )
+                            .also { session ->
+                                activeSession = session
+                                dragOffset =
+                                    constrainedPagerOffset(
+                                        offset = overSlop,
+                                        pageWidth = pageWidth,
+                                        target = target,
+                                    )
+                                currentOnDragStart(session, dragOffset)
+                            }
+                    }
                     change.consume()
                 } ?: return@awaitEachGesture
 
             horizontalDrag(drag.id) { change ->
-                dragOffset =
-                    constrainedPagerOffset(
-                        offset = dragOffset + change.positionChange().x,
-                        pageWidth = pageWidth,
-                        canMovePositive = canMovePositive,
-                        canMoveNegative = canMoveNegative,
-                    )
-                currentOnOffsetChange(dragOffset)
+                activeSession?.let { session ->
+                    dragOffset =
+                        constrainedPagerOffset(
+                            offset = dragOffset + change.positionChange().x,
+                            pageWidth = pageWidth,
+                            target = session.target,
+                        )
+                    currentOnDrag(dragOffset)
+                }
                 change.consume()
             }
 
-            currentOnDragStateChange(false)
-            when (settleArticleSwipeTarget(dragOffset, pageWidth)) {
-                ArticleSwipeSettleTarget.Positive ->
-                    if (canMovePositive) {
-                        currentOnSettle(ArticleSwipeSettleTarget.Positive, pageWidth)
-                    } else {
-                        currentOnSettle(null, 0f)
-                    }
-
-                ArticleSwipeSettleTarget.Negative ->
-                    if (canMoveNegative) {
-                        currentOnSettle(ArticleSwipeSettleTarget.Negative, -pageWidth)
-                    } else {
-                        currentOnSettle(null, 0f)
-                    }
-
-                null -> currentOnSettle(null, 0f)
+            val settledSession = activeSession
+            if (settledSession == null) {
+                currentOnCancel()
+                return@awaitEachGesture
+            }
+            if (settleArticleSwipeTarget(dragOffset, pageWidth) == settledSession.target) {
+                currentOnSettle(settledSession, settledOffset(settledSession.target, pageWidth))
+            } else {
+                currentOnSettleBack()
             }
         }
     }
@@ -745,13 +797,42 @@ private fun Modifier.pagerDrag(
 private fun constrainedPagerOffset(
     offset: Float,
     pageWidth: Float,
-    canMovePositive: Boolean,
-    canMoveNegative: Boolean,
+    target: ArticleSwipeSettleTarget,
 ): Float {
-    val min = if (canMoveNegative) -pageWidth else 0f
-    val max = if (canMovePositive) pageWidth else 0f
+    val min = if (target == ArticleSwipeSettleTarget.Negative) -pageWidth else 0f
+    val max = if (target == ArticleSwipeSettleTarget.Positive) pageWidth else 0f
     return offset.coerceIn(min, max)
 }
+
+private fun targetPageOffset(
+    target: ArticleSwipeSettleTarget,
+    pageWidthPx: Float,
+    offsetPx: Float,
+): Float =
+    when (target) {
+        ArticleSwipeSettleTarget.Positive -> -pageWidthPx + offsetPx
+        ArticleSwipeSettleTarget.Negative -> pageWidthPx + offsetPx
+    }
+
+private fun settledOffset(target: ArticleSwipeSettleTarget, pageWidthPx: Float): Float =
+    when (target) {
+        ArticleSwipeSettleTarget.Positive -> pageWidthPx
+        ArticleSwipeSettleTarget.Negative -> -pageWidthPx
+    }
+
+private fun targetPage(
+    target: ArticleSwipeSettleTarget,
+    layoutDirection: LayoutDirection,
+    previousPage: ArticlePageContent?,
+    nextPage: ArticlePageContent?,
+): ArticlePageContent? =
+    when {
+        target == ArticleSwipeSettleTarget.Positive && layoutDirection == LayoutDirection.Ltr ->
+            previousPage
+        target == ArticleSwipeSettleTarget.Positive -> nextPage
+        layoutDirection == LayoutDirection.Ltr -> nextPage
+        else -> previousPage
+    }
 
 @Composable
 private fun ArticlePageSurface(
