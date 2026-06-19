@@ -367,9 +367,11 @@ constructor(
                             publishedDate = article.date,
                         )
                         .prefetchArticleId()
+                        .copy(previousPage = null, nextPage = null)
                         .renderContent(this)
                 }
             }
+            loadAdjacentPages(item.article.id)
         }
     }
 
@@ -493,6 +495,154 @@ constructor(
         return copy(nextArticle = nextArticle, previousArticle = previousArticle, listIndex = index)
     }
 
+    private fun loadAdjacentPages(currentArticleId: String) {
+        viewModelScope.launch {
+            val items = articleListUseCase.itemSnapshotList.items
+            val currentIndex =
+                items.indexOfFirst { item ->
+                    item is ArticleFlowItem.Article &&
+                        item.articleWithFeed.article.id == currentArticleId
+                }
+            if (currentIndex == -1) return@launch
+
+            val previous = items.findPreviousArticle(currentIndex)
+            val next = items.findNextArticle(currentIndex, currentArticleId)
+            val previousPage = previous?.let { buildReaderPage(it.articleWithFeed, it.index) }
+            val nextPage = next?.let { buildReaderPage(it.articleWithFeed, it.index) }
+
+            _readerState.update { state ->
+                if (state.articleId != currentArticleId) state
+                else state.copy(previousPage = previousPage, nextPage = nextPage)
+            }
+
+            previousPage?.let { page ->
+                if (page.content is ReaderState.Loading) {
+                    loadAdjacentFullContent(currentArticleId, AdjacentPageSlot.Previous, page)
+                }
+            }
+            nextPage?.let { page ->
+                if (page.content is ReaderState.Loading) {
+                    loadAdjacentFullContent(currentArticleId, AdjacentPageSlot.Next, page)
+                }
+            }
+        }
+    }
+
+    private suspend fun buildReaderPage(
+        articleWithFeed: ArticleWithFeed,
+        listIndex: Int,
+    ): ReaderPage {
+        val contentState =
+            if (articleWithFeed.feed.isFullContent) {
+                readerCacheHelper
+                    .readFullContent(articleWithFeed.article.id)
+                    .getOrNull()
+                    ?.let { ReaderState.FullContent(it) }
+                    ?: ReaderState.Loading
+            } else {
+                ReaderState.Description(articleWithFeed.article.rawDescription)
+            }
+
+        return articleWithFeed.toReaderPage(listIndex = listIndex, content = contentState)
+    }
+
+    private fun loadAdjacentFullContent(
+        currentArticleId: String,
+        slot: AdjacentPageSlot,
+        page: ReaderPage,
+    ) {
+        viewModelScope.launch {
+            readerCacheHelper
+                .readOrFetchFullContent(page.article)
+                .onSuccess { content ->
+                    updateAdjacentPageContent(
+                        currentArticleId = currentArticleId,
+                        slot = slot,
+                        pageArticleId = page.articleId,
+                        content = ReaderState.FullContent(content),
+                    )
+                }
+                .onFailure { th ->
+                    updateAdjacentPageContent(
+                        currentArticleId = currentArticleId,
+                        slot = slot,
+                        pageArticleId = page.articleId,
+                        content = ReaderState.Error(th.message.toString()),
+                    )
+                }
+        }
+    }
+
+    private fun updateAdjacentPageContent(
+        currentArticleId: String,
+        slot: AdjacentPageSlot,
+        pageArticleId: String,
+        content: ReaderState.ContentState,
+    ) {
+        _readerState.update { state ->
+            if (state.articleId != currentArticleId) return@update state
+            when (slot) {
+                AdjacentPageSlot.Previous ->
+                    if (state.previousPage?.articleId == pageArticleId) {
+                        state.copy(previousPage = state.previousPage.copy(content = content))
+                    } else state
+
+                AdjacentPageSlot.Next ->
+                    if (state.nextPage?.articleId == pageArticleId) {
+                        state.copy(nextPage = state.nextPage.copy(content = content))
+                    } else state
+            }
+        }
+    }
+
+    private fun List<ArticleFlowItem>.findPreviousArticle(
+        currentIndex: Int,
+    ): IndexedArticleWithFeed? {
+        val iterator = listIterator(currentIndex)
+        while (iterator.hasPrevious()) {
+            val previousIndex = iterator.previousIndex()
+            val previous = iterator.previous()
+            if (previous is ArticleFlowItem.Article) {
+                return IndexedArticleWithFeed(previousIndex, previous.articleWithFeed)
+            }
+        }
+        return null
+    }
+
+    private fun List<ArticleFlowItem>.findNextArticle(
+        currentIndex: Int,
+        currentArticleId: String,
+    ): IndexedArticleWithFeed? {
+        val iterator = listIterator(currentIndex + 1)
+        while (iterator.hasNext()) {
+            val nextIndex = iterator.nextIndex()
+            val next = iterator.next()
+            if (
+                next is ArticleFlowItem.Article &&
+                    next.articleWithFeed.article.id != currentArticleId
+            ) {
+                return IndexedArticleWithFeed(nextIndex, next.articleWithFeed)
+            }
+        }
+        return null
+    }
+
+    private fun ArticleWithFeed.toReaderPage(
+        listIndex: Int,
+        content: ReaderState.ContentState,
+    ): ReaderPage =
+        ReaderPage(
+            article = article,
+            articleId = article.id,
+            feedName = feed.name,
+            title = article.title,
+            author = article.author,
+            link = article.link,
+            publishedDate = article.date,
+            content = content,
+            listIndex = listIndex,
+        )
+
     fun downloadImage(
         url: String,
         onSuccess: (Uri) -> Unit = {},
@@ -539,6 +689,28 @@ data class ReadingUiState(
         )
 }
 
+private enum class AdjacentPageSlot {
+    Previous,
+    Next,
+}
+
+private data class IndexedArticleWithFeed(
+    val index: Int,
+    val articleWithFeed: ArticleWithFeed,
+)
+
+data class ReaderPage(
+    val article: Article,
+    val articleId: String,
+    val feedName: String,
+    val title: String? = null,
+    val author: String? = null,
+    val link: String? = null,
+    val publishedDate: Date = Date(0L),
+    val content: ReaderState.ContentState = ReaderState.Loading,
+    val listIndex: Int? = null,
+)
+
 data class ReaderState(
     val articleId: String? = null,
     val feedName: String = "",
@@ -550,6 +722,8 @@ data class ReaderState(
     val listIndex: Int? = null,
     val nextArticle: PrefetchResult? = null,
     val previousArticle: PrefetchResult? = null,
+    val previousPage: ReaderPage? = null,
+    val nextPage: ReaderPage? = null,
 ) {
     data class PrefetchResult(val articleId: String, val index: Int)
 
