@@ -482,10 +482,9 @@ internal enum class ArticleSwipeSettleTarget {
     Negative,
 }
 
-private data class ArticlePagerSession(
-    val fromPage: ArticlePageContent,
-    val toPage: ArticlePageContent,
-    val target: ArticleSwipeSettleTarget,
+private data class ArticlePagerSlot(
+    val page: ArticlePageContent?,
+    val position: Int,
 )
 
 internal fun settleArticleSwipeTarget(
@@ -548,9 +547,17 @@ private fun ArticlePager(
     var targetOffsetPx by remember { mutableFloatStateOf(0f) }
     var isDraggingPager by remember { mutableStateOf(false) }
     var shouldSnapOffset by remember { mutableStateOf(false) }
-    var session by remember { mutableStateOf<ArticlePagerSession?>(null) }
-    var pendingCommitSession by remember { mutableStateOf<ArticlePagerSession?>(null) }
-    var pendingClearSession by remember { mutableStateOf(false) }
+    var slots by remember {
+        mutableStateOf(
+            initialArticlePagerSlots(
+                currentPage = currentPage,
+                previousPage = previousPage,
+                nextPage = nextPage,
+                layoutDirection = layoutDirection,
+            )
+        )
+    }
+    var pendingCommitTarget by remember { mutableStateOf<ArticleSwipeSettleTarget?>(null) }
     val currentOnLoadPrevious by rememberUpdatedState(onLoadPrevious)
     val currentOnLoadNext by rememberUpdatedState(onLoadNext)
     val animatedOffsetPx by
@@ -562,13 +569,9 @@ private fun ArticlePager(
                 if (shouldSnapOffset) {
                     shouldSnapOffset = false
                 }
-                if (pendingClearSession) {
-                    session = null
-                    pendingClearSession = false
-                }
-                when (pendingCommitSession?.target) {
+                when (pendingCommitTarget) {
                     ArticleSwipeSettleTarget.Positive -> {
-                        pendingCommitSession = null
+                        pendingCommitTarget = null
                         if (layoutDirection == LayoutDirection.Ltr) {
                             currentOnLoadPrevious()
                         } else {
@@ -577,7 +580,7 @@ private fun ArticlePager(
                     }
 
                     ArticleSwipeSettleTarget.Negative -> {
-                        pendingCommitSession = null
+                        pendingCommitTarget = null
                         if (layoutDirection == LayoutDirection.Ltr) {
                             currentOnLoadNext()
                         } else {
@@ -591,12 +594,31 @@ private fun ArticlePager(
         )
 
     LaunchedEffect(currentPage.articleId) {
-        session = null
-        pendingCommitSession = null
-        pendingClearSession = false
+        slots =
+            reconcileArticlePagerSlots(
+                slots = slots,
+                currentPage = currentPage,
+                previousPage = previousPage,
+                nextPage = nextPage,
+                layoutDirection = layoutDirection,
+            )
+        pendingCommitTarget = null
         isDraggingPager = false
         shouldSnapOffset = true
         targetOffsetPx = 0f
+    }
+
+    LaunchedEffect(previousPage?.articleId, nextPage?.articleId, currentPage.articleId) {
+        if (!isDraggingPager && pendingCommitTarget == null && targetOffsetPx == 0f) {
+            slots =
+                reconcileArticlePagerSlots(
+                    slots = slots,
+                    currentPage = currentPage,
+                    previousPage = previousPage,
+                    nextPage = nextPage,
+                    layoutDirection = layoutDirection,
+                )
+        }
     }
 
     Box(
@@ -604,34 +626,26 @@ private fun ArticlePager(
             modifier
                 .clipToBounds()
                 .pagerDrag(
-                    enabled = enabled && pendingCommitSession == null,
+                    enabled = enabled && pendingCommitTarget == null,
                     offset = targetOffsetPx,
-                    currentPage = currentPage,
-                    previousPage = previousPage,
-                    nextPage = nextPage,
+                    canMovePositive = slots.any { it.position == -1 && it.page != null },
+                    canMoveNegative = slots.any { it.position == 1 && it.page != null },
                     layoutDirection = layoutDirection,
-                    onDragStart = { newSession, initialOffset ->
-                        session = newSession
-                        pendingClearSession = false
+                    onDragStart = { initialOffset ->
                         isDraggingPager = true
                         targetOffsetPx = initialOffset
                     },
                     onDrag = { targetOffsetPx = it },
                     onCancel = {
-                        session = null
-                        pendingClearSession = false
                         isDraggingPager = false
                         targetOffsetPx = 0f
                     },
-                    onSettle = { settledSession, settleOffset ->
-                        session = settledSession
-                        pendingCommitSession = settledSession
-                        pendingClearSession = false
+                    onSettle = { target, settleOffset ->
+                        pendingCommitTarget = target
                         isDraggingPager = false
                         targetOffsetPx = settleOffset
                     },
                     onSettleBack = {
-                        pendingClearSession = true
                         isDraggingPager = false
                         targetOffsetPx = 0f
                     },
@@ -639,61 +653,40 @@ private fun ArticlePager(
     ) {
         BoxWithConstraints(modifier = Modifier.fillMaxSize()) {
             val pageWidthPx = with(LocalDensity.current) { maxWidth.toPx() }
-            val activeSession = session
-            if (activeSession != null) {
+            slots.forEach { slot ->
+                val page = slot.page ?: return@forEach
+                val isCurrentPage = page.articleId == currentPage.articleId
+                val slotModifier =
+                    (if (isCurrentPage) currentContentModifier else Modifier)
+                        .fillMaxSize()
+                        .offset {
+                            IntOffset(
+                                x = (slot.position * pageWidthPx + animatedOffsetPx).roundToInt(),
+                                y = 0,
+                            )
+                        }
                 ArticlePageSurface(
-                    page = activeSession.toPage,
-                    modifier =
-                        Modifier
-                            .fillMaxSize()
-                            .offset {
-                                IntOffset(
-                                    x =
-                                        targetPageOffset(
-                                                target = activeSession.target,
-                                                pageWidthPx = pageWidthPx,
-                                                offsetPx = animatedOffsetPx,
-                                            )
-                                            .roundToInt(),
-                                    y = 0,
-                                )
+                    page = page,
+                    modifier = slotModifier,
+                    contentPadding = contentPadding,
+                    scrollState =
+                        if (isCurrentPage) currentScrollState
+                        else
+                            rememberSaveable(
+                                page.articleId,
+                                page.content.contentStateKey(),
+                                saver = ScrollState.Saver,
+                            ) {
+                                ScrollState(0)
                             },
-                    contentPadding = contentPadding,
-                )
-                ArticlePageSurface(
-                    page = activeSession.fromPage,
-                    modifier =
-                        currentContentModifier
-                            .fillMaxSize()
-                            .offset {
-                                IntOffset(
-                                    x = animatedOffsetPx.roundToInt(),
-                                    y = 0,
-                                )
-                            },
-                    contentPadding = contentPadding,
-                    scrollState = currentScrollState,
-                    scrollToTopRequest = scrollToTopRequest,
-                    onHeadlineMeasured = onCurrentHeadlineMeasured,
-                    onImageClick = onCurrentImageClick,
-                    onLinkLongPress = onCurrentLinkLongPress,
-                    onShowCustomView = onCurrentShowCustomView,
-                    onHideCustomView = onCurrentHideCustomView,
-                    onScrollSnapshotChange = onCurrentScrollSnapshotChange,
-                )
-            } else {
-                ArticlePageSurface(
-                    page = currentPage,
-                    modifier = currentContentModifier.fillMaxSize(),
-                    contentPadding = contentPadding,
-                    scrollState = currentScrollState,
-                    scrollToTopRequest = scrollToTopRequest,
-                    onHeadlineMeasured = onCurrentHeadlineMeasured,
-                    onImageClick = onCurrentImageClick,
-                    onLinkLongPress = onCurrentLinkLongPress,
-                    onShowCustomView = onCurrentShowCustomView,
-                    onHideCustomView = onCurrentHideCustomView,
-                    onScrollSnapshotChange = onCurrentScrollSnapshotChange,
+                    scrollToTopRequest = if (isCurrentPage) scrollToTopRequest else 0,
+                    onHeadlineMeasured = if (isCurrentPage) onCurrentHeadlineMeasured else null,
+                    onImageClick = if (isCurrentPage) onCurrentImageClick else null,
+                    onLinkLongPress = if (isCurrentPage) onCurrentLinkLongPress else null,
+                    onShowCustomView = if (isCurrentPage) onCurrentShowCustomView else null,
+                    onHideCustomView = if (isCurrentPage) onCurrentHideCustomView else null,
+                    onScrollSnapshotChange =
+                        if (isCurrentPage) onCurrentScrollSnapshotChange else null,
                 )
             }
         }
@@ -704,14 +697,13 @@ private fun ArticlePager(
 private fun Modifier.pagerDrag(
     enabled: Boolean,
     offset: Float,
-    currentPage: ArticlePageContent,
-    previousPage: ArticlePageContent?,
-    nextPage: ArticlePageContent?,
+    canMovePositive: Boolean,
+    canMoveNegative: Boolean,
     layoutDirection: LayoutDirection,
-    onDragStart: (ArticlePagerSession, Float) -> Unit,
+    onDragStart: (Float) -> Unit,
     onDrag: (Float) -> Unit,
     onCancel: () -> Unit,
-    onSettle: (ArticlePagerSession, Float) -> Unit,
+    onSettle: (ArticleSwipeSettleTarget, Float) -> Unit,
     onSettleBack: () -> Unit,
 ): Modifier {
     if (!enabled) return this
@@ -722,12 +714,12 @@ private fun Modifier.pagerDrag(
     val currentOnSettle by rememberUpdatedState(onSettle)
     val currentOnSettleBack by rememberUpdatedState(onSettleBack)
 
-    return pointerInput(enabled, currentPage, previousPage, nextPage, layoutDirection) {
+    return pointerInput(enabled, canMovePositive, canMoveNegative, layoutDirection) {
         awaitEachGesture {
             val down = awaitFirstDown(requireUnconsumed = false)
             var pageWidth = size.width.toFloat()
             var dragOffset = offset
-            var activeSession: ArticlePagerSession? = null
+            var activeTarget: ArticleSwipeSettleTarget? = null
             val drag =
                 awaitHorizontalTouchSlopOrCancellation(down.id) { change, overSlop ->
                     pageWidth = size.width.toFloat()
@@ -737,56 +729,47 @@ private fun Modifier.pagerDrag(
                         } else {
                             ArticleSwipeSettleTarget.Negative
                         }
-                    val toPage =
-                        targetPage(
-                            target = target,
-                            layoutDirection = layoutDirection,
-                            previousPage = previousPage,
-                            nextPage = nextPage,
-                        )
-                    if (toPage == null) {
-                        activeSession = null
+                    val canMove =
+                        when (target) {
+                            ArticleSwipeSettleTarget.Positive -> canMovePositive
+                            ArticleSwipeSettleTarget.Negative -> canMoveNegative
+                        }
+                    if (!canMove) {
+                        activeTarget = null
                         dragOffset = 0f
                     } else {
-                        ArticlePagerSession(
-                                fromPage = currentPage,
-                                toPage = toPage,
+                        activeTarget = target
+                        dragOffset =
+                            constrainedPagerOffset(
+                                offset = overSlop,
+                                pageWidth = pageWidth,
                                 target = target,
                             )
-                            .also { session ->
-                                activeSession = session
-                                dragOffset =
-                                    constrainedPagerOffset(
-                                        offset = overSlop,
-                                        pageWidth = pageWidth,
-                                        target = target,
-                                    )
-                                currentOnDragStart(session, dragOffset)
-                            }
+                        currentOnDragStart(dragOffset)
                     }
                     change.consume()
                 } ?: return@awaitEachGesture
 
             horizontalDrag(drag.id) { change ->
-                activeSession?.let { session ->
+                activeTarget?.let { target ->
                     dragOffset =
                         constrainedPagerOffset(
                             offset = dragOffset + change.positionChange().x,
                             pageWidth = pageWidth,
-                            target = session.target,
+                            target = target,
                         )
                     currentOnDrag(dragOffset)
                 }
                 change.consume()
             }
 
-            val settledSession = activeSession
-            if (settledSession == null) {
+            val settledTarget = activeTarget
+            if (settledTarget == null) {
                 currentOnCancel()
                 return@awaitEachGesture
             }
-            if (settleArticleSwipeTarget(dragOffset, pageWidth) == settledSession.target) {
-                currentOnSettle(settledSession, settledOffset(settledSession.target, pageWidth))
+            if (settleArticleSwipeTarget(dragOffset, pageWidth) == settledTarget) {
+                currentOnSettle(settledTarget, settledOffset(settledTarget, pageWidth))
             } else {
                 currentOnSettleBack()
             }
@@ -804,35 +787,79 @@ private fun constrainedPagerOffset(
     return offset.coerceIn(min, max)
 }
 
-private fun targetPageOffset(
-    target: ArticleSwipeSettleTarget,
-    pageWidthPx: Float,
-    offsetPx: Float,
-): Float =
-    when (target) {
-        ArticleSwipeSettleTarget.Positive -> -pageWidthPx + offsetPx
-        ArticleSwipeSettleTarget.Negative -> pageWidthPx + offsetPx
-    }
-
 private fun settledOffset(target: ArticleSwipeSettleTarget, pageWidthPx: Float): Float =
     when (target) {
         ArticleSwipeSettleTarget.Positive -> pageWidthPx
         ArticleSwipeSettleTarget.Negative -> -pageWidthPx
     }
 
-private fun targetPage(
-    target: ArticleSwipeSettleTarget,
-    layoutDirection: LayoutDirection,
+private fun initialArticlePagerSlots(
+    currentPage: ArticlePageContent,
     previousPage: ArticlePageContent?,
     nextPage: ArticlePageContent?,
-): ArticlePageContent? =
-    when {
-        target == ArticleSwipeSettleTarget.Positive && layoutDirection == LayoutDirection.Ltr ->
-            previousPage
-        target == ArticleSwipeSettleTarget.Positive -> nextPage
-        layoutDirection == LayoutDirection.Ltr -> nextPage
-        else -> previousPage
+    layoutDirection: LayoutDirection,
+): List<ArticlePagerSlot> =
+    listOf(
+        ArticlePagerSlot(
+            page = previousPage,
+            position = previousPagePosition(layoutDirection),
+        ),
+        ArticlePagerSlot(page = currentPage, position = 0),
+        ArticlePagerSlot(
+            page = nextPage,
+            position = nextPagePosition(layoutDirection),
+        ),
+    )
+
+private fun reconcileArticlePagerSlots(
+    slots: List<ArticlePagerSlot>,
+    currentPage: ArticlePageContent,
+    previousPage: ArticlePageContent?,
+    nextPage: ArticlePageContent?,
+    layoutDirection: LayoutDirection,
+): List<ArticlePagerSlot> {
+    if (slots.isEmpty()) {
+        return initialArticlePagerSlots(currentPage, previousPage, nextPage, layoutDirection)
     }
+    val previousPosition = previousPagePosition(layoutDirection)
+    val nextPosition = nextPagePosition(layoutDirection)
+    val assignments =
+        mapOf(
+            0 to currentPage,
+            previousPosition to previousPage,
+            nextPosition to nextPage,
+        )
+    val usedPositions = mutableSetOf<Int>()
+    val matchedSlotIndexes = mutableSetOf<Int>()
+    val reconciled =
+        slots.mapIndexed { index, slot ->
+            val matchingPosition =
+                assignments.entries.firstOrNull { (_, page) ->
+                    page != null && page.articleId == slot.page?.articleId
+                }?.key
+            if (matchingPosition != null && matchingPosition !in usedPositions) {
+                usedPositions += matchingPosition
+                matchedSlotIndexes += index
+                slot.copy(page = assignments[matchingPosition], position = matchingPosition)
+            } else {
+                slot
+            }
+        }
+    return reconciled.mapIndexed { index, slot ->
+        if (index in matchedSlotIndexes) return@mapIndexed slot
+        val availablePosition =
+            listOf(previousPosition, 0, nextPosition).firstOrNull { it !in usedPositions }
+                ?: slot.position
+        usedPositions += availablePosition
+        slot.copy(page = assignments[availablePosition], position = availablePosition)
+    }
+}
+
+private fun previousPagePosition(layoutDirection: LayoutDirection): Int =
+    if (layoutDirection == LayoutDirection.Ltr) -1 else 1
+
+private fun nextPagePosition(layoutDirection: LayoutDirection): Int =
+    if (layoutDirection == LayoutDirection.Ltr) 1 else -1
 
 @Composable
 private fun ArticlePageSurface(
