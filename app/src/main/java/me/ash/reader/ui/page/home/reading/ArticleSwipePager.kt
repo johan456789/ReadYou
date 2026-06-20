@@ -377,35 +377,37 @@ private fun Modifier.articleSwipePointerInput(
         awaitEachGesture {
             val down = awaitFirstDown(requireUnconsumed = false)
             var dragOffset = 0f
+            var totalDragOffset = 0f
             val drag =
                 awaitHorizontalTouchSlopOrCancellation(down.id) { change, overSlop ->
+                    totalDragOffset += overSlop
                     val canDrag =
                         canDragInDirection(
-                            offset = overSlop,
+                            offset = totalDragOffset,
                             layoutDirection = layoutDirection,
                             previousState = getPreviousState(),
                             nextState = getNextState(),
                         )
+                    dragOffset = if (canDrag) totalDragOffset else 0f
+                    onDragOffsetChange(dragOffset)
                     if (canDrag) {
-                        dragOffset = overSlop
-                        onDragOffsetChange(dragOffset)
                         change.consume()
                     }
                 } ?: return@awaitEachGesture
 
             horizontalDrag(drag.id) { change ->
                 if (change.changedToUpIgnoreConsumed()) return@horizontalDrag
-                val proposed = dragOffset + change.positionChange().x
+                totalDragOffset += change.positionChange().x
                 dragOffset =
                     if (
                         canDragInDirection(
-                            offset = proposed,
+                            offset = totalDragOffset,
                             layoutDirection = layoutDirection,
                             previousState = getPreviousState(),
                             nextState = getNextState(),
                         )
                     ) {
-                        proposed
+                        totalDragOffset
                     } else {
                         0f
                     }
