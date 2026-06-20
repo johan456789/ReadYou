@@ -92,6 +92,7 @@ private class ArticleSwipeSlot(
 ) {
     var articleId by mutableStateOf<String?>(null)
     var readerState by mutableStateOf<ReaderState?>(null)
+    var target by mutableStateOf<ReaderState.PrefetchResult?>(null)
 }
 
 @Composable
@@ -131,6 +132,7 @@ fun ArticleSwipePager(
         if (pendingSwipeCommitArticleId == articleId && existingSlotIndex != -1) {
             currentSlotIndex = existingSlotIndex
             slots[existingSlotIndex].readerState = currentReaderState
+            slots[existingSlotIndex].target = null
             pendingSwipeCommitArticleId = null
             return@LaunchedEffect
         }
@@ -138,6 +140,7 @@ fun ArticleSwipePager(
         val currentSlot = slots[currentSlotIndex]
         if (currentSlot.articleId == articleId) {
             currentSlot.readerState = currentReaderState
+            currentSlot.target = null
         } else if (pendingSwipeCommitArticleId == null) {
             previousSlotIndex = 1
             currentSlotIndex = 0
@@ -146,10 +149,12 @@ fun ArticleSwipePager(
                 if (slot.index == currentSlotIndex) {
                     slot.articleId = articleId
                     slot.readerState = currentReaderState
+                    slot.target = null
                     slot.scrollState.scrollTo(0)
                 } else {
                     slot.articleId = null
                     slot.readerState = null
+                    slot.target = null
                     slot.scrollState.scrollTo(0)
                 }
             }
@@ -191,9 +196,11 @@ fun ArticleSwipePager(
             if (target == null) {
                 slot.articleId = null
                 slot.readerState = null
+                slot.target = null
                 slot.scrollState.scrollTo(0)
                 return
             }
+            slot.target = target
             if (slot.articleId == target.articleId && slot.readerState != null) return
             slot.articleId = target.articleId
             slot.readerState = ReaderState(articleId = target.articleId)
@@ -226,14 +233,12 @@ fun ArticleSwipePager(
                                 layoutDirection = layoutDirection,
                                 gesturesEnabled = !isSettling,
                                 getCurrentState = { slots[currentSlotIndex].readerState },
-                                getPreviousState = { slots[previousSlotIndex].readerState },
-                                getNextState = { slots[nextSlotIndex].readerState },
+                                getPreviousTarget = { slots[previousSlotIndex].target },
+                                getNextTarget = { slots[nextSlotIndex].target },
                                 onSettlePrevious = {
                                     scope.launch {
-                                        val previousState =
-                                            slots[previousSlotIndex].readerState ?: return@launch
-                                        val target = previousState.articleId ?: return@launch
-                                        val targetIndex = previousState.listIndex ?: return@launch
+                                        val target =
+                                            slots[previousSlotIndex].target ?: return@launch
                                         isSettling = true
                                         try {
                                             settleOffset.snapTo(dragOffsetPx)
@@ -262,10 +267,10 @@ fun ArticleSwipePager(
                                                             slot.index != nextSlotIndex
                                                     }
                                                     .index
-                                            pendingSwipeCommitArticleId = target
+                                            pendingSwipeCommitArticleId = target.articleId
                                             dragOffsetPx = 0f
                                             settleOffset.snapTo(0f)
-                                            onLoadArticle(target, targetIndex)
+                                            onLoadArticle(target.articleId, target.index)
                                         } finally {
                                             isSettling = false
                                         }
@@ -273,10 +278,7 @@ fun ArticleSwipePager(
                                 },
                                 onSettleNext = {
                                     scope.launch {
-                                        val nextState =
-                                            slots[nextSlotIndex].readerState ?: return@launch
-                                        val target = nextState.articleId ?: return@launch
-                                        val targetIndex = nextState.listIndex ?: return@launch
+                                        val target = slots[nextSlotIndex].target ?: return@launch
                                         isSettling = true
                                         try {
                                             settleOffset.snapTo(dragOffsetPx)
@@ -305,10 +307,10 @@ fun ArticleSwipePager(
                                                             slot.index != previousSlotIndex
                                                     }
                                                     .index
-                                            pendingSwipeCommitArticleId = target
+                                            pendingSwipeCommitArticleId = target.articleId
                                             dragOffsetPx = 0f
                                             settleOffset.snapTo(0f)
-                                            onLoadArticle(target, targetIndex)
+                                            onLoadArticle(target.articleId, target.index)
                                         } finally {
                                             isSettling = false
                                         }
@@ -411,8 +413,8 @@ private fun Modifier.articleSwipePointerInput(
     layoutDirection: LayoutDirection,
     gesturesEnabled: Boolean,
     getCurrentState: () -> ReaderState?,
-    getPreviousState: () -> ReaderState?,
-    getNextState: () -> ReaderState?,
+    getPreviousTarget: () -> ReaderState.PrefetchResult?,
+    getNextTarget: () -> ReaderState.PrefetchResult?,
     onSettlePrevious: () -> Unit,
     onSettleNext: () -> Unit,
     onCancel: () -> Unit,
@@ -432,8 +434,8 @@ private fun Modifier.articleSwipePointerInput(
                         canDragInDirection(
                             offset = totalDragOffset,
                             layoutDirection = layoutDirection,
-                            previousState = getPreviousState(),
-                            nextState = getNextState(),
+                            canLoadPrevious = getPreviousTarget() != null,
+                            canLoadNext = getNextTarget() != null,
                         )
                     dragOffset = if (canDrag) totalDragOffset else 0f
                     onDragOffsetChange(dragOffset)
@@ -450,8 +452,8 @@ private fun Modifier.articleSwipePointerInput(
                         canDragInDirection(
                             offset = totalDragOffset,
                             layoutDirection = layoutDirection,
-                            previousState = getPreviousState(),
-                            nextState = getNextState(),
+                            canLoadPrevious = getPreviousTarget() != null,
+                            canLoadNext = getNextTarget() != null,
                         )
                     ) {
                         totalDragOffset
@@ -472,8 +474,8 @@ private fun Modifier.articleSwipePointerInput(
                     dragOffset = dragOffset,
                     threshold = thresholdPx,
                     layoutDirection = layoutDirection,
-                    canLoadPrevious = getPreviousState()?.articleId != null,
-                    canLoadNext = getNextState()?.articleId != null,
+                    canLoadPrevious = getPreviousTarget() != null,
+                    canLoadNext = getNextTarget() != null,
                 )
             ) {
                 ArticleSwipeDirection.Previous -> onSettlePrevious()
@@ -486,8 +488,8 @@ private fun Modifier.articleSwipePointerInput(
 private fun canDragInDirection(
     offset: Float,
     layoutDirection: LayoutDirection,
-    previousState: ReaderState?,
-    nextState: ReaderState?,
+    canLoadPrevious: Boolean,
+    canLoadNext: Boolean,
 ): Boolean {
     if (offset == 0f) return true
     val direction =
@@ -496,10 +498,10 @@ private fun canDragInDirection(
             layoutDirection == LayoutDirection.Ltr -> ArticleSwipeDirection.Previous
             offset < 0f -> ArticleSwipeDirection.Previous
             else -> ArticleSwipeDirection.Next
-        }
+    }
     return when (direction) {
-        ArticleSwipeDirection.Previous -> previousState?.articleId != null
-        ArticleSwipeDirection.Next -> nextState?.articleId != null
+        ArticleSwipeDirection.Previous -> canLoadPrevious
+        ArticleSwipeDirection.Next -> canLoadNext
     }
 }
 
