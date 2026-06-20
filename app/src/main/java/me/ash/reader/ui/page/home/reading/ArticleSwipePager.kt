@@ -68,6 +68,24 @@ internal fun resolveArticleSwipeSettleDirection(
     }
 }
 
+internal fun articleSwipePageOffset(
+    direction: ArticleSwipeDirection,
+    widthPx: Float,
+    layoutDirection: LayoutDirection,
+): Float =
+    when (direction) {
+        ArticleSwipeDirection.Previous ->
+            if (layoutDirection == LayoutDirection.Ltr) -widthPx else widthPx
+        ArticleSwipeDirection.Next ->
+            if (layoutDirection == LayoutDirection.Ltr) widthPx else -widthPx
+    }
+
+internal fun articleSwipeSettleOffset(
+    direction: ArticleSwipeDirection,
+    widthPx: Float,
+    layoutDirection: LayoutDirection,
+): Float = -articleSwipePageOffset(direction, widthPx, layoutDirection)
+
 private class ArticleSwipeSlot(
     val index: Int,
     val scrollState: ScrollState,
@@ -220,7 +238,12 @@ fun ArticleSwipePager(
                                         try {
                                             settleOffset.snapTo(dragOffsetPx)
                                             settleOffset.animateTo(
-                                                targetValue = widthPx,
+                                                targetValue =
+                                                    articleSwipeSettleOffset(
+                                                        direction = ArticleSwipeDirection.Previous,
+                                                        widthPx = widthPx,
+                                                        layoutDirection = layoutDirection,
+                                                    ),
                                                 animationSpec =
                                                     spring(
                                                         dampingRatio = Spring.DampingRatioNoBouncy,
@@ -258,7 +281,12 @@ fun ArticleSwipePager(
                                         try {
                                             settleOffset.snapTo(dragOffsetPx)
                                             settleOffset.animateTo(
-                                                targetValue = -widthPx,
+                                                targetValue =
+                                                    articleSwipeSettleOffset(
+                                                        direction = ArticleSwipeDirection.Next,
+                                                        widthPx = widthPx,
+                                                        layoutDirection = layoutDirection,
+                                                    ),
                                                 animationSpec =
                                                     spring(
                                                         dampingRatio = Spring.DampingRatioNoBouncy,
@@ -317,9 +345,19 @@ fun ArticleSwipePager(
         ) {
             val pages =
                 listOf(
-                    previousSlotIndex to -widthPx,
+                    previousSlotIndex to
+                        articleSwipePageOffset(
+                            direction = ArticleSwipeDirection.Previous,
+                            widthPx = widthPx,
+                            layoutDirection = layoutDirection,
+                        ),
                     currentSlotIndex to 0f,
-                    nextSlotIndex to widthPx,
+                    nextSlotIndex to
+                        articleSwipePageOffset(
+                            direction = ArticleSwipeDirection.Next,
+                            widthPx = widthPx,
+                            layoutDirection = layoutDirection,
+                        ),
                 ).distinctBy { it.first }
 
             pages.forEach { (slotIndex, baseOffset) ->

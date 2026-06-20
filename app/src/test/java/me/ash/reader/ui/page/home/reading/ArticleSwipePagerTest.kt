@@ -76,4 +76,64 @@ class ArticleSwipePagerTest {
 
         assertNull(direction)
     }
+
+    @Test
+    fun `ltr places previous left and next right`() {
+        assertEquals(
+            -300f,
+            articleSwipePageOffset(
+                direction = ArticleSwipeDirection.Previous,
+                widthPx = 300f,
+                layoutDirection = LayoutDirection.Ltr,
+            ),
+        )
+        assertEquals(
+            300f,
+            articleSwipePageOffset(
+                direction = ArticleSwipeDirection.Next,
+                widthPx = 300f,
+                layoutDirection = LayoutDirection.Ltr,
+            ),
+        )
+    }
+
+    @Test
+    fun `rtl places previous right and next left`() {
+        assertEquals(
+            300f,
+            articleSwipePageOffset(
+                direction = ArticleSwipeDirection.Previous,
+                widthPx = 300f,
+                layoutDirection = LayoutDirection.Rtl,
+            ),
+        )
+        assertEquals(
+            -300f,
+            articleSwipePageOffset(
+                direction = ArticleSwipeDirection.Next,
+                widthPx = 300f,
+                layoutDirection = LayoutDirection.Rtl,
+            ),
+        )
+    }
+
+    @Test
+    fun `settle offset mirrors page offset`() {
+        assertEquals(
+            -300f,
+            articleSwipeSettleOffset(
+                direction = ArticleSwipeDirection.Previous,
+                widthPx = 300f,
+                layoutDirection = LayoutDirection.Rtl,
+            ),
+        )
+        assertEquals(
+            300f,
+            articleSwipeSettleOffset(
+                direction = ArticleSwipeDirection.Next,
+                widthPx = 300f,
+                layoutDirection = LayoutDirection.Rtl,
+            ),
+        )
+    }
 }
