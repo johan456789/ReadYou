@@ -217,32 +217,35 @@ fun ArticleSwipePager(
                                         val target = previousState.articleId ?: return@launch
                                         val targetIndex = previousState.listIndex ?: return@launch
                                         isSettling = true
-                                        settleOffset.snapTo(dragOffsetPx)
-                                        settleOffset.animateTo(
-                                            targetValue = widthPx,
-                                            animationSpec =
-                                                spring(
-                                                    dampingRatio = Spring.DampingRatioNoBouncy,
-                                                    stiffness = Spring.StiffnessMediumLow,
-                                                ),
-                                        ) {
-                                            dragOffsetPx = value
+                                        try {
+                                            settleOffset.snapTo(dragOffsetPx)
+                                            settleOffset.animateTo(
+                                                targetValue = widthPx,
+                                                animationSpec =
+                                                    spring(
+                                                        dampingRatio = Spring.DampingRatioNoBouncy,
+                                                        stiffness = Spring.StiffnessMediumLow,
+                                                    ),
+                                            ) {
+                                                dragOffsetPx = value
+                                            }
+                                            val oldCurrent = currentSlotIndex
+                                            currentSlotIndex = previousSlotIndex
+                                            nextSlotIndex = oldCurrent
+                                            previousSlotIndex =
+                                                slots
+                                                    .first { slot ->
+                                                        slot.index != currentSlotIndex &&
+                                                            slot.index != nextSlotIndex
+                                                    }
+                                                    .index
+                                            pendingSwipeCommitArticleId = target
+                                            dragOffsetPx = 0f
+                                            settleOffset.snapTo(0f)
+                                            onLoadArticle(target, targetIndex)
+                                        } finally {
+                                            isSettling = false
                                         }
-                                        val oldCurrent = currentSlotIndex
-                                        currentSlotIndex = previousSlotIndex
-                                        nextSlotIndex = oldCurrent
-                                        previousSlotIndex =
-                                            slots
-                                                .first { slot ->
-                                                    slot.index != currentSlotIndex &&
-                                                        slot.index != nextSlotIndex
-                                                }
-                                                .index
-                                        pendingSwipeCommitArticleId = target
-                                        dragOffsetPx = 0f
-                                        settleOffset.snapTo(0f)
-                                        isSettling = false
-                                        onLoadArticle(target, targetIndex)
                                     }
                                 },
                                 onSettleNext = {
@@ -252,51 +255,57 @@ fun ArticleSwipePager(
                                         val target = nextState.articleId ?: return@launch
                                         val targetIndex = nextState.listIndex ?: return@launch
                                         isSettling = true
-                                        settleOffset.snapTo(dragOffsetPx)
-                                        settleOffset.animateTo(
-                                            targetValue = -widthPx,
-                                            animationSpec =
-                                                spring(
-                                                    dampingRatio = Spring.DampingRatioNoBouncy,
-                                                    stiffness = Spring.StiffnessMediumLow,
-                                                ),
-                                        ) {
-                                            dragOffsetPx = value
+                                        try {
+                                            settleOffset.snapTo(dragOffsetPx)
+                                            settleOffset.animateTo(
+                                                targetValue = -widthPx,
+                                                animationSpec =
+                                                    spring(
+                                                        dampingRatio = Spring.DampingRatioNoBouncy,
+                                                        stiffness = Spring.StiffnessMediumLow,
+                                                    ),
+                                            ) {
+                                                dragOffsetPx = value
+                                            }
+                                            val oldCurrent = currentSlotIndex
+                                            currentSlotIndex = nextSlotIndex
+                                            previousSlotIndex = oldCurrent
+                                            nextSlotIndex =
+                                                slots
+                                                    .first { slot ->
+                                                        slot.index != currentSlotIndex &&
+                                                            slot.index != previousSlotIndex
+                                                    }
+                                                    .index
+                                            pendingSwipeCommitArticleId = target
+                                            dragOffsetPx = 0f
+                                            settleOffset.snapTo(0f)
+                                            onLoadArticle(target, targetIndex)
+                                        } finally {
+                                            isSettling = false
                                         }
-                                        val oldCurrent = currentSlotIndex
-                                        currentSlotIndex = nextSlotIndex
-                                        previousSlotIndex = oldCurrent
-                                        nextSlotIndex =
-                                            slots
-                                                .first { slot ->
-                                                    slot.index != currentSlotIndex &&
-                                                        slot.index != previousSlotIndex
-                                                }
-                                                .index
-                                        pendingSwipeCommitArticleId = target
-                                        dragOffsetPx = 0f
-                                        settleOffset.snapTo(0f)
-                                        isSettling = false
-                                        onLoadArticle(target, targetIndex)
                                     }
                                 },
                                 onCancel = {
                                     scope.launch {
                                         isSettling = true
-                                        settleOffset.snapTo(dragOffsetPx)
-                                        settleOffset.animateTo(
-                                            targetValue = 0f,
-                                            animationSpec =
-                                                spring(
-                                                    dampingRatio = Spring.DampingRatioNoBouncy,
-                                                    stiffness = Spring.StiffnessMediumLow,
-                                                ),
-                                        ) {
-                                            dragOffsetPx = value
+                                        try {
+                                            settleOffset.snapTo(dragOffsetPx)
+                                            settleOffset.animateTo(
+                                                targetValue = 0f,
+                                                animationSpec =
+                                                    spring(
+                                                        dampingRatio = Spring.DampingRatioNoBouncy,
+                                                        stiffness = Spring.StiffnessMediumLow,
+                                                    ),
+                                            ) {
+                                                dragOffsetPx = value
+                                            }
+                                            dragOffsetPx = 0f
+                                            settleOffset.snapTo(0f)
+                                        } finally {
+                                            isSettling = false
                                         }
-                                        dragOffsetPx = 0f
-                                        settleOffset.snapTo(0f)
-                                        isSettling = false
                                     }
                                 },
                                 onDragOffsetChange = { dragOffsetPx = it },
