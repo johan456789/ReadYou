@@ -17,6 +17,10 @@ import androidx.compose.animation.slideOutVertically
 import androidx.compose.animation.togetherWith
 import androidx.compose.foundation.ExperimentalFoundationApi
 import androidx.compose.foundation.ScrollState
+import androidx.compose.foundation.gestures.awaitEachGesture
+import androidx.compose.foundation.gestures.awaitFirstDown
+import androidx.compose.foundation.gestures.awaitHorizontalTouchSlopOrCancellation
+import androidx.compose.foundation.gestures.horizontalDrag
 import androidx.compose.foundation.background
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.fillMaxSize
@@ -32,15 +36,21 @@ import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
 import androidx.compose.runtime.rememberCoroutineScope
+import androidx.compose.runtime.rememberUpdatedState
 import androidx.compose.runtime.saveable.rememberSaveable
 import androidx.compose.runtime.setValue
 import androidx.compose.runtime.snapshotFlow
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.graphics.Color
+import androidx.compose.ui.input.pointer.changedToUpIgnoreConsumed
+import androidx.compose.ui.input.pointer.pointerInput
+import androidx.compose.ui.input.pointer.positionChange
 import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.platform.LocalHapticFeedback
 import androidx.compose.ui.platform.LocalDensity
+import androidx.compose.ui.platform.LocalLayoutDirection
+import androidx.compose.ui.unit.LayoutDirection
 import androidx.compose.ui.unit.IntOffset
 import androidx.compose.ui.unit.TextUnit
 import androidx.compose.ui.unit.dp
@@ -60,6 +70,7 @@ import me.ash.reader.infrastructure.android.TextToSpeechManager
 import me.ash.reader.infrastructure.preference.LocalPullToSwitchArticle
 import me.ash.reader.infrastructure.preference.LocalReadingAutoHideToolbar
 import me.ash.reader.infrastructure.preference.LocalReadingTextLineHeight
+import me.ash.reader.infrastructure.preference.LocalSwipeToSwitchArticle
 import me.ash.reader.ui.ext.collectAsStateValue
 import me.ash.reader.ui.ext.showToast
 import me.ash.reader.ui.page.adaptive.ArticleListReaderViewModel
@@ -91,6 +102,7 @@ fun ReadingPage(
     val hapticFeedback = LocalHapticFeedback.current
     val density = LocalDensity.current
     val isPullToSwitchArticleEnabled = LocalPullToSwitchArticle.current.value
+    val isSwipeToSwitchArticleEnabled = LocalSwipeToSwitchArticle.current.value
     val readingUiState = viewModel.readingUiState.collectAsStateValue()
     val readerState = viewModel.readerStateStateFlow.collectAsStateValue()
     val contentStateKey =
@@ -352,7 +364,25 @@ fun ReadingPage(
                                             )
                                         } else {
                                             Modifier
-                                        }
+                                        }.swipeToSwitchArticle(
+                                            enabled =
+                                                isSwipeToSwitchArticleEnabled &&
+                                                    !showFullScreenImageViewer &&
+                                                    !showLinkActionDialog &&
+                                                    !isVideoFullscreen,
+                                            canLoadPrevious = isPreviousArticleAvailable,
+                                            canLoadNext = isNextArticleAvailable,
+                                            onLoadPrevious = {
+                                                readerState.previousArticle?.let { (id, index) ->
+                                                    onLoadArticle(id, index)
+                                                }
+                                            },
+                                            onLoadNext = {
+                                                readerState.nextArticle?.let { (id, index) ->
+                                                    onLoadArticle(id, index)
+                                                }
+                                            },
+                                        )
                                         Content(
                                             modifier = contentModifier,
                                             contentPadding = paddings,
@@ -505,6 +535,61 @@ fun ReadingPage(
                         }
                     )
                 }
+            }
+        }
+    }
+}
+
+private enum class ArticleSwipeDirection {
+    Previous,
+    Next,
+}
+
+@Composable
+private fun Modifier.swipeToSwitchArticle(
+    enabled: Boolean,
+    canLoadPrevious: Boolean,
+    canLoadNext: Boolean,
+    onLoadPrevious: () -> Unit,
+    onLoadNext: () -> Unit,
+): Modifier {
+    if (!enabled) return this
+
+    val layoutDirection = LocalLayoutDirection.current
+    val thresholdPx = with(LocalDensity.current) { 96.dp.toPx() }
+    val currentOnLoadPrevious by rememberUpdatedState(onLoadPrevious)
+    val currentOnLoadNext by rememberUpdatedState(onLoadNext)
+
+    return pointerInput(enabled, canLoadPrevious, canLoadNext, layoutDirection, thresholdPx) {
+        awaitEachGesture {
+            val down = awaitFirstDown(requireUnconsumed = false)
+            var dragDistance = 0f
+            val drag =
+                awaitHorizontalTouchSlopOrCancellation(down.id) { change, overSlop ->
+                    dragDistance += overSlop
+                    change.consume()
+                } ?: return@awaitEachGesture
+
+            horizontalDrag(drag.id) { change ->
+                if (change.changedToUpIgnoreConsumed()) return@horizontalDrag
+                dragDistance += change.positionChange().x
+                change.consume()
+            }
+
+            if (abs(dragDistance) < thresholdPx) return@awaitEachGesture
+
+            val direction =
+                when {
+                    layoutDirection == LayoutDirection.Ltr && dragDistance < 0f ->
+                        ArticleSwipeDirection.Next
+                    layoutDirection == LayoutDirection.Ltr -> ArticleSwipeDirection.Previous
+                    dragDistance < 0f -> ArticleSwipeDirection.Previous
+                    else -> ArticleSwipeDirection.Next
+                }
+
+            when (direction) {
+                ArticleSwipeDirection.Previous -> if (canLoadPrevious) currentOnLoadPrevious()
+                ArticleSwipeDirection.Next -> if (canLoadNext) currentOnLoadNext()
             }
         }
     }
