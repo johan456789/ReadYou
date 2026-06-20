@@ -14,6 +14,7 @@ import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.BoxWithConstraints
 import androidx.compose.foundation.layout.PaddingValues
 import androidx.compose.foundation.layout.fillMaxSize
+import androidx.compose.foundation.layout.offset
 import androidx.compose.material.ExperimentalMaterialApi
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.LaunchedEffect
@@ -30,9 +31,9 @@ import androidx.compose.ui.draw.clipToBounds
 import androidx.compose.ui.input.pointer.changedToUpIgnoreConsumed
 import androidx.compose.ui.input.pointer.pointerInput
 import androidx.compose.ui.input.pointer.positionChange
-import androidx.compose.ui.layout.layout
 import androidx.compose.ui.platform.LocalDensity
 import androidx.compose.ui.platform.LocalLayoutDirection
+import androidx.compose.ui.unit.IntOffset
 import androidx.compose.ui.unit.LayoutDirection
 import androidx.compose.ui.unit.dp
 import kotlinx.coroutines.launch
@@ -320,7 +321,9 @@ fun ArticleSwipePager(
                         modifier =
                             Modifier
                                 .fillMaxSize()
-                                .offsetBy((baseOffset + dragOffsetPx).roundToInt())
+                                .offset {
+                                    IntOffset((baseOffset + dragOffsetPx).roundToInt(), 0)
+                                }
                     ) {
                         val isCurrent = slotIndex == currentSlotIndex
                         ArticleSwipePageContent(
@@ -356,16 +359,6 @@ fun ArticleSwipePager(
         }
     }
 }
-
-private fun Modifier.offsetBy(x: Int): Modifier =
-    then(
-        Modifier.layout { measurable, constraints ->
-            val placeable = measurable.measure(constraints)
-            layout(placeable.width, placeable.height) {
-                placeable.placeRelative(x, 0)
-            }
-        }
-    )
 
 private fun Modifier.articleSwipePointerInput(
     layoutDirection: LayoutDirection,
