@@ -936,9 +936,13 @@ private fun reconcileArticlePagerSlots(
                     page != null && page.articleId == slot.page?.articleId
                 }?.key
             if (matchingPosition != null && matchingPosition !in usedPositions) {
+                val assignedPage = assignments[matchingPosition]
                 usedPositions += matchingPosition
                 matchedSlotIndexes += index
-                slot.copy(page = assignments[matchingPosition], position = matchingPosition)
+                slot.copy(
+                    page = slot.page?.preserveLoadedContent(assignedPage) ?: assignedPage,
+                    position = matchingPosition,
+                )
             } else {
                 slot
             }
@@ -958,6 +962,17 @@ private fun previousPagePosition(layoutDirection: LayoutDirection): Int =
 
 private fun nextPagePosition(layoutDirection: LayoutDirection): Int =
     if (layoutDirection == LayoutDirection.Ltr) 1 else -1
+
+private fun ArticlePageContent.preserveLoadedContent(
+    latestPage: ArticlePageContent?,
+): ArticlePageContent {
+    if (latestPage == null || articleId != latestPage.articleId) return this
+    return if (content is ReaderState.Loading && latestPage.content !is ReaderState.Loading) {
+        latestPage
+    } else {
+        latestPage.copy(content = content)
+    }
+}
 
 @Composable
 private fun ArticlePageSurface(
