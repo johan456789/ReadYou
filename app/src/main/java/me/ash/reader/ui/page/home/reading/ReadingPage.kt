@@ -58,10 +58,10 @@ import me.ash.reader.ui.component.webview.LinkActionDialog
 import me.ash.reader.ui.component.webview.LinkActionData
 import me.ash.reader.ui.component.webview.WebViewScrollSnapshot
 import me.ash.reader.infrastructure.android.TextToSpeechManager
-import me.ash.reader.infrastructure.preference.LocalPullToSwitchArticle
+import me.ash.reader.infrastructure.preference.ArticleSwitchGesturePreference
+import me.ash.reader.infrastructure.preference.LocalArticleSwitchGesture
 import me.ash.reader.infrastructure.preference.LocalReadingAutoHideToolbar
 import me.ash.reader.infrastructure.preference.LocalReadingTextLineHeight
-import me.ash.reader.infrastructure.preference.LocalSwipeToSwitchArticle
 import me.ash.reader.ui.ext.collectAsStateValue
 import me.ash.reader.ui.ext.showToast
 import me.ash.reader.ui.page.adaptive.ArticleListReaderViewModel
@@ -92,8 +92,11 @@ fun ReadingPage(
     val context = LocalContext.current
     val hapticFeedback = LocalHapticFeedback.current
     val density = LocalDensity.current
-    val isPullToSwitchArticleEnabled = LocalPullToSwitchArticle.current.value
-    val isSwipeToSwitchArticleEnabled = LocalSwipeToSwitchArticle.current.value
+    val articleSwitchGesture = LocalArticleSwitchGesture.current
+    val isPullToSwitchArticleEnabled =
+        articleSwitchGesture is ArticleSwitchGesturePreference.VerticalPull
+    val isSwipeToSwitchArticleEnabled =
+        articleSwitchGesture is ArticleSwitchGesturePreference.HorizontalSwipe
     val readingUiState = viewModel.readingUiState.collectAsStateValue()
     val readerState = viewModel.readerStateStateFlow.collectAsStateValue()
     val contentStateKey =
