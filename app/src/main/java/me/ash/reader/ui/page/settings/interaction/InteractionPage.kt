@@ -21,21 +21,21 @@ import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.unit.dp
 import me.ash.reader.R
+import me.ash.reader.infrastructure.preference.ArticleSwitchGesturePreference
 import me.ash.reader.infrastructure.preference.InitialFilterPreference
 import me.ash.reader.infrastructure.preference.InitialPagePreference
 import me.ash.reader.infrastructure.preference.LocalArticleListSwipeEndAction
 import me.ash.reader.infrastructure.preference.LocalArticleListSwipeStartAction
+import me.ash.reader.infrastructure.preference.LocalArticleSwitchGesture
 import me.ash.reader.infrastructure.preference.LocalHideEmptyGroups
 import me.ash.reader.infrastructure.preference.LocalInitialFilter
 import me.ash.reader.infrastructure.preference.LocalInitialPage
 import me.ash.reader.infrastructure.preference.LocalMarkAsReadOnScroll
 import me.ash.reader.infrastructure.preference.LocalOpenLink
 import me.ash.reader.infrastructure.preference.LocalOpenLinkSpecificBrowser
-import me.ash.reader.infrastructure.preference.LocalPullToSwitchArticle
 import me.ash.reader.infrastructure.preference.LocalSettings
 import me.ash.reader.infrastructure.preference.LocalSharedContent
 import me.ash.reader.infrastructure.preference.LocalSortUnreadArticles
-import me.ash.reader.infrastructure.preference.LocalSwipeToSwitchArticle
 import me.ash.reader.infrastructure.preference.OpenLinkPreference
 import me.ash.reader.infrastructure.preference.PullToLoadNextFeedPreference
 import me.ash.reader.infrastructure.preference.SharedContentPreference
@@ -65,8 +65,7 @@ fun InteractionPage(
     val markAsReadOnScroll = LocalMarkAsReadOnScroll.current
     val hideEmptyGroups = LocalHideEmptyGroups.current
     val sortUnreadArticles = LocalSortUnreadArticles.current
-    val pullToSwitchArticle = LocalPullToSwitchArticle.current
-    val swipeToSwitchArticle = LocalSwipeToSwitchArticle.current
+    val articleSwitchGesture = LocalArticleSwitchGesture.current
     val openLink = LocalOpenLink.current
     val openLinkSpecificBrowser = LocalOpenLinkSpecificBrowser.current
     val sharedContent = LocalSharedContent.current
@@ -86,6 +85,7 @@ fun InteractionPage(
     var sharedContentDialogVisible by remember { mutableStateOf(false) }
     var showSortUnreadArticlesDialog by remember { mutableStateOf(false) }
     var showPullToLoadDialog by remember { mutableStateOf(false) }
+    var articleSwitchGestureDialogVisible by remember { mutableStateOf(false) }
 
     RYScaffold(
         containerColor = MaterialTheme.colorScheme.surface onLight MaterialTheme.colorScheme.inverseOnSurface,
@@ -194,19 +194,10 @@ fun InteractionPage(
                         text = stringResource(R.string.reading_page),
                     )
                     SettingItem(
-                        title = stringResource(id = R.string.pull_to_switch_article),
-                        onClick = { pullToSwitchArticle.toggle(context, scope) }) {
-                        RYSwitch(activated = pullToSwitchArticle.value) {
-                            pullToSwitchArticle.toggle(context, scope)
-                        }
-                    }
-                    SettingItem(
-                        title = stringResource(id = R.string.swipe_to_switch_article),
-                        onClick = { swipeToSwitchArticle.toggle(context, scope) }) {
-                        RYSwitch(activated = swipeToSwitchArticle.value) {
-                            swipeToSwitchArticle.toggle(context, scope)
-                        }
-                    }
+                        title = stringResource(id = R.string.gesture_to_switch_article),
+                        desc = articleSwitchGesture.toDesc(context),
+                        onClick = { articleSwitchGestureDialogVisible = true },
+                    ) {}
                     Spacer(modifier = Modifier.height(24.dp))
 
                     Subtitle(
@@ -395,6 +386,22 @@ fun InteractionPage(
         },
         onDismissRequest = {
             showPullToLoadDialog = false
+        }
+    )
+
+    RadioDialog(
+        visible = articleSwitchGestureDialogVisible,
+        title = stringResource(R.string.gesture_to_switch_article),
+        options = ArticleSwitchGesturePreference.values.map {
+            RadioDialogOption(
+                text = it.toDesc(context),
+                selected = it == articleSwitchGesture,
+            ) {
+                it.put(context, scope)
+            }
+        },
+        onDismissRequest = {
+            articleSwitchGestureDialogVisible = false
         }
     )
 }

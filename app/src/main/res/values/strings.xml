@@ -320,8 +320,11 @@
     <string name="toggle_starred">Toggle starred</string>
     <string name="line_height_multiple">Line height multiple</string>
     <string name="export">Export</string>
-    <string name="pull_to_switch_article">Pull to switch article</string>
-    <string name="swipe_to_switch_article">Swipe to switch article</string>
+    <string name="gesture_to_switch_article">Gesture to switch article</string>
+    <string name="horizontal_swipe">Horizontal swipe</string>
+    <string name="vertical_pull">Vertical pull</string>
+    <string name="pull_to_switch_article" translatable="false">Pull to switch article</string>
+    <string name="swipe_to_switch_article" translatable="false">Swipe to switch article</string>
     <string name="mark_above_as_read">Mark above as read</string>
     <string name="mark_below_as_read">Mark below as read</string>
     <string name="marked_as_read">Marked as read</string>

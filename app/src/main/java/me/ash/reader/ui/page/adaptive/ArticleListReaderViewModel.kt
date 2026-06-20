@@ -14,6 +14,7 @@ import kotlinx.coroutines.CoroutineDispatcher
 import kotlinx.coroutines.CoroutineScope
 import kotlinx.coroutines.FlowPreview
 import kotlinx.coroutines.delay
+import kotlinx.coroutines.withContext
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.SharingStarted
 import kotlinx.coroutines.flow.StateFlow
@@ -366,7 +367,7 @@ constructor(
                             link = article.link,
                             publishedDate = article.date,
                         )
-                        .prefetchArticleId()
+                        .prefetchArticleId(article.id, listIndex)
                         .renderContent(this)
                 }
             }
@@ -392,6 +393,45 @@ constructor(
 
         return copy(content = contentState)
     }
+
+    suspend fun previewReaderState(articleId: String, listIndex: Int? = null): ReaderState =
+        withContext(ioDispatcher) {
+            val snapshotList = articleListUseCase.itemSnapshotList
+            val itemByIndex =
+                listIndex?.let { snapshotList.getOrNull(it) as? ArticleFlowItem.Article }
+                    ?.takeIf { it.articleWithFeed.article.id == articleId }
+            val itemFromList =
+                snapshotList.find { item ->
+                    item is ArticleFlowItem.Article && item.articleWithFeed.article.id == articleId
+                } as? ArticleFlowItem.Article
+            val articleWithFeed =
+                itemByIndex?.articleWithFeed
+                    ?: itemFromList?.articleWithFeed
+                    ?: rssService.get().findArticleById(articleId)
+                    ?: return@withContext ReaderState(articleId = articleId)
+
+            ReaderState(
+                    articleId = articleWithFeed.article.id,
+                    feedName = articleWithFeed.feed.name,
+                    title = articleWithFeed.article.title,
+                    author = articleWithFeed.article.author,
+                    link = articleWithFeed.article.link,
+                    publishedDate = articleWithFeed.article.date,
+                )
+                .prefetchArticleId(articleWithFeed.article.id, listIndex)
+                .copy(content = articleWithFeed.previewContent())
+        }
+
+    private suspend fun ArticleWithFeed.previewContent(): ReaderState.ContentState =
+        if (feed.isFullContent) {
+            readerCacheHelper
+                .readFullContent(article.id)
+                .getOrNull()
+                ?.let { ReaderState.FullContent(it) }
+                ?: ReaderState.Description(article.rawDescription)
+        } else {
+            ReaderState.Description(article.rawDescription)
+        }
 
     fun renderDescriptionContent() {
         _readerState.update {
@@ -448,13 +488,20 @@ constructor(
         _readerState.update { it.copy(content = ReaderState.Loading) }
     }
 
-    fun ReaderState.prefetchArticleId(): ReaderState {
+    fun ReaderState.prefetchArticleId(
+        articleId: String? = currentArticle?.id,
+        articleIndex: Int? = null,
+    ): ReaderState {
         val items = articleListUseCase.itemSnapshotList
-        val currentId = currentArticle?.id
+        val currentId = articleId
         val index =
-            items.indexOfFirst { item ->
-                item is ArticleFlowItem.Article && item.articleWithFeed.article.id == currentId
+            articleIndex?.takeIf {
+                (items.getOrNull(it) as? ArticleFlowItem.Article)?.articleWithFeed?.article?.id ==
+                    currentId
             }
+                ?: items.indexOfFirst { item ->
+                    item is ArticleFlowItem.Article && item.articleWithFeed.article.id == currentId
+                }
         var previousArticle: ReaderState.PrefetchResult? = null
         var nextArticle: ReaderState.PrefetchResult? = null
 
