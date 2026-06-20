@@ -509,6 +509,7 @@ private fun ArticleSwipePageContent(
             publishedDate = readerState.publishedDate,
             isLoading = readerState.content is ReaderState.Loading,
             scrollState = scrollState,
+            scrollToTopRequest = bringToTopRequest,
             onHeadlineMeasured = onHeadlineMeasured,
             onImageClick = onImageClick,
             onScrollSnapshotChange = onScrollSnapshotChange,
