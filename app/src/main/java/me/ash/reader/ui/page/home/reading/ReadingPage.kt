@@ -17,10 +17,6 @@ import androidx.compose.animation.slideOutVertically
 import androidx.compose.animation.togetherWith
 import androidx.compose.foundation.ExperimentalFoundationApi
 import androidx.compose.foundation.ScrollState
-import androidx.compose.foundation.gestures.awaitEachGesture
-import androidx.compose.foundation.gestures.awaitFirstDown
-import androidx.compose.foundation.gestures.awaitHorizontalTouchSlopOrCancellation
-import androidx.compose.foundation.gestures.horizontalDrag
 import androidx.compose.foundation.background
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.fillMaxSize
@@ -43,14 +39,9 @@ import androidx.compose.runtime.snapshotFlow
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.graphics.Color
-import androidx.compose.ui.input.pointer.changedToUpIgnoreConsumed
-import androidx.compose.ui.input.pointer.pointerInput
-import androidx.compose.ui.input.pointer.positionChange
 import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.platform.LocalHapticFeedback
 import androidx.compose.ui.platform.LocalDensity
-import androidx.compose.ui.platform.LocalLayoutDirection
-import androidx.compose.ui.unit.LayoutDirection
 import androidx.compose.ui.unit.IntOffset
 import androidx.compose.ui.unit.TextUnit
 import androidx.compose.ui.unit.dp
@@ -190,7 +181,10 @@ fun ReadingPage(
                         isScrolled = showTopDivider,
                         title = readerState.title,
                         link = readerState.link,
-                        onClick = { bringToTop = true },
+                        onClick = {
+                            scrollToTopRequest += 1
+                            bringToTop = true
+                        },
                         navigationAction = navigationAction,
                         onNavButtonClick = onNavAction,
                         onNavigateToStylePage = onNavigateToStylePage,
@@ -202,7 +196,60 @@ fun ReadingPage(
 
                 if (readerState.articleId != null) {
                     // Content
-                    AnimatedContent(
+                    if (isSwipeToSwitchArticleEnabled) {
+                        CompositionLocalProvider(
+                            LocalTextStyle provides
+                                LocalTextStyle.current.run {
+                                    merge(
+                                        lineHeight =
+                                            if (lineHeight.isSpecified)
+                                                (lineHeight.value * LocalReadingTextLineHeight.current).sp
+                                            else TextUnit.Unspecified
+                                    )
+                                }
+                        ) {
+                            ArticleSwipePager(
+                                currentReaderState = readerState,
+                                contentPadding = paddings,
+                                enabled =
+                                    !showFullScreenImageViewer &&
+                                        !showLinkActionDialog &&
+                                        !isVideoFullscreen,
+                                isPullToSwitchArticleEnabled = isPullToSwitchArticleEnabled,
+                                onLoadArticle = onLoadArticle,
+                                loadPreview = viewModel::previewReaderState,
+                                bringToTopRequest = scrollToTopRequest,
+                                onBringToTopHandled = { bringToTop = false },
+                                onCurrentHeadlineMeasured = { headlineHeightPx = it },
+                                onCurrentScrollSnapshotChange = {
+                                    webViewScrollSnapshot = it
+                                },
+                                onImageClick = { imgUrl, altText ->
+                                    currentImageData = ImageData(imgUrl, altText)
+                                    showFullScreenImageViewer = true
+                                },
+                                onLinkLongPress = { url, text ->
+                                    linkActionData =
+                                        LinkActionData(
+                                            url = url,
+                                            linkText = text.ifEmpty { null },
+                                        )
+                                    showLinkActionDialog = true
+                                },
+                                onShowCustomView = { view, callback ->
+                                    Timber.tag("ReadingPage")
+                                        .d("onShowCustomView lambda called with view=$view")
+                                    fullscreenVideoView = view
+                                    fullscreenVideoCallback = callback
+                                },
+                                onHideCustomView = {
+                                    fullscreenVideoView = null
+                                    fullscreenVideoCallback = null
+                                },
+                            )
+                        }
+                    } else {
+                        AnimatedContent(
                         targetState = readerState,
                         transitionSpec = {
                             val direction =
@@ -278,7 +325,6 @@ fun ReadingPage(
 
                                 LaunchedEffect(bringToTop) {
                                     if (bringToTop) {
-                                        scrollToTopRequest += 1
                                         scope
                                             .launch {
                                                 scrollState.animateScrollTo(0)
@@ -364,25 +410,7 @@ fun ReadingPage(
                                             )
                                         } else {
                                             Modifier
-                                        }.swipeToSwitchArticle(
-                                            enabled =
-                                                isSwipeToSwitchArticleEnabled &&
-                                                    !showFullScreenImageViewer &&
-                                                    !showLinkActionDialog &&
-                                                    !isVideoFullscreen,
-                                            canLoadPrevious = isPreviousArticleAvailable,
-                                            canLoadNext = isNextArticleAvailable,
-                                            onLoadPrevious = {
-                                                readerState.previousArticle?.let { (id, index) ->
-                                                    onLoadArticle(id, index)
-                                                }
-                                            },
-                                            onLoadNext = {
-                                                readerState.nextArticle?.let { (id, index) ->
-                                                    onLoadArticle(id, index)
-                                                }
-                                            },
-                                        )
+                                        }
                                         Content(
                                             modifier = contentModifier,
                                             contentPadding = paddings,
@@ -430,6 +458,7 @@ fun ReadingPage(
                                     }
                                 }
                             }
+                    }
                     }
                 }
                 // Bottom Bar
@@ -535,61 +564,6 @@ fun ReadingPage(
                         }
                     )
                 }
-            }
-        }
-    }
-}
-
-private enum class ArticleSwipeDirection {
-    Previous,
-    Next,
-}
-
-@Composable
-private fun Modifier.swipeToSwitchArticle(
-    enabled: Boolean,
-    canLoadPrevious: Boolean,
-    canLoadNext: Boolean,
-    onLoadPrevious: () -> Unit,
-    onLoadNext: () -> Unit,
-): Modifier {
-    if (!enabled) return this
-
-    val layoutDirection = LocalLayoutDirection.current
-    val thresholdPx = with(LocalDensity.current) { 96.dp.toPx() }
-    val currentOnLoadPrevious by rememberUpdatedState(onLoadPrevious)
-    val currentOnLoadNext by rememberUpdatedState(onLoadNext)
-
-    return pointerInput(enabled, canLoadPrevious, canLoadNext, layoutDirection, thresholdPx) {
-        awaitEachGesture {
-            val down = awaitFirstDown(requireUnconsumed = false)
-            var dragDistance = 0f
-            val drag =
-                awaitHorizontalTouchSlopOrCancellation(down.id) { change, overSlop ->
-                    dragDistance += overSlop
-                    change.consume()
-                } ?: return@awaitEachGesture
-
-            horizontalDrag(drag.id) { change ->
-                if (change.changedToUpIgnoreConsumed()) return@horizontalDrag
-                dragDistance += change.positionChange().x
-                change.consume()
-            }
-
-            if (abs(dragDistance) < thresholdPx) return@awaitEachGesture
-
-            val direction =
-                when {
-                    layoutDirection == LayoutDirection.Ltr && dragDistance < 0f ->
-                        ArticleSwipeDirection.Next
-                    layoutDirection == LayoutDirection.Ltr -> ArticleSwipeDirection.Previous
-                    dragDistance < 0f -> ArticleSwipeDirection.Previous
-                    else -> ArticleSwipeDirection.Next
-                }
-
-            when (direction) {
-                ArticleSwipeDirection.Previous -> if (canLoadPrevious) currentOnLoadPrevious()
-                ArticleSwipeDirection.Next -> if (canLoadNext) currentOnLoadNext()
             }
         }
     }
