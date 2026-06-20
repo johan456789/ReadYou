@@ -1,6 +1,7 @@
 package me.ash.reader.ui.page.home.reading
 
 import androidx.compose.ui.unit.LayoutDirection
+import me.ash.reader.ui.page.adaptive.ReaderState
 import org.junit.Assert.assertEquals
 import org.junit.Assert.assertNull
 import org.junit.Test
@@ -134,6 +135,17 @@ class ArticleSwipePagerTest {
                 widthPx = 300f,
                 layoutDirection = LayoutDirection.Rtl,
             ),
+        )
+    }
+
+    @Test
+    fun `swipe target requires article id and list index`() {
+        assertNull(ReaderState(articleId = "article-a").toArticleSwipeTarget())
+        assertNull(ReaderState(listIndex = 0).toArticleSwipeTarget())
+
+        assertEquals(
+            ReaderState.PrefetchResult(articleId = "article-a", index = 12),
+            ReaderState(articleId = "article-a", listIndex = 12).toArticleSwipeTarget(),
         )
     }
 }

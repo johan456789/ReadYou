@@ -86,6 +86,12 @@ internal fun articleSwipeSettleOffset(
     layoutDirection: LayoutDirection,
 ): Float = -articleSwipePageOffset(direction, widthPx, layoutDirection)
 
+internal fun ReaderState.toArticleSwipeTarget(): ReaderState.PrefetchResult? {
+    val articleId = articleId ?: return null
+    val listIndex = listIndex ?: return null
+    return ReaderState.PrefetchResult(articleId = articleId, index = listIndex)
+}
+
 private class ArticleSwipeSlot(
     val index: Int,
     val scrollState: ScrollState,
@@ -125,6 +131,31 @@ fun ArticleSwipePager(
     val settleOffset = remember { Animatable(0f) }
     val layoutDirection = LocalLayoutDirection.current
     val scope = rememberCoroutineScope()
+
+    suspend fun loadInto(
+        slotIndex: Int,
+        target: ReaderState.PrefetchResult?,
+    ) {
+        val slot = slots[slotIndex]
+        if (target == null) {
+            slot.articleId = null
+            slot.readerState = null
+            slot.target = null
+            slot.scrollState.scrollTo(0)
+            return
+        }
+        slot.target = target
+        if (slot.articleId == target.articleId && slot.readerState?.listIndex == target.index) {
+            return
+        }
+        slot.articleId = target.articleId
+        slot.readerState = ReaderState(articleId = target.articleId)
+        slot.scrollState.scrollTo(0)
+        val preview = loadPreview(target.articleId, target.index)
+        if (slot.target == target && slot.articleId == target.articleId) {
+            slot.readerState = preview
+        }
+    }
 
     LaunchedEffect(currentReaderState.articleId, currentReaderState.content) {
         val articleId = currentReaderState.articleId ?: return@LaunchedEffect
@@ -168,7 +199,7 @@ fun ArticleSwipePager(
         visibleCurrentState.nextArticle,
         currentSlotIndex,
     ) {
-        val currentId = visibleCurrentState.articleId ?: return@LaunchedEffect
+        visibleCurrentState.articleId ?: return@LaunchedEffect
         val previous = visibleCurrentState.previousArticle
         val next = visibleCurrentState.nextArticle
         val availableSlots = slots.filter { it.index != currentSlotIndex }.map { it.index }
@@ -190,26 +221,6 @@ fun ArticleSwipePager(
             existingNext
                 ?: remaining.firstOrNull { it != previousSlotIndex }
                 ?: nextSlotIndex
-
-        suspend fun loadInto(slotIndex: Int, target: ReaderState.PrefetchResult?) {
-            val slot = slots[slotIndex]
-            if (target == null) {
-                slot.articleId = null
-                slot.readerState = null
-                slot.target = null
-                slot.scrollState.scrollTo(0)
-                return
-            }
-            slot.target = target
-            if (slot.articleId == target.articleId && slot.readerState != null) return
-            slot.articleId = target.articleId
-            slot.readerState = ReaderState(articleId = target.articleId)
-            slot.scrollState.scrollTo(0)
-            val preview = loadPreview(target.articleId, target.index)
-            if (slot.articleId == target.articleId && currentId == visibleCurrentState.articleId) {
-                slot.readerState = preview
-            }
-        }
 
         launch { loadInto(previousSlotIndex, previous) }
         launch { loadInto(nextSlotIndex, next) }
@@ -258,6 +269,9 @@ fun ArticleSwipePager(
                                                 dragOffsetPx = value
                                             }
                                             val oldCurrent = currentSlotIndex
+                                            val outgoingTarget =
+                                                slots[oldCurrent].readerState?.toArticleSwipeTarget()
+                                            val incomingState = slots[previousSlotIndex].readerState
                                             currentSlotIndex = previousSlotIndex
                                             nextSlotIndex = oldCurrent
                                             previousSlotIndex =
@@ -267,9 +281,16 @@ fun ArticleSwipePager(
                                                             slot.index != nextSlotIndex
                                                     }
                                                     .index
+                                            slots[nextSlotIndex].target = outgoingTarget
                                             pendingSwipeCommitArticleId = target.articleId
                                             dragOffsetPx = 0f
                                             settleOffset.snapTo(0f)
+                                            launch {
+                                                loadInto(
+                                                    slotIndex = previousSlotIndex,
+                                                    target = incomingState?.previousArticle,
+                                                )
+                                            }
                                             onLoadArticle(target.articleId, target.index)
                                         } finally {
                                             isSettling = false
@@ -298,6 +319,9 @@ fun ArticleSwipePager(
                                                 dragOffsetPx = value
                                             }
                                             val oldCurrent = currentSlotIndex
+                                            val outgoingTarget =
+                                                slots[oldCurrent].readerState?.toArticleSwipeTarget()
+                                            val incomingState = slots[nextSlotIndex].readerState
                                             currentSlotIndex = nextSlotIndex
                                             previousSlotIndex = oldCurrent
                                             nextSlotIndex =
@@ -307,9 +331,16 @@ fun ArticleSwipePager(
                                                             slot.index != previousSlotIndex
                                                     }
                                                     .index
+                                            slots[previousSlotIndex].target = outgoingTarget
                                             pendingSwipeCommitArticleId = target.articleId
                                             dragOffsetPx = 0f
                                             settleOffset.snapTo(0f)
+                                            launch {
+                                                loadInto(
+                                                    slotIndex = nextSlotIndex,
+                                                    target = incomingState?.nextArticle,
+                                                )
+                                            }
                                             onLoadArticle(target.articleId, target.index)
                                         } finally {
                                             isSettling = false
