@@ -4,9 +4,20 @@ import android.view.View
 import android.webkit.WebChromeClient
 import android.widget.FrameLayout
 import androidx.activity.compose.BackHandler
+import androidx.compose.animation.AnimatedContent
+import androidx.compose.animation.core.FastOutLinearInEasing
+import androidx.compose.animation.core.LinearOutSlowInEasing
+import androidx.compose.animation.core.Spring
+import androidx.compose.animation.core.VisibilityThreshold
 import androidx.compose.animation.core.animateFloatAsState
 import androidx.compose.animation.core.snap
 import androidx.compose.animation.core.spring
+import androidx.compose.animation.core.tween
+import androidx.compose.animation.fadeIn
+import androidx.compose.animation.fadeOut
+import androidx.compose.animation.slideInVertically
+import androidx.compose.animation.slideOutVertically
+import androidx.compose.animation.togetherWith
 import androidx.compose.foundation.ExperimentalFoundationApi
 import androidx.compose.foundation.ScrollState
 import androidx.compose.foundation.gestures.awaitEachGesture
@@ -53,6 +64,7 @@ import androidx.compose.ui.viewinterop.AndroidView
 import timber.log.Timber
 import kotlin.math.abs
 import kotlin.math.roundToInt
+import kotlinx.coroutines.delay
 import kotlinx.coroutines.flow.distinctUntilChanged
 import kotlinx.coroutines.launch
 import me.ash.reader.R
@@ -71,6 +83,9 @@ import me.ash.reader.ui.page.adaptive.NavigationAction
 import me.ash.reader.ui.page.adaptive.ReaderPage
 import me.ash.reader.ui.page.adaptive.ReaderState
 import me.ash.reader.ui.page.home.reading.tts.TtsButton
+
+private const val UPWARD = 1
+private const val DOWNWARD = -1
 
 private data class ToolbarScrollSample(
     val position: Int,
@@ -153,6 +168,14 @@ fun ReadingPage(
     )
 
     var showTopDivider by remember { mutableStateOf(false) }
+    var animateNextReaderArticleChange by remember { mutableStateOf(false) }
+
+    LaunchedEffect(readerState.articleId, animateNextReaderArticleChange) {
+        if (animateNextReaderArticleChange) {
+            delay(350L)
+            animateNextReaderArticleChange = false
+        }
+    }
 
     //    LaunchedEffect(readerState.listIndex) {
     //        readerState.listIndex?.let {
@@ -197,6 +220,7 @@ fun ReadingPage(
                             onLoadNext =
                                 if (isPullToSwitchArticleEnabled && isNextArticleAvailable) {
                                     {
+                                        animateNextReaderArticleChange = true
                                         val (id, index) = readerState.nextArticle
                                         onLoadArticle(id, index)
                                     }
@@ -204,6 +228,7 @@ fun ReadingPage(
                             onLoadPrevious =
                                 if (isPullToSwitchArticleEnabled && isPreviousArticleAvailable) {
                                     {
+                                        animateNextReaderArticleChange = true
                                         val (id, index) = readerState.previousArticle
                                         onLoadArticle(id, index)
                                     }
@@ -298,57 +323,67 @@ fun ReadingPage(
                                 } else {
                                     Modifier
                                 }
-                            ArticlePager(
-                                modifier = Modifier.fillMaxSize(),
-                                enabled =
-                                    isSwipeToSwitchArticleEnabled &&
-                                        !showFullScreenImageViewer &&
-                                        !showLinkActionDialog &&
-                                        !isVideoFullscreen,
-                                currentPage = readerState.toArticlePageContent(),
-                                previousPage = readerState.previousPage?.toArticlePageContent(),
-                                nextPage = readerState.nextPage?.toArticlePageContent(),
-                                currentScrollState = scrollState,
-                                currentContentModifier = currentContentModifier,
-                                contentPadding = paddings,
-                                scrollToTopRequest = scrollToTopRequest,
-                                onLoadPrevious = {
-                                    readerState.previousArticle?.let { (id, index) ->
-                                        onLoadArticle(id, index)
-                                    }
-                                },
-                                onLoadNext = {
-                                    readerState.nextArticle?.let { (id, index) ->
-                                        onLoadArticle(id, index)
-                                    }
-                                },
-                                onCurrentHeadlineMeasured = { headlineHeightPx = it },
-                                onCurrentImageClick = { imgUrl, altText ->
-                                    currentImageData = ImageData(imgUrl, altText)
-                                    showFullScreenImageViewer = true
-                                },
-                                onCurrentScrollSnapshotChange = {
-                                    webViewScrollSnapshot = it
-                                },
-                                onCurrentLinkLongPress = { url, text ->
-                                    linkActionData = LinkActionData(
-                                        url = url,
-                                        linkText = text.ifEmpty { null },
-                                    )
-                                    showLinkActionDialog = true
-                                },
-                                onCurrentShowCustomView = { view, callback ->
-                                    Timber.tag("ReadingPage").d(
-                                        "onShowCustomView lambda called with view=$view"
-                                    )
-                                    fullscreenVideoView = view
-                                    fullscreenVideoCallback = callback
-                                },
-                                onCurrentHideCustomView = {
-                                    fullscreenVideoView = null
-                                    fullscreenVideoCallback = null
-                                },
-                            )
+                            ReaderArticleTransition(
+                                enabled = animateNextReaderArticleChange,
+                                readerState = readerState,
+                            ) { transitionReaderState ->
+                                ArticlePager(
+                                    modifier = Modifier.fillMaxSize(),
+                                    enabled =
+                                        isSwipeToSwitchArticleEnabled &&
+                                            !animateNextReaderArticleChange &&
+                                            !showFullScreenImageViewer &&
+                                            !showLinkActionDialog &&
+                                            !isVideoFullscreen,
+                                    currentPage = transitionReaderState.toArticlePageContent(),
+                                    previousPage =
+                                        transitionReaderState.previousPage?.toArticlePageContent(),
+                                    nextPage =
+                                        transitionReaderState.nextPage?.toArticlePageContent(),
+                                    currentScrollState = scrollState,
+                                    currentContentModifier = currentContentModifier,
+                                    contentPadding = paddings,
+                                    scrollToTopRequest = scrollToTopRequest,
+                                    onLoadPrevious = {
+                                        animateNextReaderArticleChange = false
+                                        readerState.previousArticle?.let { (id, index) ->
+                                            onLoadArticle(id, index)
+                                        }
+                                    },
+                                    onLoadNext = {
+                                        animateNextReaderArticleChange = false
+                                        readerState.nextArticle?.let { (id, index) ->
+                                            onLoadArticle(id, index)
+                                        }
+                                    },
+                                    onCurrentHeadlineMeasured = { headlineHeightPx = it },
+                                    onCurrentImageClick = { imgUrl, altText ->
+                                        currentImageData = ImageData(imgUrl, altText)
+                                        showFullScreenImageViewer = true
+                                    },
+                                    onCurrentScrollSnapshotChange = {
+                                        webViewScrollSnapshot = it
+                                    },
+                                    onCurrentLinkLongPress = { url, text ->
+                                        linkActionData = LinkActionData(
+                                            url = url,
+                                            linkText = text.ifEmpty { null },
+                                        )
+                                        showLinkActionDialog = true
+                                    },
+                                    onCurrentShowCustomView = { view, callback ->
+                                        Timber.tag("ReadingPage").d(
+                                            "onShowCustomView lambda called with view=$view"
+                                        )
+                                        fullscreenVideoView = view
+                                        fullscreenVideoCallback = callback
+                                    },
+                                    onCurrentHideCustomView = {
+                                        fullscreenVideoView = null
+                                        fullscreenVideoCallback = null
+                                    },
+                                )
+                            }
                             if (isPullToSwitchArticleEnabled) {
                                 PullToLoadIndicator(
                                     state = state,
@@ -373,6 +408,7 @@ fun ReadingPage(
                         onStarred = { viewModel.updateStarredStatus(it) },
                         onNextArticle = {
                             readerState.nextArticle?.let {
+                                animateNextReaderArticleChange = true
                                 val (id, index) = it
                                 onLoadArticle(id, index)
                             }
@@ -522,6 +558,68 @@ private fun ReaderPage.toArticlePageContent(): ArticlePageContent =
         publishedDate = publishedDate,
         content = content,
     )
+
+@Composable
+private fun ReaderArticleTransition(
+    enabled: Boolean,
+    readerState: ReaderState,
+    content: @Composable (ReaderState) -> Unit,
+) {
+    if (!enabled) {
+        content(readerState)
+        return
+    }
+
+    AnimatedContent(
+        targetState = readerState,
+        transitionSpec = {
+            val direction =
+                when {
+                    initialState.nextArticle?.articleId == targetState.articleId -> UPWARD
+                    initialState.previousArticle?.articleId == targetState.articleId -> DOWNWARD
+                    initialState.articleId == targetState.articleId -> {
+                        when (targetState.content) {
+                            is ReaderState.Description -> DOWNWARD
+                            else -> UPWARD
+                        }
+                    }
+
+                    else -> UPWARD
+                }
+            val exit = 100
+            val enter = exit * 2
+            (slideInVertically(
+                initialOffsetY = { (it * 0.2f * direction).toInt() },
+                animationSpec =
+                    spring(
+                        dampingRatio = .9f,
+                        stiffness = Spring.StiffnessLow,
+                        visibilityThreshold = IntOffset.VisibilityThreshold,
+                    ),
+            ) +
+                fadeIn(
+                    tween(
+                        delayMillis = exit,
+                        durationMillis = enter,
+                        easing = LinearOutSlowInEasing,
+                    )
+                )) togetherWith
+                (slideOutVertically(
+                    targetOffsetY = { (it * -0.2f * direction).toInt() },
+                    animationSpec =
+                        spring(
+                            dampingRatio = Spring.DampingRatioNoBouncy,
+                            stiffness = Spring.StiffnessLow,
+                            visibilityThreshold = IntOffset.VisibilityThreshold,
+                        ),
+                ) +
+                    fadeOut(tween(durationMillis = exit, easing = FastOutLinearInEasing)))
+        },
+        label = "ReaderArticleTransition",
+    ) { transitionReaderState ->
+        content(transitionReaderState)
+    }
+}
 
 @Composable
 private fun ArticlePager(
