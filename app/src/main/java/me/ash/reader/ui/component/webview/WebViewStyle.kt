@@ -163,7 +163,8 @@ img {
     border-radius: var(--img-border-radius) !important;
 }
 
-img {
+img,
+video {
      height: auto !important;
 }
 
