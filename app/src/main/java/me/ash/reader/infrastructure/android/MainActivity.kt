@@ -13,8 +13,12 @@ import androidx.appcompat.app.AppCompatActivity
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.DisposableEffect
 import androidx.compose.runtime.LaunchedEffect
+import androidx.compose.runtime.getValue
+import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
 import androidx.compose.runtime.rememberCoroutineScope
+import androidx.compose.runtime.saveable.rememberSaveable
+import androidx.compose.runtime.setValue
 import androidx.core.app.NotificationManagerCompat
 import androidx.core.util.Consumer
 import androidx.hilt.lifecycle.viewmodel.compose.hiltViewModel
@@ -31,6 +35,7 @@ import kotlinx.coroutines.delay
 import kotlinx.coroutines.launch
 import me.ash.reader.domain.data.FilterStateUseCase
 import me.ash.reader.domain.service.AccountService
+import me.ash.reader.domain.service.RssService
 import me.ash.reader.domain.service.SyncWorker
 import me.ash.reader.domain.service.WidgetUpdateWorker
 import me.ash.reader.infrastructure.compose.ProvideCompositionLocals
@@ -61,6 +66,13 @@ class MainActivity : AppCompatActivity() {
     @Inject lateinit var workManager: WorkManager
 
     @Inject lateinit var filterUseCase: FilterStateUseCase
+
+    @Inject lateinit var rssService: RssService
+
+    companion object {
+        /** Unique per process. Used to detect process death vs. configuration change. */
+        private val processToken: String = java.util.UUID.randomUUID().toString()
+    }
 
     override fun onCreate(savedInstanceState: Bundle?) {
         super.onCreate(savedInstanceState)
@@ -140,9 +152,42 @@ class MainActivity : AppCompatActivity() {
 
                             val backStack = rememberNavBackStack(*startDestination.toTypedArray())
 
+                            var savedProcessToken by rememberSaveable { mutableStateOf("") }
+                            val isProcessDeath =
+                                remember {
+                                    savedProcessToken.isNotEmpty() && savedProcessToken != processToken
+                                }
+                            var resumeArticleId by remember { mutableStateOf<String?>(null) }
+
+                            LaunchedEffect(backStack) {
+                                savedProcessToken = processToken
+                                if (isProcessDeath) {
+                                    if (backStack.lastOrNull() is Route.Reading) {
+                                        val articleId = filterUseCase.currentArticleId()
+                                        val canResume =
+                                            articleId != null &&
+                                                rssService.get().findArticleById(articleId) != null
+                                        if (canResume) {
+                                            resumeArticleId = articleId
+                                            filterUseCase.restorePersistedScope()
+                                        } else {
+                                            backStack.clear()
+                                            backStack.addAll(startDestination)
+                                        }
+                                    } else {
+                                        backStack.clear()
+                                        backStack.addAll(startDestination)
+                                    }
+                                }
+                            }
+
                             ReadingSyncEffect(backStack)
                             NewIntentHandlerEffect(backStack, subscribeViewModel)
-                            AppEntry(backStack)
+                            AppEntry(
+                                backStack = backStack,
+                                resumeArticleId = resumeArticleId,
+                                onResumeArticleConsumed = { resumeArticleId = null },
+                            )
                         }
                     }
                 }

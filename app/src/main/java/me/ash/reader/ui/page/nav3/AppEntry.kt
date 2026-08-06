@@ -62,7 +62,11 @@ private const val INITIAL_OFFSET_FACTOR = 0.10f
     ExperimentalMaterial3AdaptiveApi::class,
 )
 @Composable
-fun AppEntry(backStack: NavBackStack<NavKey>) {
+fun AppEntry(
+    backStack: NavBackStack<NavKey>,
+    resumeArticleId: String? = null,
+    onResumeArticleConsumed: () -> Unit = {},
+) {
     val subscribeViewModel = hiltViewModel<SubscribeViewModel>()
 
     val onBack: () -> Unit = {
@@ -128,13 +132,15 @@ fun AppEntry(backStack: NavBackStack<NavKey>) {
                         NavEntry(key) {
                             val key = rememberSaveable(saver = Route.Reading.Saver) { key }
 
-                            LaunchedEffect(key) {
-                                if (key.articleId != null) {
+                            LaunchedEffect(key, resumeArticleId) {
+                                val articleId = resumeArticleId ?: key.articleId
+                                if (articleId != null) {
                                     delay(50L)
                                     navigator.navigateTo(
                                         ListDetailPaneScaffoldRole.Detail,
-                                        ArticleData(key.articleId),
+                                        ArticleData(articleId),
                                     )
+                                    if (resumeArticleId != null) onResumeArticleConsumed()
                                 }
                             }
 
