@@ -347,8 +347,9 @@ constructor(
 
             val item =
                 itemByIndex?.articleWithFeed
-                    ?: (itemFromList?.articleWithFeed
-                        ?: rssService.get().findArticleById(articleId)!!)
+                    ?: itemFromList?.articleWithFeed
+                    ?: rssService.get().findArticleById(articleId)
+                    ?: return@launch
 
             if (!diffMapHolder.checkIfRead(item)) {
                 diffMapHolder.updateDiff(item, markRead = true)
@@ -377,6 +378,16 @@ constructor(
     fun clearReadingData() {
         _readingUiState.update { ReadingUiState() }
         _readerState.update { ReaderState() }
+    }
+
+    /** Records the article currently open in the reading pane (for process-death resume). */
+    fun setCurrentArticle(articleId: String) {
+        filterStateUseCase.setCurrentArticle(articleId)
+    }
+
+    /** Clears the recorded article when the reading pane is closed. */
+    fun clearCurrentArticle() {
+        filterStateUseCase.setCurrentArticle(null)
     }
 
     suspend fun ReaderState.renderContent(articleWithFeed: ArticleWithFeed): ReaderState {

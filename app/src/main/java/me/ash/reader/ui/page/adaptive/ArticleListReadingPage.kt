@@ -27,6 +27,7 @@ import androidx.compose.runtime.CompositionLocalProvider
 import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableFloatStateOf
+import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
 import androidx.compose.runtime.rememberCoroutineScope
 import androidx.compose.runtime.saveable.rememberSaveable
@@ -164,15 +165,19 @@ fun ArticleListReaderPage(
                 exitTransition = motionDataProvider.calculateExitTransition(paneRole),
             ) {
                 val contentKey = navigator.currentDestination?.contentKey
+                var hasOpenedArticle by remember { mutableStateOf(false) }
                 LaunchedEffect(contentKey) {
                     if (contentKey == null) {
                         delay(100L)
                         viewModel.clearReadingData()
+                        if (hasOpenedArticle) viewModel.clearCurrentArticle()
                     } else {
+                        hasOpenedArticle = true
                         viewModel.initData(
                             articleId = contentKey.articleId,
                             listIndex = contentKey.listIndex,
                         )
+                        viewModel.setCurrentArticle(contentKey.articleId)
                     }
                 }
 
