@@ -204,6 +204,12 @@ sealed interface PreferencesKey {
         const val openLinkAppSpecificBrowser = "openLinkAppSpecificBrowser"
         const val sharedContent = "sharedContent"
 
+        // Transient browsing state (persisted to survive process death for reading resume)
+        const val currentFilterFeedId = "currentFilterFeedId"
+        const val currentFilterGroupId = "currentFilterGroupId"
+        const val currentFilterStatus = "currentFilterStatus"
+        const val currentReadingArticleId = "currentReadingArticleId"
+
         // Languages
         const val languages = "languages"
 
@@ -279,6 +285,10 @@ sealed interface PreferencesKey {
                 IntKey(openLink),
                 StringKey(openLinkAppSpecificBrowser),
                 IntKey(sharedContent),
+                StringKey(currentFilterFeedId),
+                StringKey(currentFilterGroupId),
+                IntKey(currentFilterStatus),
+                StringKey(currentReadingArticleId),
                 // Languages
                 IntKey(languages),
             )
@@ -292,6 +302,10 @@ val ignorePreferencesOnExportAndImport =
         PreferencesKey.currentAccountId,
         PreferencesKey.currentAccountType,
         PreferencesKey.isFirstLaunch,
+        PreferencesKey.currentFilterFeedId,
+        PreferencesKey.currentFilterGroupId,
+        PreferencesKey.currentFilterStatus,
+        PreferencesKey.currentReadingArticleId,
     )
 
 suspend fun Context.fromDataStoreToJSONString(): String {
