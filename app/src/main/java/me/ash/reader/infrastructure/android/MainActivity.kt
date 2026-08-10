@@ -162,18 +162,17 @@ class MainActivity : AppCompatActivity() {
                             LaunchedEffect(backStack) {
                                 savedProcessToken = processToken
                                 if (isProcessDeath) {
-                                    if (backStack.lastOrNull() is Route.Reading) {
-                                        val articleId = filterUseCase.currentArticleId()
-                                        val canResume =
-                                            articleId != null &&
-                                                rssService.get().findArticleById(articleId) != null
-                                        if (canResume) {
-                                            resumeArticleId = articleId
-                                            filterUseCase.restorePersistedScope()
-                                        } else {
-                                            backStack.clear()
-                                            backStack.addAll(startDestination)
-                                        }
+                                    val articleId =
+                                        resumeTarget(
+                                            top = backStack.lastOrNull(),
+                                            currentArticleId = filterUseCase.currentArticleId(),
+                                        )
+                                    val canResume =
+                                        articleId != null &&
+                                            rssService.get().findArticleById(articleId) != null
+                                    if (canResume) {
+                                        resumeArticleId = articleId
+                                        filterUseCase.restorePersistedScope()
                                     } else {
                                         backStack.clear()
                                         backStack.addAll(startDestination)
@@ -346,4 +345,19 @@ private fun Intent.getLaunchAction(): LaunchAction? {
             }
         }
     }
+}
+
+/**
+ * Decides which article to resume after a process death. Prefers the durable [currentArticleId]
+ * and falls back to the article id restored in the back stack route (e.g. deep links), so a
+ * not-yet-persisted write can't lose the article.
+ *
+ * Returns the article id to resume, or null when the user wasn't reading.
+ */
+internal fun resumeTarget(
+    top: NavKey?,
+    currentArticleId: String?,
+): String? {
+    if (top !is Route.Reading) return null
+    return currentArticleId ?: top.articleId
 }
