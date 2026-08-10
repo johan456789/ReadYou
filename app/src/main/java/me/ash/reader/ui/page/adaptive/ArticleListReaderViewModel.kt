@@ -380,13 +380,13 @@ constructor(
         _readerState.update { ReaderState() }
     }
 
-    /** Records the article currently open in the reading pane (for process-death resume). */
-    fun setCurrentArticle(articleId: String) {
+    /** Durably records the article currently open in the reading pane (for process-death resume). */
+    suspend fun setCurrentArticle(articleId: String) {
         filterStateUseCase.setCurrentArticle(articleId)
     }
 
     /** Clears the recorded article when the reading pane is closed. */
-    fun clearCurrentArticle() {
+    suspend fun clearCurrentArticle() {
         filterStateUseCase.setCurrentArticle(null)
     }
 

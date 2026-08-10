@@ -1,6 +1,7 @@
 package me.ash.reader.domain.data
 
 import android.content.Context
+import androidx.datastore.preferences.core.Preferences
 import androidx.datastore.preferences.core.edit
 import dagger.hilt.android.qualifiers.ApplicationContext
 import javax.inject.Inject
@@ -9,6 +10,7 @@ import kotlinx.coroutines.Job
 import kotlinx.coroutines.delay
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.asStateFlow
+import kotlinx.coroutines.flow.first
 import kotlinx.coroutines.flow.update
 import kotlinx.coroutines.launch
 import me.ash.reader.domain.model.feed.Feed
@@ -20,8 +22,6 @@ import me.ash.reader.infrastructure.di.ApplicationScope
 import me.ash.reader.infrastructure.preference.SettingsProvider
 import me.ash.reader.ui.ext.PreferencesKey
 import me.ash.reader.ui.ext.dataStore
-import me.ash.reader.ui.ext.get
-import me.ash.reader.ui.ext.put
 import javax.inject.Singleton
 
 @Singleton
@@ -40,6 +40,15 @@ constructor(
     val filterStateFlow = _filterUiState.asStateFlow()
     private val filterState
         get() = filterStateFlow.value
+
+    private val currentFilterFeedKey =
+        stringKey(PreferencesKey.currentFilterFeedId)
+    private val currentFilterGroupKey =
+        stringKey(PreferencesKey.currentFilterGroupId)
+    private val currentFilterStatusKey =
+        intKey(PreferencesKey.currentFilterStatus)
+    private val currentReadingArticleKey =
+        stringKey(PreferencesKey.currentReadingArticleId)
 
     private var persistScopeJob: Job? = null
 
@@ -70,7 +79,8 @@ constructor(
 
     /**
      * Snapshot the browsing scope (feed/group/status) so it can be restored after a process
-     * death. Writes are debounced since the scope changes on every filter interaction.
+     * death. Writes are debounced since the scope changes on every filter interaction, and
+     * feed/group keys are cleared when the scope reverts to "all" so no stale scope survives.
      */
     private fun persistScope() {
         persistScopeJob?.cancel()
@@ -78,11 +88,19 @@ constructor(
             coroutineScope.launch {
                 delay(300L)
                 val state = filterState
-                state.feed?.id?.let { context.dataStore.put(PreferencesKey.currentFilterFeedId, it) }
-                state.group?.id?.let {
-                    context.dataStore.put(PreferencesKey.currentFilterGroupId, it)
+                context.dataStore.edit { preferences ->
+                    if (state.feed != null) {
+                        preferences[currentFilterFeedKey] = state.feed.id
+                    } else {
+                        preferences.remove(currentFilterFeedKey)
+                    }
+                    if (state.group != null) {
+                        preferences[currentFilterGroupKey] = state.group.id
+                    } else {
+                        preferences.remove(currentFilterGroupKey)
+                    }
+                    preferences[currentFilterStatusKey] = state.filter.index
                 }
-                context.dataStore.put(PreferencesKey.currentFilterStatus, state.filter.index)
             }
     }
 
@@ -93,38 +111,46 @@ constructor(
      */
     fun restorePersistedScope() {
         coroutineScope.launch {
-            val feedId = context.dataStore.get<String>(PreferencesKey.currentFilterFeedId)
-            val groupId = context.dataStore.get<String>(PreferencesKey.currentFilterGroupId)
-            val status = context.dataStore.get<Int>(PreferencesKey.currentFilterStatus)
+            val feedId = readString(currentFilterFeedKey)
+            val groupId = readString(currentFilterGroupKey)
+            val status = readInt(currentFilterStatusKey)
             val feed = feedId?.let { feedDao.queryById(it) }
             val group = groupId?.let { groupDao.queryById(it) }
-            updateFilterState(
-                feed = feed,
-                group = group,
-                filter = status?.let { Filter.values.getOrNull(it) } ?: filterState.filter,
-            )
+            _filterUiState.update {
+                it.copy(
+                    feed = feed,
+                    group = group,
+                    filter = status?.let { Filter.values.getOrNull(it) } ?: it.filter,
+                )
+            }
         }
     }
 
     /** The id of the article currently open in the reading pane, if any. */
-    fun currentArticleId(): String? =
-        context.dataStore.get(PreferencesKey.currentReadingArticleId)
+    suspend fun currentArticleId(): String? = readString(currentReadingArticleKey)
 
-    fun setCurrentArticle(articleId: String?) {
-        coroutineScope.launch {
-            val typedKey =
-                PreferencesKey.keys[PreferencesKey.currentReadingArticleId]
-                    as? PreferencesKey.StringKey
-                    ?: return@launch
-            context.dataStore.edit { preferences ->
-                if (articleId == null) {
-                    preferences.remove(typedKey.key)
-                } else {
-                    preferences[typedKey.key] = articleId
-                }
+    /** Durably records the article currently open in the reading pane (or clears it). */
+    suspend fun setCurrentArticle(articleId: String?) {
+        context.dataStore.edit { preferences ->
+            if (articleId == null) {
+                preferences.remove(currentReadingArticleKey)
+            } else {
+                preferences[currentReadingArticleKey] = articleId
             }
         }
     }
+
+    private suspend fun readString(key: Preferences.Key<String>): String? =
+        context.dataStore.data.first()[key]
+
+    private suspend fun readInt(key: Preferences.Key<Int>): Int? =
+        context.dataStore.data.first()[key]
+
+    private fun stringKey(name: String): Preferences.Key<String> =
+        (PreferencesKey.keys[name] as? PreferencesKey.StringKey)?.key ?: error("Missing key $name")
+
+    private fun intKey(name: String): Preferences.Key<Int> =
+        (PreferencesKey.keys[name] as? PreferencesKey.IntKey)?.key ?: error("Missing key $name")
 }
 
 data class FilterState(
