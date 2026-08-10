@@ -121,10 +121,19 @@ function touchStartsInHorizontalScrollableContent(touch) {
     }
 
     let element = document.elementFromPoint(touch.clientX, touch.clientY);
-    while (element && element !== document.body) {
+    while (element && element !== document.body && element !== document.documentElement) {
         if (isHorizontallyScrollableElement(element)) {
             return true;
         }
+
+        if (element.closest("video[controls], audio[controls]")) {
+            return true;
+        }
+
+        if (/(pan-y|none)/.test(window.getComputedStyle(element).touchAction)) {
+            return true;
+        }
+
         element = element.parentElement;
     }
     return false;
