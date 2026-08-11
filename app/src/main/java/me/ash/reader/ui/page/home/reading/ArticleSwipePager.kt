@@ -107,6 +107,7 @@ fun ArticleSwipePager(
     bringToTopRequest: Int,
     onCurrentHeadlineMeasured: (Int) -> Unit,
     onCurrentScrollSnapshotChange: (WebViewScrollSnapshot) -> Unit,
+    headlineHeightPx: Int,
     onImageClick: (String, String) -> Unit,
     onLinkLongPress: (String, String) -> Unit,
     onShowCustomView: (View, WebChromeClient.CustomViewCallback) -> Unit,
@@ -397,6 +398,7 @@ fun ArticleSwipePager(
                             onScrollSnapshotChange = {
                                 if (isCurrent) onCurrentScrollSnapshotChange(it)
                             },
+                            headlineHeightPx = headlineHeightPx,
                             onImageClick = onImageClick,
                             onLinkLongPress = onLinkLongPress,
                             onShowCustomView = onShowCustomView,
@@ -520,6 +522,7 @@ private fun ArticleSwipePageContent(
     onScrollSnapshotChange: (WebViewScrollSnapshot) -> Unit,
     onImageClick: (String, String) -> Unit,
     onLinkLongPress: (String, String) -> Unit,
+    headlineHeightPx: Int,
     onShowCustomView: (View, WebChromeClient.CustomViewCallback) -> Unit,
     onHideCustomView: () -> Unit,
 ) {
@@ -540,6 +543,18 @@ private fun ArticleSwipePageContent(
         if (bringToTopRequest != 0) {
             scrollState.animateScrollTo(0)
             onBringToTopHandled()
+        }
+    }
+
+    val density = LocalDensity.current
+    val scope = rememberCoroutineScope()
+    val onAnchorScroll: (Double) -> Unit = { cssTop ->
+        scope.launch {
+            val target =
+                with(density) {
+                    64.dp.toPx() + headlineHeightPx.toFloat() + (cssTop * density.density).toFloat()
+                }.roundToInt()
+            scrollState.animateScrollTo(target.coerceIn(0, scrollState.maxValue))
         }
     }
 
@@ -565,6 +580,7 @@ private fun ArticleSwipePageContent(
             onImageClick = onImageClick,
             onScrollSnapshotChange = onScrollSnapshotChange,
             onLinkLongPress = onLinkLongPress,
+            onAnchorScroll = onAnchorScroll,
             onShowCustomView = onShowCustomView,
             onHideCustomView = onHideCustomView,
         )

@@ -41,6 +41,7 @@ object WebViewLayout {
         webChromeClient: RYWebChromeClient? = null,
         onImageClick: ((imgUrl: String, altText: String) -> Unit)? = null,
         onLinkLongPress: ((url: String, text: String) -> Unit)? = null,
+        onAnchorScroll: ((cssTop: Double) -> Unit)? = null,
     ): HorizontalScrollAwareWebView {
         val webView =
             retainedWebView?.also {
@@ -53,6 +54,7 @@ object WebViewLayout {
                     webChromeClient = webChromeClient,
                     onImageClick = onImageClick,
                     onLinkLongPress = onLinkLongPress,
+                    onAnchorScroll = onAnchorScroll,
                 )
         configureWebView(
             webView = webView,
@@ -61,6 +63,7 @@ object WebViewLayout {
             webChromeClient = webChromeClient,
             onImageClick = onImageClick,
             onLinkLongPress = onLinkLongPress,
+            onAnchorScroll = onAnchorScroll,
         )
         return webView
     }
@@ -72,6 +75,7 @@ object WebViewLayout {
         webView.onScrollSnapshotChanged = null
         webView.onImageClick = null
         webView.onLinkLongPress = null
+        webView.onAnchorScroll = null
         webView.handledScrollToTopRequest = 0
         webView.resetTouchStartsInHorizontalScrollableContent()
         runCatching { webView.stopLoading() }
@@ -94,6 +98,7 @@ object WebViewLayout {
         webChromeClient: RYWebChromeClient? = null,
         onImageClick: ((imgUrl: String, altText: String) -> Unit)? = null,
         onLinkLongPress: ((url: String, text: String) -> Unit)? = null,
+        onAnchorScroll: ((cssTop: Double) -> Unit)? = null,
     ): HorizontalScrollAwareWebView =
         obtain(
             context = context,
@@ -102,6 +107,7 @@ object WebViewLayout {
             webChromeClient = webChromeClient,
             onImageClick = onImageClick,
             onLinkLongPress = onLinkLongPress,
+            onAnchorScroll = onAnchorScroll,
         )
 
     private fun buildRetainedWebView(
@@ -115,6 +121,7 @@ object WebViewLayout {
             webChromeClient = null,
             onImageClick = null,
             onLinkLongPress = null,
+            onAnchorScroll = null,
         ).also { webView ->
             webView.loadDataWithBaseURL(
                 PREWARM_BASE_URL,
@@ -133,6 +140,7 @@ object WebViewLayout {
         webChromeClient: RYWebChromeClient?,
         onImageClick: ((imgUrl: String, altText: String) -> Unit)?,
         onLinkLongPress: ((url: String, text: String) -> Unit)?,
+        onAnchorScroll: ((cssTop: Double) -> Unit)?,
     ): HorizontalScrollAwareWebView =
         HorizontalScrollAwareWebView(context).apply {
             scrollBarSize = 0
@@ -159,6 +167,11 @@ object WebViewLayout {
                     override fun onHorizontalScrollableTouchStart(isScrollable: Boolean) {
                         this@apply.setTouchStartsInHorizontalScrollableContent(isScrollable)
                     }
+
+                    @JavascriptInterface
+                    override fun onAnchorScrollTo(cssTop: Double) {
+                        this@apply.onAnchorScroll?.invoke(cssTop)
+                    }
                 },
                 JavaScriptInterface.NAME,
             )
@@ -169,6 +182,7 @@ object WebViewLayout {
                 webChromeClient = webChromeClient,
                 onImageClick = onImageClick,
                 onLinkLongPress = onLinkLongPress,
+                onAnchorScroll = onAnchorScroll,
             )
         }
 
@@ -179,9 +193,11 @@ object WebViewLayout {
         webChromeClient: RYWebChromeClient?,
         onImageClick: ((imgUrl: String, altText: String) -> Unit)?,
         onLinkLongPress: ((url: String, text: String) -> Unit)?,
+        onAnchorScroll: ((cssTop: Double) -> Unit)?,
     ) {
         webView.onImageClick = onImageClick
         webView.onLinkLongPress = onLinkLongPress
+        webView.onAnchorScroll = onAnchorScroll
         webView.webViewClient = webViewClient
         webView.webChromeClient = webChromeClient
         webView.onResume()

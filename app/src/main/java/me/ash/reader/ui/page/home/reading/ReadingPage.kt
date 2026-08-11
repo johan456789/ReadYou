@@ -53,6 +53,7 @@ import timber.log.Timber
 import kotlin.math.abs
 import kotlinx.coroutines.flow.distinctUntilChanged
 import kotlinx.coroutines.launch
+import kotlin.math.roundToInt
 import me.ash.reader.R
 import me.ash.reader.ui.component.webview.LinkActionDialog
 import me.ash.reader.ui.component.webview.LinkActionData
@@ -227,6 +228,7 @@ fun ReadingPage(
                                 onCurrentScrollSnapshotChange = {
                                     webViewScrollSnapshot = it
                                 },
+                                headlineHeightPx = headlineHeightPx,
                                 onImageClick = { imgUrl, altText ->
                                     currentImageData = ImageData(imgUrl, altText)
                                     showFullScreenImageViewer = true
@@ -433,6 +435,19 @@ fun ReadingPage(
                                             },
                                             onScrollSnapshotChange = {
                                                 webViewScrollSnapshot = it
+                                            },
+                                            onAnchorScroll = { cssTop ->
+                                                scope.launch {
+                                                    val target =
+                                                        with(density) {
+                                                            64.dp.toPx() +
+                                                                headlineHeightPx.toFloat() +
+                                                                (cssTop * density.density).toFloat()
+                                                        }.roundToInt()
+                                                    scrollState.animateScrollTo(
+                                                        target.coerceIn(0, scrollState.maxValue)
+                                                    )
+                                                }
                                             },
                                             onLinkLongPress = { url, text ->
                                                 linkActionData = LinkActionData(
