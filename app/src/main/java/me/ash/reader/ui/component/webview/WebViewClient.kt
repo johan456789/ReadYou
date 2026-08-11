@@ -71,6 +71,7 @@ class WebViewClient(
         super.onPageFinished(view, url)
         view!!.evaluateJavascript(OnImgClickScript, null)
         view.evaluateJavascript(OnLinkLongPressScript, null)
+        view.evaluateJavascript(OnAnchorClickScript, null)
     }
 
     override fun shouldOverrideUrlLoading(view: WebView?, request: WebResourceRequest?): Boolean {
@@ -185,6 +186,41 @@ class WebViewClient(
                         }, true);
                     })(links[i]);
                 }
+            })()
+            """
+
+        private const val OnAnchorClickScript = """
+            javascript:(function() {
+                if (window.__anchorClickBound) return;
+                window.__anchorClickBound = true;
+                document.addEventListener('click', function(event) {
+                    var link = event.target.closest('a');
+                    if (!link) return;
+                    var href = link.getAttribute('href') || '';
+                    if (href.charAt(0) !== '#') return;
+                    if (event.target.tagName === 'IMG') return;
+                    var fragment = href.substring(1);
+                    if (fragment === '') {
+                        event.preventDefault();
+                        event.stopPropagation();
+                        window.scrollTo({ top: 0, behavior: 'smooth' });
+                        return;
+                    }
+                    try {
+                        fragment = decodeURIComponent(fragment);
+                    } catch (e) {}
+                    var target = document.getElementById(fragment);
+                    if (!target) {
+                        var namedElements = document.getElementsByName(fragment);
+                        if (namedElements.length > 0) {
+                            target = namedElements[0];
+                        }
+                    }
+                    if (!target) return;
+                    event.preventDefault();
+                    event.stopPropagation();
+                    target.scrollIntoView({ behavior: 'smooth', block: 'start' });
+                }, false);
             })()
             """
     }
