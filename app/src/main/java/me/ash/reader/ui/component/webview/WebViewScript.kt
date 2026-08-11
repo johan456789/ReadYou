@@ -126,11 +126,23 @@ function touchStartsInHorizontalScrollableContent(touch) {
             return true;
         }
 
-        if (element.closest("video[controls], audio[controls]")) {
+        if (/(pan-y|none)/.test(window.getComputedStyle(element).touchAction)) {
             return true;
         }
 
-        if (/(pan-y|none)/.test(window.getComputedStyle(element).touchAction)) {
+        element = element.parentElement;
+    }
+    return false;
+}
+
+function touchStartsInMediaContent(touch) {
+    if (!touch) {
+        return false;
+    }
+
+    let element = document.elementFromPoint(touch.clientX, touch.clientY);
+    while (element && element !== document.body && element !== document.documentElement) {
+        if (element.closest("video[controls], audio[controls]")) {
             return true;
         }
 
@@ -143,6 +155,10 @@ document.addEventListener("touchstart", function(event) {
     const isScrollable = touchStartsInHorizontalScrollableContent(event.touches && event.touches[0]);
     if (window.${JavaScriptInterface.NAME} && window.${JavaScriptInterface.NAME}.onHorizontalScrollableTouchStart) {
         window.${JavaScriptInterface.NAME}.onHorizontalScrollableTouchStart(isScrollable);
+    }
+    const isMedia = touchStartsInMediaContent(event.touches && event.touches[0]);
+    if (window.${JavaScriptInterface.NAME} && window.${JavaScriptInterface.NAME}.onMediaTouchStart) {
+        window.${JavaScriptInterface.NAME}.onMediaTouchStart(isMedia);
     }
 }, { capture: true, passive: true });
 

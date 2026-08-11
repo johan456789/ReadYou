@@ -16,6 +16,9 @@ interface JavaScriptInterface {
     @JavascriptInterface
     fun onAnchorScrollTo(cssTop: Double)
 
+    @JavascriptInterface
+    fun onMediaTouchStart(isMedia: Boolean)
+
     companion object {
 
         const val NAME = "JavaScriptInterface"

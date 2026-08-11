@@ -172,6 +172,11 @@ object WebViewLayout {
                     override fun onAnchorScrollTo(cssTop: Double) {
                         this@apply.onAnchorScroll?.invoke(cssTop)
                     }
+
+                    @JavascriptInterface
+                    override fun onMediaTouchStart(isMedia: Boolean) {
+                        this@apply.setTouchStartsInMediaContent(isMedia)
+                    }
                 },
                 JavaScriptInterface.NAME,
             )

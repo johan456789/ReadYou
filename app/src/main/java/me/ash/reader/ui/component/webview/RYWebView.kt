@@ -60,11 +60,13 @@ data class WebViewScrollSnapshot(
 
 /**
  * Custom WebView that detects horizontal gestures and tells parent views not to intercept.
- * Only HTML elements that can actually scroll horizontally block parent interception.
+ * HTML elements that scroll horizontally, media with native controls, and touch-action pan-y/none elements claim horizontal gestures.
  */
 class HorizontalScrollAwareWebView(context: Context) : WebView(context) {
     private var startX = 0f
     private var startY = 0f
+    private var lastX = 0f
+    private var lastY = 0f
     private var isHorizontalGesture: Boolean? = null
     private val touchSlop = ViewConfiguration.get(context).scaledTouchSlop.toFloat()
     var loadedContentKey: WebViewContentKey? = null
@@ -74,6 +76,7 @@ class HorizontalScrollAwareWebView(context: Context) : WebView(context) {
     var onAnchorScroll: ((cssTop: Double) -> Unit)? = null
     var handledScrollToTopRequest: Int = 0
     private val touchStartsInHorizontalScrollableContent = AtomicBoolean(false)
+    private val touchStartsInMediaContent = AtomicBoolean(false)
 
     fun setTouchStartsInHorizontalScrollableContent(isScrollable: Boolean) {
         touchStartsInHorizontalScrollableContent.set(isScrollable)
@@ -86,8 +89,23 @@ class HorizontalScrollAwareWebView(context: Context) : WebView(context) {
         }
     }
 
+    fun setTouchStartsInMediaContent(isMedia: Boolean) {
+        touchStartsInMediaContent.set(isMedia)
+        if (isMedia) {
+            post {
+                if (isHorizontalGesture != null && touchStartsInMediaContent.get()) {
+                    if (abs(lastX - startX) > touchSlop && abs(lastX - startX) > abs(lastY - startY) / 2f) {
+                        isHorizontalGesture = true
+                        parent?.requestDisallowInterceptTouchEvent(true)
+                    }
+                }
+            }
+        }
+    }
+
     fun resetTouchStartsInHorizontalScrollableContent() {
         touchStartsInHorizontalScrollableContent.set(false)
+        touchStartsInMediaContent.set(false)
     }
 
     fun emitScrollSnapshot() {
@@ -117,12 +135,16 @@ class HorizontalScrollAwareWebView(context: Context) : WebView(context) {
                 resetTouchStartsInHorizontalScrollableContent()
             }
             MotionEvent.ACTION_MOVE -> {
+                lastX = event.x
+                lastY = event.y
                 if (isHorizontalGesture == null) {
                     val dx = abs(event.x - startX)
                     val dy = abs(event.y - startY)
                     if (dx > touchSlop || dy > touchSlop) {
-                        isHorizontalGesture = dx > dy
-                        if (isHorizontalGesture == true && touchStartsInHorizontalScrollableContent.get()) {
+                        isHorizontalGesture =
+                            if (touchStartsInMediaContent.get()) dx > touchSlop && dx > dy / 2f
+                            else dx > dy
+                        if (isHorizontalGesture == true && (touchStartsInHorizontalScrollableContent.get() || touchStartsInMediaContent.get())) {
                             parent?.requestDisallowInterceptTouchEvent(true)
                         }
                     }
