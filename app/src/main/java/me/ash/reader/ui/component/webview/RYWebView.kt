@@ -71,6 +71,7 @@ class HorizontalScrollAwareWebView(context: Context) : WebView(context) {
     var onScrollSnapshotChanged: ((WebViewScrollSnapshot) -> Unit)? = null
     var onImageClick: ((imgUrl: String, altText: String) -> Unit)? = null
     var onLinkLongPress: ((url: String, text: String) -> Unit)? = null
+    var onAnchorScroll: ((cssTop: Double) -> Unit)? = null
     var handledScrollToTopRequest: Int = 0
     private val touchStartsInHorizontalScrollableContent = AtomicBoolean(false)
 
@@ -147,6 +148,7 @@ fun RYWebView(
     scrollToTopRequest: Int = 0,
     onImageClick: ((imgUrl: String, altText: String) -> Unit)? = null,
     onLinkLongPress: ((url: String, text: String) -> Unit)? = null,
+    onAnchorScroll: ((cssTop: Double) -> Unit)? = null,
     onShowCustomView: ((View, WebChromeClient.CustomViewCallback) -> Unit)? = null,
     onHideCustomView: (() -> Unit)? = null,
     onScrollSnapshotChange: ((WebViewScrollSnapshot) -> Unit)? = null,
@@ -215,6 +217,7 @@ fun RYWebView(
                     webChromeClient = null,
                     onImageClick = onImageClick,
                     onLinkLongPress = onLinkLongPress,
+                    onAnchorScroll = onAnchorScroll,
                 ).also { onWebViewCreatedForTest?.invoke(it) }
             )
         }

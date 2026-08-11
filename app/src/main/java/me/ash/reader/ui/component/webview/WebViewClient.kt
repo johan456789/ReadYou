@@ -203,7 +203,11 @@ class WebViewClient(
                     if (fragment === '') {
                         event.preventDefault();
                         event.stopPropagation();
-                        window.scrollTo({ top: 0, behavior: 'smooth' });
+                        if (window.${JavaScriptInterface.NAME} && window.${JavaScriptInterface.NAME}.onAnchorScrollTo) {
+                            window.${JavaScriptInterface.NAME}.onAnchorScrollTo(0);
+                        } else {
+                            document.body.scrollIntoView();
+                        }
                         return;
                     }
                     try {
@@ -219,7 +223,11 @@ class WebViewClient(
                     if (!target) return;
                     event.preventDefault();
                     event.stopPropagation();
-                    target.scrollIntoView({ behavior: 'smooth', block: 'start' });
+                    if (window.${JavaScriptInterface.NAME} && window.${JavaScriptInterface.NAME}.onAnchorScrollTo) {
+                        window.${JavaScriptInterface.NAME}.onAnchorScrollTo(target.getBoundingClientRect().top);
+                    } else {
+                        target.scrollIntoView();
+                    }
                 }, false);
             })()
             """

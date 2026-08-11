@@ -13,6 +13,9 @@ interface JavaScriptInterface {
     @JavascriptInterface
     fun onHorizontalScrollableTouchStart(isScrollable: Boolean)
 
+    @JavascriptInterface
+    fun onAnchorScrollTo(cssTop: Double)
+
     companion object {
 
         const val NAME = "JavaScriptInterface"
