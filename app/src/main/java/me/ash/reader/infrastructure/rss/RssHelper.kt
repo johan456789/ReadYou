@@ -32,6 +32,7 @@ import okhttp3.executeAsync
 import okhttp3.internal.commonIsSuccessful
 import okio.IOException
 import org.jsoup.Jsoup
+import org.jsoup.nodes.Element
 
 val enclosureRegex = """<enclosure\s+url="([^"]+)"\s+type=".*"\s*/>""".toRegex()
 val imgRegex = """img.*?src=(["'])((?!data).*?)\1""".toRegex(RegexOption.DOT_MATCHES_ALL)
@@ -112,9 +113,37 @@ constructor(
                     if (h1Element != null && h1Element.hasText() && h1Element.text() == title) {
                         h1Element.remove()
                     }
+                    restoreFootnoteTargets(content, link, articleContent)
                     articleContent.toString()
                 } ?: throw IOException("articleContent is null")
             } else throw IOException(response.message)
+        }
+    }
+
+    /**
+     * readability4j strips footnote sections (e.g. `div.footnotes`) as unlikely candidates, which
+     * removes the `id="fn-1"` style targets that internal `#fn-1` anchor links point to. Re-attach
+     * any footnote container from the original page whose targets are still referenced by the
+     * extracted article, so footnote anchors keep working in the reader.
+     */
+    private fun restoreFootnoteTargets(originalHtml: String, link: String, articleContent: Element) {
+        val original = Jsoup.parse(originalHtml, link)
+        val containers =
+            original.select(
+                "div.footnotes, section.footnotes, ol.footnotes, " +
+                    "div[class*=footnote], section[class*=footnote], div#footnotes, section#footnotes"
+            )
+        for (container in containers) {
+            val targetIds = container.select("[id]").eachAttr("id").toSet()
+            if (targetIds.isEmpty()) continue
+            val linkedIds =
+                articleContent.select("a[href^=#]").eachAttr("href").mapNotNull { href ->
+                    val raw = href.removePrefix("#")
+                    runCatching { java.net.URLDecoder.decode(raw, "UTF-8") }.getOrDefault(raw)
+                }
+            if (linkedIds.any { it in targetIds && articleContent.getElementById(it) == null }) {
+                articleContent.appendChild(container)
+            }
         }
     }
 
