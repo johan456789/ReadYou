@@ -81,6 +81,23 @@ fun AppEntry(
             isDestinationHistoryAware = false,
         )
 
+    // Resume the article that was open when the process died. This must live at AppEntry level:
+    // nav3 memoizes NavEntry content lambdas against the back stack, so a resume state passed
+    // into the entry provider would be captured stale and never consumed, leaking into the next
+    // feed entry (which would then auto-open the old article). Consumed right here, once, before
+    // any later Route.Reading(null) navigation can observe it.
+    LaunchedEffect(resumeArticleId) {
+        val articleId = resumeArticleId
+        if (articleId != null && backStack.lastOrNull() is Route.Reading) {
+            delay(50L)
+            navigator.navigateTo(
+                ListDetailPaneScaffoldRole.Detail,
+                ArticleData(articleId),
+            )
+            onResumeArticleConsumed()
+        }
+    }
+
     SharedTransitionLayout {
         NavDisplay(
             modifier = Modifier.fillMaxSize().background(MaterialTheme.colorScheme.surface),
@@ -132,18 +149,15 @@ fun AppEntry(
                         NavEntry(key) {
                             val key = rememberSaveable(saver = Route.Reading.Saver) { key }
 
-                            LaunchedEffect(key, resumeArticleId) {
-                                val articleId = resumeArticleId ?: key.articleId
-                                if (articleId != null) {
+                            LaunchedEffect(key) {
+                                key.articleId?.let { articleId ->
                                     delay(50L)
                                     navigator.navigateTo(
                                         ListDetailPaneScaffoldRole.Detail,
                                         ArticleData(articleId),
                                     )
-                                    if (resumeArticleId != null) onResumeArticleConsumed()
                                 }
                             }
-
                             val viewModel = hiltViewModel<ArticleListReaderViewModel>()
 
                             ArticleListReaderPage(
