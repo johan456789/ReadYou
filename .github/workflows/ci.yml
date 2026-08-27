@@ -12,8 +12,9 @@ jobs:
   android:
     uses: johan456789/ci-templates/.github/workflows/android-gradle-app.yml@main
     with:
-      # Build only the github flavor so a single, installable APK is produced
-      gradle_task: assembleGithubRelease
+      # Build only the github flavor so a single, installable APK is produced.
+      # Qualified with :app: because ReadYou's app is a subproject (root has no Android tasks).
+      gradle_task: :app:assembleGithubRelease
       # ReadYou reads release signing from signature/keystore_release.properties
       properties_file: signature/keystore_release.properties
       keystore_file: signature/upload-keystore.jks
