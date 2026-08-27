@@ -1,0 +1,20 @@
+name: Build & Release
+
+on:
+  push:
+    branches: [main]
+    tags: ['v*']
+  pull_request:
+
+# ci-templates has no v1 tag yet -> reference @main. Cut v1 (and update to @v1)
+# once this workflow is verified on a real release build.
+jobs:
+  android:
+    uses: johan456789/ci-templates/.github/workflows/android-gradle-app.yml@main
+    with:
+      # Build only the github flavor so a single, installable APK is produced
+      gradle_task: assembleGithubRelease
+      # ReadYou reads release signing from signature/keystore_release.properties
+      properties_file: signature/keystore_release.properties
+      keystore_file: signature/upload-keystore.jks
+    secrets: inherit
