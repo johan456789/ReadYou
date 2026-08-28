@@ -113,7 +113,7 @@ android {
     applicationVariants.all {
         outputs.all {
             (this as com.android.build.gradle.internal.api.BaseVariantOutputImpl).outputFileName =
-                "ReadYou-${defaultConfig.versionName}-${gitCommitHash}.apk"
+                "ReadYou-${defaultConfig.versionName}-${defaultConfig.versionCode}.apk"
         }
     }
     compileOptions {
