@@ -45,7 +45,7 @@ android {
     compileSdk = 36
 
     defaultConfig {
-        applicationId = "me.ash.reader"
+        applicationId = "com.thyu.reader"
         minSdk = 26
         targetSdk = 34
         versionCode = 46
