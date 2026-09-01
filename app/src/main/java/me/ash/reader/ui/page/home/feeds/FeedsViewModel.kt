@@ -1,12 +1,20 @@
 package me.ash.reader.ui.page.home.feeds
 
+import android.content.Context
 import androidx.compose.foundation.lazy.LazyListState
 import androidx.compose.runtime.mutableStateMapOf
+import androidx.compose.runtime.snapshotFlow
 import androidx.compose.runtime.snapshots.SnapshotStateMap
+import androidx.datastore.preferences.core.booleanPreferencesKey
+import androidx.datastore.preferences.core.edit
+import androidx.datastore.preferences.core.stringPreferencesKey
 import androidx.lifecycle.ViewModel
 import androidx.lifecycle.viewModelScope
 import androidx.work.WorkManager
+import com.google.gson.Gson
+import com.google.gson.reflect.TypeToken
 import dagger.hilt.android.lifecycle.HiltViewModel
+import dagger.hilt.android.qualifiers.ApplicationContext
 import kotlinx.coroutines.CoroutineDispatcher
 import kotlinx.coroutines.CoroutineScope
 import kotlinx.coroutines.ExperimentalCoroutinesApi
@@ -17,10 +25,13 @@ import kotlinx.coroutines.flow.StateFlow
 import kotlinx.coroutines.flow.asStateFlow
 import kotlinx.coroutines.flow.combine
 import kotlinx.coroutines.flow.debounce
+import kotlinx.coroutines.flow.first
 import kotlinx.coroutines.flow.flowOn
+import kotlinx.coroutines.flow.map
 import kotlinx.coroutines.flow.mapLatest
 import kotlinx.coroutines.flow.update
 import kotlinx.coroutines.launch
+import kotlinx.coroutines.runBlocking
 import me.ash.reader.R
 import me.ash.reader.domain.model.account.Account
 import me.ash.reader.domain.model.general.Filter
@@ -35,14 +46,18 @@ import me.ash.reader.domain.service.SyncWorker
 import me.ash.reader.infrastructure.di.ApplicationScope
 import me.ash.reader.infrastructure.di.DefaultDispatcher
 import me.ash.reader.infrastructure.di.IODispatcher
+import me.ash.reader.infrastructure.preference.FeedsGroupCollapsePreference
 import me.ash.reader.infrastructure.preference.SettingsProvider
+import me.ash.reader.ui.ext.PreferencesKey
+import me.ash.reader.ui.ext.dataStore
 import javax.inject.Inject
 
 private const val TAG = "FeedsViewModel"
 
-@OptIn(ExperimentalCoroutinesApi::class)
+@OptIn(ExperimentalCoroutinesApi::class, FlowPreview::class)
 @HiltViewModel
 class FeedsViewModel @Inject constructor(
+    @param:ApplicationContext private val context: Context,
     private val accountService: AccountService,
     private val rssService: RssService,
     private val workManager: WorkManager,
@@ -59,9 +74,42 @@ class FeedsViewModel @Inject constructor(
     private val groupWithFeedsListUseCase: GroupWithFeedsListUseCase,
 ) : ViewModel() {
 
+    private val collapseKey = stringPreferencesKey(PreferencesKey.feedsGroupCollapseState)
+    private val gson = Gson()
+    private val collapseType = object : TypeToken<Map<String, Boolean>>() {}.type
+
+    private suspend fun readPersistedCollapseMap(): Map<String, Boolean> {
+        return try {
+            val prefs = context.dataStore.data.first()
+            FeedsGroupCollapsePreference.fromPreferences(prefs)
+        } catch (_: Exception) {
+            emptyMap()
+        }
+    }
+
+    private suspend fun getDefaultExpand(): Boolean {
+        return try {
+            val v = context.dataStore.data.map { it[booleanPreferencesKey(PreferencesKey.feedsGroupListExpand)] }.first()
+            v ?: true
+        } catch (_: Exception) {
+            true
+        }
+    }
+
     private val _feedsUiState =
         MutableStateFlow(FeedsUiState())
     val feedsUiState: StateFlow<FeedsUiState> = _feedsUiState.asStateFlow()
+
+    // Preload persisted collapse state synchronously to avoid flicker (expanded -> collapsed)
+    // Filter to current account if known; otherwise load all and prune after account resolves
+    private val initialPersisted: Map<String, Boolean> = runBlocking {
+        try {
+            val prefs = context.dataStore.data.first()
+            FeedsGroupCollapsePreference.fromPreferences(prefs)
+        } catch (_: Exception) {
+            emptyMap()
+        }
+    }
 
     val syncWorkLiveData = workManager.getWorkInfosByTagLiveData(SyncWorker.SYNC_TAG)
 
@@ -87,6 +135,21 @@ class FeedsViewModel @Inject constructor(
     }
 
     init {
+        // Pre-populate to avoid flicker, but only for current account to avoid cross-account bleed
+        if (initialPersisted.isNotEmpty()) {
+            val accountId = try {
+                accountService.getCurrentAccountId()
+            } catch (_: Exception) {
+                null
+            }
+            val toPut = if (accountId != null) {
+                val prefix = "${accountId}\$"
+                initialPersisted.filterKeys { it.startsWith(prefix) }
+            } else {
+                initialPersisted
+            }
+            if (toPut.isNotEmpty()) _feedsUiState.value.groupsVisible.putAll(toPut)
+        }
         val accountFlow = accountService.currentAccountFlow
         viewModelScope.launch {
             accountFlow.collect { account ->
@@ -104,6 +167,57 @@ class FeedsViewModel @Inject constructor(
                         Filter.Unread -> pullUnreadFeeds()
                         Filter.Starred -> pullStarredFeeds()
                         else -> pullAllFeeds()
+                    }
+                }
+        }
+
+        // Persisted collapse state: init / prune / default handling
+        // Pruning uses the displayed list; when filter hides groups (Unread+hideEmptyGroups)
+        // we must not delete their persisted state.
+        viewModelScope.launch {
+            groupWithFeedsListFlow.collect { list ->
+                val liveIds = list.map { it.group.id }.toSet()
+                val persisted = readPersistedCollapseMap()
+                val defaultExpand = getDefaultExpand()
+                val groupsVisible = _feedsUiState.value.groupsVisible
+                val currentFilter = try { filterStateFlow.value.filter } catch (_: Exception) { Filter.All }
+                val canPrune = currentFilter == Filter.All || !settingsProvider.settings.hideEmptyGroups.value
+                if (canPrune) {
+                    val keysToRemove = groupsVisible.keys.filter { it !in liveIds }
+                    keysToRemove.forEach { groupsVisible.remove(it) }
+                }
+                // Init new ids with persisted value or global default
+                for (id in liveIds) {
+                    if (!groupsVisible.containsKey(id)) {
+                        val persistedValue = persisted[id]
+                        groupsVisible[id] = persistedValue ?: defaultExpand
+                    }
+                }
+            }
+        }
+
+        // Observe groupsVisible changes and debounce write to DataStore (merge per account)
+        viewModelScope.launch {
+            snapshotFlow { _feedsUiState.value.groupsVisible.toMap() }
+                .debounce(300)
+                .collect { currentMap ->
+                    if (currentMap.isEmpty() && groupWithFeedsListFlow.value.isEmpty()) return@collect
+                    if (currentMap.isEmpty()) {
+                        val persisted = readPersistedCollapseMap()
+                        if (persisted.isEmpty()) return@collect
+                    }
+                    val currentAccountId = _feedsUiState.value.account?.id
+                    val filteredCurrent = if (currentAccountId != null) {
+                        val prefix = "${currentAccountId}\$"
+                        currentMap.filterKeys { it.startsWith(prefix) }
+                    } else currentMap
+                    context.dataStore.edit { prefs ->
+                        val persisted = FeedsGroupCollapsePreference.fromPreferences(prefs)
+                        if (filteredCurrent.isEmpty() && persisted.isEmpty()) return@edit
+                        val merged = FeedsGroupCollapsePreference.mergedForWrite(persisted, currentAccountId, filteredCurrent)
+                        if (merged != persisted) {
+                            prefs[collapseKey] = FeedsGroupCollapsePreference.toJson(merged)
+                        }
                     }
                 }
         }

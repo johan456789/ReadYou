@@ -151,6 +151,7 @@ sealed interface PreferencesKey {
         const val feedsFilterBarTonalElevation = "feedsFilterBarTonalElevation"
         const val feedsTopBarTonalElevation = "feedsTopBarTonalElevation"
         const val feedsGroupListExpand = "feedsGroupListExpand"
+        const val feedsGroupCollapseState = "feedsGroupCollapseState"
         const val feedsGroupListTonalElevation = "feedsGroupListTonalElevation"
 
         // Flow page
@@ -236,6 +237,7 @@ sealed interface PreferencesKey {
                 IntKey(feedsFilterBarTonalElevation),
                 IntKey(feedsTopBarTonalElevation),
                 BooleanKey(feedsGroupListExpand),
+                StringKey(feedsGroupCollapseState),
                 IntKey(feedsGroupListTonalElevation),
                 // Flow page
                 IntKey(flowFilterBarStyle),
