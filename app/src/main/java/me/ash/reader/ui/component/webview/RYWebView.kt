@@ -120,9 +120,118 @@ class HorizontalScrollAwareWebView(context: Context) : WebView(context) {
         )
     }
 
+    // Option B: the outer Compose verticalScroll column owns ALL vertical scrolling, so the
+    // inner WebView viewport must never gain scrollY (otherwise the outer returns to 0 first
+    // and the inner strands above 0, clipping the article top). Clamp every vertical scroll
+    // path to 0 while preserving horizontal scrolling, taps, selection and fullscreen.
+    override fun scrollTo(x: Int, y: Int) {
+        super.scrollTo(x, 0)
+    }
+
+    override fun scrollBy(x: Int, y: Int) {
+        super.scrollBy(x, 0)
+    }
+
+    override fun onOverScrolled(scrollX: Int, scrollY: Int, clampedX: Boolean, clampedY: Boolean) {
+        super.onOverScrolled(scrollX, 0, clampedX, true)
+    }
+
+    override fun computeScroll() {
+        super.computeScroll()
+        if (scrollY != 0) {
+            scrollTo(scrollX, 0)
+        }
+    }
+
+    override fun computeVerticalScrollRange(): Int = computeVerticalScrollExtent()
+
+    override fun canScrollVertically(direction: Int): Boolean = false
+
     override fun onScrollChanged(l: Int, t: Int, oldl: Int, oldt: Int) {
-        super.onScrollChanged(l, t, oldl, oldt)
+        if (t != 0) {
+            // Native-driven scroll bypassed the clamp; snap back and report the clamped value.
+            post { scrollTo(l, 0) }
+            super.onScrollChanged(l, 0, oldl, oldt)
+        } else {
+            super.onScrollChanged(l, t, oldl, oldt)
+        }
         emitScrollSnapshot()
+    }
+
+    private var settleCheckToken = 0
+
+    companion object {
+        // Genuine short boxes strand tens of px (observed ~67px); content-vs-box px
+        // rounding accounts for only a few px, so anything at/below this is noise.
+        private const val SHORT_BOX_TOLERANCE_PX = 8
+    }
+
+    override fun loadDataWithBaseURL(
+        baseUrl: String?,
+        data: String,
+        mimeType: String?,
+        encoding: String?,
+        historyUrl: String?,
+    ) {
+        // New article invalidates any pending settle checks from the previous content.
+        settleCheckToken++
+        super.loadDataWithBaseURL(baseUrl, data, mimeType, encoding, historyUrl)
+    }
+
+    override fun loadUrl(url: String) {
+        settleCheckToken++
+        super.loadUrl(url)
+    }
+
+    fun cancelPendingSettleCheck() {
+        settleCheckToken++
+    }
+
+    /**
+     * Called on page finish; re-checks after async image loads settle. If the measured box is
+     * still shorter than the content, the article top would clip, so force a remeasure/grow
+     * and log a warning (no crash).
+     */
+    fun notifyPageFinished() {
+        val token = ++settleCheckToken
+        postDelayed({ runVerticalSettleCheck(token, "page-finished+500ms") }, 500)
+        postDelayed({ runVerticalSettleCheck(token, "page-finished+1500ms") }, 1500)
+        postDelayed({ runVerticalSettleCheck(token, "page-finished+3000ms") }, 3000)
+    }
+
+    private fun runVerticalSettleCheck(token: Int, stage: String) {
+        if (token != settleCheckToken) return
+        if (scrollY != 0) {
+            scrollTo(scrollX, 0)
+        }
+        val range = computeVerticalScrollRange()
+        val extent = computeVerticalScrollExtent()
+        if (range <= 0 || extent <= 0) return
+        val shortfall = (range - extent).coerceAtLeast(0)
+        if (shortfall > SHORT_BOX_TOLERANCE_PX) {
+            Timber.tag("RYWebView").w(
+                "short box at settle (%s): range=%dpx extent=%dpx shortfall=%dpx; forcing remeasure",
+                stage,
+                range,
+                extent,
+                shortfall,
+            )
+            requestLayout()
+            postDelayed({
+                if (token != settleCheckToken) return@postDelayed
+                val grownRange = computeVerticalScrollRange()
+                val grownExtent = computeVerticalScrollExtent()
+                val grownShortfall = (grownRange - grownExtent).coerceAtLeast(0)
+                if (grownExtent > 0 && grownShortfall > SHORT_BOX_TOLERANCE_PX) {
+                    Timber.tag("RYWebView").w(
+                        "box still short after remeasure (%s): range=%dpx extent=%dpx",
+                        stage,
+                        grownRange,
+                        grownExtent,
+                    )
+                }
+            }, 500)
+        }
     }
 
     @SuppressLint("ClickableViewAccessibility")
