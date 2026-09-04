@@ -1,0 +1,184 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<rss version="2.0" xmlns:content="http://purl.org/rss/1.0/modules/content/">
+<channel>
+<title>ReadYou Manual Test Feed</title>
+<link>http://10.0.2.2:8901/</link>
+<description>Local fixture feed for manual reader testing: short, long, image-heavy, video, audio, YouTube, and table/code articles.</description>
+<language>en</language>
+<item>
+<title>Short article</title>
+<link>http://10.0.2.2:8901/articles/short.html</link>
+<guid>test-short</guid>
+<pubDate>Mon, 01 Sep 2026 10:00:00 GMT</pubDate>
+<description>Two paragraphs, fits on one screen, never scrolls.</description>
+<content:encoded><![CDATA[
+<p>This is a short article. It fits on one screen and never scrolls.</p>
+<p>Second paragraph, still short. If the reader shows a scrollbar here, something is wrong.</p>
+]]></content:encoded>
+</item>
+<item>
+<title>Long text article</title>
+<link>http://10.0.2.2:8901/articles/long.html</link>
+<guid>test-long</guid>
+<pubDate>Tue, 02 Sep 2026 10:00:00 GMT</pubDate>
+<description>Twelve sections of plain text for scroll-position testing.</description>
+<content:encoded><![CDATA[
+<p>This is a long text-only article. No images, no media, just headings and paragraphs. Scroll from top to bottom and back, then check the headline is fully revealed and the first paragraph starts at the very top of the body.</p>
+<h2>Section 1: Getting started</h2>
+<p>The quick brown fox jumps over the lazy dog near the riverbank at dawn. Birds gather on the telephone wires while the town slowly wakes up. Coffee steam rises from cups on windowsills.</p>
+<p>Meanwhile the fox trots along the hedgerow, nose to the ground, following last night's scent trail through the damp grass and fallen leaves.</p>
+<h2>Section 2: The middle of the morning</h2>
+<p>By nine o'clock the market square is busy. Stalls sell apples, cheese, bread, and flowers. Children chase pigeons between the fountain and the old clock tower.</p>
+<p>The fox watches from the alley, unseen. It has learned the rhythm of the town: which doors open, which dogs sleep, which bins overflow on which days.</p>
+<h2>Section 3: An unexpected detour</h2>
+<p>A delivery truck blocks the usual route, so the fox doubles back through the churchyard. Gravestones lean at angles, mossy and old, and a blackbird scolds from the yew tree.</p>
+<p>Beyond the lychgate lies the allotment gardens, rich with the smell of turned earth, ripe tomatoes, and somebody's bonfire smoke drifting low.</p>
+<h2>Section 4: The allotments</h2>
+<p>Rows of potatoes, beans climbing canes, marrows swelling under big leaves. The fox pauses to listen: a robin, a distant lawnmower, the rattle of a watering can.</p>
+<p>Nothing edible here today, so it slips under the fence and onto the footpath that follows the stream out of town.</p>
+<h2>Section 5: Along the stream</h2>
+<p>Water skaters dimple the surface. A heron stands statue-still, then strikes. Moorhens fuss among the reeds with their red-beaked chicks.</p>
+<p>The path crosses a wooden bridge with a missing plank. The fox jumps it easily and continues into the water meadows.</p>
+<h2>Section 6: The water meadows</h2>
+<p>Butterflies drift over knapweed and scabious. The grass is tall enough to hide in, and the fox moves like a rumour through it.</p>
+<p>At the far edge stands an oak, centuries old, hollow at the base. Inside the hollow: dry leaves, a beetle, and the smell of fox from winters past.</p>
+<h2>Section 7: Midday rest</h2>
+<p>The fox curls in the hollow and sleeps. Dreams of rabbits, of moonlit fields, of the vixen from two valleys over with the torn ear.</p>
+<p>Flies hum. The oak leaves turn their silver undersides up, which means rain later. The fox's ear twitches but it does not wake.</p>
+<h2>Section 8: Afternoon rain</h2>
+<p>Rain arrives as promised, drumming on the canopy. Drips find the hollow's entrance and the fox shuffles deeper into the dry dark.</p>
+<p>An hour passes. The rain softens to drizzle, then stops. Everything smells washed: leaf, bark, soil, and far off, wet sheep.</p>
+<h2>Section 9: The way back</h2>
+<p>Hunger returns. The fox retraces its steps at a trot, shaking water from its brush. The stream is higher now, brown and hurried.</p>
+<p>At the allotments a gardener has left a sandwich on a bench. The fox considers it, then leaves it: too much bread, not enough chicken.</p>
+<h2>Section 10: Evening in town</h2>
+<p>Lamps come on. Bats flicker over the square. The bins behind the bakery are tonight's plan, and the plan is good.</p>
+<p>Stale croissants, a pork pie with one bite taken, and a whole unsliced loaf, still soft. The fox eats like a king behind the bins.</p>
+<h2>Section 11: Night patrol</h2>
+<p>Fed, the fox tours its territory: the churchyard wall, the allotment fence, the bridge, the oak. It marks each point with care.</p>
+<p>From the hill it looks back at the town's orange glow. Somewhere a dog barks once and gives up. An owl asks its single question of the dark.</p>
+<h2>Section 12: Home</h2>
+<p>The den is under the shed behind the last house. Dry, warm, smelling of earth and family. The fox circles three times and sleeps.</p>
+<p>If you have scrolled this far and back to the top, the outer scroll position should be exactly zero and the headline fully visible. That is the whole point of this article.</p>
+]]></content:encoded>
+</item>
+<item>
+<title>Image-heavy article</title>
+<link>http://10.0.2.2:8901/articles/images.html</link>
+<guid>test-images</guid>
+<pubDate>Wed, 03 Sep 2026 10:00:00 GMT</pubDate>
+<description>Eight remote images, half without dimensions, for mid-load scroll testing.</description>
+<content:encoded><![CDATA[
+<p>Image-heavy article for scroll testing. Images load progressively and change the page height mid-load, which is exactly what used to strand the inner scroll position. Half the images below have no width/height attributes on purpose, so the layout shifts as they arrive.</p>
+<figure><img src="https://picsum.photos/seed/reader1/800/450" alt="Test image 1"><figcaption>Image 1, no dimensions, layout shifts when it loads.</figcaption></figure>
+<p>Some text between images to keep the layout honest. Scroll slowly here and watch the body top: it must never clip while the headline is visible.</p>
+<figure><img src="https://picsum.photos/seed/reader2/800/600" width="800" height="600" alt="Test image 2"><figcaption>Image 2, fixed dimensions, no shift.</figcaption></figure>
+<figure><img src="https://picsum.photos/seed/reader3/800/500" alt="Test image 3"><figcaption>Image 3, no dimensions.</figcaption></figure>
+<p>Mid-article checkpoint. If you fling to the bottom and back to the top, the headline should reveal only after the body has fully drained to its first pixel.</p>
+<figure><img src="https://picsum.photos/seed/reader4/800/450" width="800" height="450" alt="Test image 4"><figcaption>Image 4, fixed dimensions.</figcaption></figure>
+<figure><img src="https://picsum.photos/seed/reader5/800/700" alt="Test image 5"><figcaption>Image 5, tall, no dimensions.</figcaption></figure>
+<figure><img src="https://picsum.photos/seed/reader6/800/450" alt="Test image 6"><figcaption>Image 6, no dimensions.</figcaption></figure>
+<p>Almost there. Tapping any image should still open the fullscreen viewer, and long-pressing this <a href="https://example.com">example link</a> should still show the link dialog.</p>
+<figure><img src="https://picsum.photos/seed/reader7/800/500" width="800" height="500" alt="Test image 7"><figcaption>Image 7, fixed dimensions.</figcaption></figure>
+<figure><img src="https://picsum.photos/seed/reader8/800/450" alt="Test image 8"><figcaption>Image 8, no dimensions. End of article.</figcaption></figure>
+]]></content:encoded>
+</item>
+<item>
+<title>Video article</title>
+<link>http://10.0.2.2:8901/articles/video.html</link>
+<guid>test-video</guid>
+<pubDate>Thu, 04 Sep 2026 10:00:00 GMT</pubDate>
+<description>Two native HTML5 videos with inline playback and fullscreen.</description>
+<content:encoded><![CDATA[
+<p>Article with native video elements. Tapping play should play inline; going fullscreen should use the reader's fullscreen overlay and the back button should exit it.</p>
+<video src="https://media.w3.org/2010/05/bunny/trailer.mp4" poster="https://picsum.photos/seed/videoposter1/800/450" controls preload="metadata" width="100%"></video>
+<p>First video above (trailer), second one below (full ten-minute film). Both are Big Buck Bunny files hosted by W3C as open video-element test material.</p>
+<video src="https://media.w3.org/2010/05/bunny/movie.mp4" poster="https://picsum.photos/seed/videoposter2/800/450" controls preload="metadata" width="100%"></video>
+<p>End of the video article. Horizontal swipe on the videos should not switch articles; vertical scroll around them should work normally.</p>
+]]></content:encoded>
+</item>
+<item>
+<title>Audio article</title>
+<link>http://10.0.2.2:8901/articles/audio.html</link>
+<guid>test-audio</guid>
+<pubDate>Fri, 05 Sep 2026 10:00:00 GMT</pubDate>
+<description>Two native HTML5 audio players.</description>
+<content:encoded><![CDATA[
+<p>Article with native audio elements. Playback controls must stay usable and must not hijack vertical scroll gestures.</p>
+<audio src="https://www.soundhelix.com/examples/mp3/SoundHelix-Song-1.mp3" controls preload="metadata"></audio>
+<p>First track above, second track below. These are the SoundHelix sample MP3s.</p>
+<audio src="https://www.soundhelix.com/examples/mp3/SoundHelix-Song-2.mp3" controls preload="metadata"></audio>
+<p>End of the audio article.</p>
+]]></content:encoded>
+</item>
+<item>
+<title>YouTube embed article</title>
+<link>http://10.0.2.2:8901/articles/youtube.html</link>
+<guid>test-youtube</guid>
+<pubDate>Sat, 06 Sep 2026 10:00:00 GMT</pubDate>
+<description>Two YouTube iframe embeds.</description>
+<content:encoded><![CDATA[
+<p>Article with YouTube iframe embeds. The embeds need JavaScript, which the reader enables. Tapping play should start the video inside the embed.</p>
+<iframe width="100%" height="240" src="https://www.youtube.com/embed/YE7VzlLtp-4" title="Big Buck Bunny" frameborder="0" allow="accelerometer; autoplay; clipboard-write; encrypted-media; gyroscope; picture-in-picture" allowfullscreen></iframe>
+<p>First embed above, second one below. Horizontal gestures starting on the embed belong to the player; vertical scroll of the article must still work.</p>
+<iframe width="100%" height="240" src="https://www.youtube.com/embed/aqz-KE-bpKQ" title="Big Buck Bunny (alternate upload)" frameborder="0" allow="accelerometer; autoplay; clipboard-write; encrypted-media; gyroscope; picture-in-picture" allowfullscreen></iframe>
+<p>End of the YouTube article.</p>
+]]></content:encoded>
+</item>
+<item>
+<title>Footnote article</title>
+<link>http://10.0.2.2:8901/articles/footnotes.html</link>
+<guid>test-footnotes</guid>
+<pubDate>Mon, 08 Sep 2026 10:00:00 GMT</pubDate>
+<description>Footnote references with return links for anchor-scroll testing.</description>
+<content:encoded><![CDATA[
+<p>Article for testing footnote taps. Tapping a footnote number like <a id="fnref1" href="#fn1"><sup>[1]</sup></a> should smooth-scroll the article so the matching footnote is visible; tapping the return link should jump back up.</p>
+<p>The fox set out at dawn with a plan and a shopping list.<a id="fnref2" href="#fn2"><sup>[2]</sup></a> The plan involved the bakery bins, and the list had exactly one item on it: pork pie.</p>
+<p>By midday the fox had crossed the meadows, the stream, and three separate opinions about the weather.<a id="fnref3" href="#fn3"><sup>[3]</sup></a> None of the opinions agreed with each other, which is normal for this town.</p>
+<p>Filler paragraph to create scroll distance between the references above and the footnotes below. The quick brown fox jumps over the lazy dog near the riverbank at dawn while the town slowly wakes up.</p>
+<p>More filler. Market stalls sell apples, cheese, bread, and flowers. Children chase pigeons between the fountain and the old clock tower as the morning gets busy.</p>
+<p>Even more filler. Rain arrives at noon, drums on the canopy for an hour, then stops. Everything smells washed: leaf, bark, soil, and far off, wet sheep.</p>
+<p>Last filler before the footnotes. Lamps come on, bats flicker over the square, and the fox eats like a king behind the bakery bins.</p>
+<section class="footnotes">
+<hr>
+<ol>
+<li id="fn1">The shopping list was written on the back of a betting slip and was already soggy. <a href="#fnref1">↩</a></li>
+<li id="fn2">Dawn here means 5:40 in September, when the blackbird starts scolding from the yew tree. <a href="#fnref2">↩</a></li>
+<li id="fn3">The three opinions came from a gardener, a delivery driver, and a heron. Only the heron was right. <a href="#fnref3">↩</a></li>
+</ol>
+</section>
+]]></content:encoded>
+</item>
+<item>
+<title>Wide table and code article</title>
+<link>http://10.0.2.2:8901/articles/table-code.html</link>
+<guid>test-table-code</guid>
+<pubDate>Sun, 07 Sep 2026 10:00:00 GMT</pubDate>
+<description>Wide table plus code block for horizontal-scroll regression checks.</description>
+<content:encoded><![CDATA[
+<p>Regression check for the scroll handoff fix: the wide table below must scroll horizontally inside the article, and vertical scrolling must still collapse and reveal the headline correctly.</p>
+<table>
+<thead><tr><th>If you are using public Wi-Fi</th><th>Always keep the VPN connected</th><th>Non-negotiable on shared networks</th><th>WireGuard split tunneling tip</th><th>Extra column to force overflow</th></tr></thead>
+<tbody>
+<tr><td>At home with a privacy focus</td><td>Keep the VPN on</td><td>Prevents ISP data sale</td><td>Exclude apps only when needed</td><td>Fifth cell value here</td></tr>
+<tr><td>On a laptop in a cafe</td><td>Connect before ordering</td><td>Captive portals snoop plenty</td><td>Use the kill switch</td><td>Fifth cell value here</td></tr>
+</tbody>
+</table>
+<p>Code block below. It may scroll horizontally; that must keep working too.</p>
+<pre><code>fun resolveArticleSwipeSettleDirection(
+    dragOffset: Float,
+    threshold: Float,
+    layoutDirection: LayoutDirection,
+    canLoadPrevious: Boolean,
+    canLoadNext: Boolean,
+): ArticleSwipeDirection? {
+    if (abs(dragOffset) &lt; threshold) return null
+    // ... direction resolution unchanged by the scroll fix
+    return null
+}
+</code></pre>
+<p>End. Inline <code>code spans</code> should render in the code colour, and this paragraph in the normal reading colour.</p>
+]]></content:encoded>
+</item>
+</channel>
+</rss>
