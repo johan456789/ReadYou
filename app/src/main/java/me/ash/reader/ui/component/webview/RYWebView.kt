@@ -161,8 +161,8 @@ class HorizontalScrollAwareWebView(context: Context) : WebView(context) {
     private var settleCheckToken = 0
 
     companion object {
-        // Genuine short boxes strand tens of px (observed ~67px); CSS-px * scale rounding
-        // accounts for only a few px, so anything at/below this is noise, not a short box.
+        // Genuine short boxes strand tens of px (observed ~67px); content-vs-box px
+        // rounding accounts for only a few px, so anything at/below this is noise.
         private const val SHORT_BOX_TOLERANCE_PX = 8
     }
 
@@ -204,31 +204,30 @@ class HorizontalScrollAwareWebView(context: Context) : WebView(context) {
         if (scrollY != 0) {
             scrollTo(scrollX, 0)
         }
-        @Suppress("DEPRECATION")
-        val contentPx = (contentHeight * scale).toInt()
-        val boxHeight = height
-        if (boxHeight <= 0 || contentPx <= 0) return
-        val shortfall = contentPx - boxHeight
+        val range = computeVerticalScrollRange()
+        val extent = computeVerticalScrollExtent()
+        if (range <= 0 || extent <= 0) return
+        val shortfall = (range - extent).coerceAtLeast(0)
         if (shortfall > SHORT_BOX_TOLERANCE_PX) {
             Timber.tag("RYWebView").w(
-                "short box at settle (%s): content=%dpx box=%dpx shortfall=%dpx; forcing remeasure",
+                "short box at settle (%s): range=%dpx extent=%dpx shortfall=%dpx; forcing remeasure",
                 stage,
-                contentPx,
-                boxHeight,
+                range,
+                extent,
                 shortfall,
             )
             requestLayout()
             postDelayed({
                 if (token != settleCheckToken) return@postDelayed
-                @Suppress("DEPRECATION")
-                val grownContentPx = (contentHeight * scale).toInt()
-                val grownBox = height
-                if (grownBox > 0 && grownContentPx - grownBox > SHORT_BOX_TOLERANCE_PX) {
+                val grownRange = computeVerticalScrollRange()
+                val grownExtent = computeVerticalScrollExtent()
+                val grownShortfall = (grownRange - grownExtent).coerceAtLeast(0)
+                if (grownExtent > 0 && grownShortfall > SHORT_BOX_TOLERANCE_PX) {
                     Timber.tag("RYWebView").w(
-                        "box still short after remeasure (%s): content=%dpx box=%dpx",
+                        "box still short after remeasure (%s): range=%dpx extent=%dpx",
                         stage,
-                        grownContentPx,
-                        grownBox,
+                        grownRange,
+                        grownExtent,
                     )
                 }
             }, 500)
