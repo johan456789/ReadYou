@@ -72,6 +72,7 @@ class WebViewClient(
         view!!.evaluateJavascript(OnImgClickScript, null)
         view.evaluateJavascript(OnLinkLongPressScript, null)
         view.evaluateJavascript(OnAnchorClickScript, null)
+        (view as? HorizontalScrollAwareWebView)?.notifyPageFinished()
     }
 
     override fun shouldOverrideUrlLoading(view: WebView?, request: WebResourceRequest?): Boolean {

@@ -71,6 +71,7 @@ object WebViewLayout {
     fun recycle(webView: HorizontalScrollAwareWebView) {
         (webView.webChromeClient as? RYWebChromeClient)?.releaseCustomView()
         (webView.parent as? android.view.ViewGroup)?.removeView(webView)
+        webView.cancelPendingSettleCheck()
         webView.loadedContentKey = null
         webView.onScrollSnapshotChanged = null
         webView.onImageClick = null
