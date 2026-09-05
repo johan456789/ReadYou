@@ -110,18 +110,17 @@ fun FeedsPagePreview(
 @Stable
 @Composable
 fun FeedItemExpandSwitcher(isExpanded: Boolean) {
-    FeedPreview(
-        isExpanded = isExpanded
-    )
+    if (isExpanded) {
+        FeedPreview()
+    }
 }
 
 @Stable
 @Composable
-fun FeedPreview(isExpanded: Boolean) {
+fun FeedPreview() {
     FeedItem(
         feed = generateFeedPreview(),
         isLastItem = { true },
-        isExpanded = { isExpanded }
     )
 }
 

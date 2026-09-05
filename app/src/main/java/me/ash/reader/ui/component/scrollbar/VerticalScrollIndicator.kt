@@ -82,8 +82,12 @@ data class VerticalScrollIndicatorFactory(
                 val visibleContentRatio = state.viewportSize.toFloat() / state.contentSize
 
                 // Calculate the thumb's size and position along the scrolling axis.
+                // Clamp the position so the thumb keeps its full length at the
+                // list end instead of being drawn past the viewport edge.
                 val thumbLength = state.viewportSize * visibleContentRatio
-                val thumbPosition = state.scrollOffset * visibleContentRatio
+                val thumbPosition =
+                    (state.scrollOffset * visibleContentRatio)
+                        .coerceAtMost(state.viewportSize - thumbLength)
 
                 val thumbThicknessPx = thumbThickness.toPx()
                 val paddingPx = padding.toPx()
