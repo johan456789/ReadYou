@@ -25,7 +25,6 @@ import androidx.hilt.lifecycle.viewmodel.compose.hiltViewModel
 import kotlinx.coroutines.launch
 import me.ash.reader.domain.model.feed.Feed
 import me.ash.reader.ui.component.FeedIcon
-import me.ash.reader.ui.component.base.RYExtensibleVisibility
 import me.ash.reader.ui.page.home.feeds.drawer.feed.FeedOptionViewModel
 
 @Composable
@@ -107,24 +106,21 @@ private fun FeedItemImpl(
 fun FeedItem(
     feed: Feed,
     isLastItem: () -> Boolean = { false },
-    isExpanded: () -> Boolean,
     feedOptionViewModel: FeedOptionViewModel = hiltViewModel(),
     onClick: () -> Unit = {},
     onLongClick: () -> Unit = {}
 ) {
     val scope = rememberCoroutineScope()
-    RYExtensibleVisibility(visible = isExpanded()) {
-        FeedItemImpl(
-            feed = feed,
-            isLastItem = isLastItem,
-            onClick = onClick,
-            onLongClick = onLongClick,
-            onLongClickCallback = { feedId ->
-                scope.launch {
-                    feedOptionViewModel.fetchFeed(feedId = feedId)
-                }
-            })
-    }
+    FeedItemImpl(
+        feed = feed,
+        isLastItem = isLastItem,
+        onClick = onClick,
+        onLongClick = onLongClick,
+        onLongClickCallback = { feedId ->
+            scope.launch {
+                feedOptionViewModel.fetchFeed(feedId = feedId)
+            }
+        })
 }
 
 @Preview

@@ -1,0 +1,28 @@
+<!DOCTYPE html>
+<html lang="en">
+<head><meta charset="utf-8"><meta name="viewport" content="width=device-width, initial-scale=1"><title>Wide table and code article</title></head>
+<body>
+<p>Regression check for the scroll handoff fix: the wide table below must scroll horizontally inside the article, and vertical scrolling must still collapse and reveal the headline correctly.</p>
+<table>
+<thead><tr><th>If you are using public Wi-Fi</th><th>Always keep the VPN connected</th><th>Non-negotiable on shared networks</th><th>WireGuard split tunneling tip</th><th>Extra column to force overflow</th></tr></thead>
+<tbody>
+<tr><td>At home with a privacy focus</td><td>Keep the VPN on</td><td>Prevents ISP data sale</td><td>Exclude apps only when needed</td><td>Fifth cell value here</td></tr>
+<tr><td>On a laptop in a cafe</td><td>Connect before ordering</td><td>Captive portals snoop plenty</td><td>Use the kill switch</td><td>Fifth cell value here</td></tr>
+</tbody>
+</table>
+<p>Code block below. It may scroll horizontally; that must keep working too.</p>
+<pre><code>fun resolveArticleSwipeSettleDirection(
+    dragOffset: Float,
+    threshold: Float,
+    layoutDirection: LayoutDirection,
+    canLoadPrevious: Boolean,
+    canLoadNext: Boolean,
+): ArticleSwipeDirection? {
+    if (abs(dragOffset) &lt; threshold) return null
+    // ... direction resolution unchanged by the scroll fix
+    return null
+}
+</code></pre>
+<p>End. Inline <code>code spans</code> should render in the code colour, and this paragraph in the normal reading colour.</p>
+</body>
+</html>

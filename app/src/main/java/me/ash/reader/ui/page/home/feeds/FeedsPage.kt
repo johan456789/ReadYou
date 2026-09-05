@@ -4,9 +4,12 @@ import androidx.activity.compose.BackHandler
 import androidx.compose.animation.AnimatedVisibilityScope
 import androidx.compose.animation.ExperimentalSharedTransitionApi
 import androidx.compose.animation.SharedTransitionScope
+import androidx.compose.foundation.ExperimentalFoundationApi
+import androidx.compose.foundation.background
 import androidx.compose.foundation.clickable
 import androidx.compose.foundation.interaction.MutableInteractionSource
 import androidx.compose.foundation.layout.Arrangement
+import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.Spacer
 import androidx.compose.foundation.layout.WindowInsets
@@ -18,7 +21,6 @@ import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.layout.windowInsetsBottomHeight
 import androidx.compose.foundation.lazy.LazyColumn
-import androidx.compose.foundation.lazy.itemsIndexed
 import androidx.compose.foundation.lazy.rememberLazyListState
 import androidx.compose.material.ModalBottomSheetValue
 import androidx.compose.material.icons.Icons
@@ -47,6 +49,8 @@ import androidx.compose.runtime.setValue
 import androidx.compose.runtime.snapshots.SnapshotStateMap
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
+import androidx.compose.ui.draw.clip
+import androidx.compose.ui.graphics.RectangleShape
 import androidx.compose.ui.hapticfeedback.HapticFeedbackType
 import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.platform.LocalHapticFeedback
@@ -81,13 +85,20 @@ import me.ash.reader.ui.ext.getCurrentVersion
 import me.ash.reader.ui.ext.surfaceColorAtElevation
 import me.ash.reader.ui.page.common.RouteName
 import me.ash.reader.ui.page.home.feeds.accounts.AccountsTab
+import me.ash.reader.ui.theme.Shape32
+import me.ash.reader.ui.theme.ShapeBottom32
+import me.ash.reader.ui.theme.ShapeTop32
 import me.ash.reader.ui.page.home.feeds.drawer.feed.FeedOptionDrawer
 import me.ash.reader.ui.page.home.feeds.drawer.group.GroupOptionDrawer
 import me.ash.reader.ui.page.home.feeds.subscribe.SubscribeDialog
 import me.ash.reader.ui.page.home.feeds.subscribe.SubscribeViewModel
 import me.ash.reader.ui.page.settings.accounts.AccountViewModel
 
-@OptIn(ExperimentalMaterial3Api::class, ExperimentalSharedTransitionApi::class)
+@OptIn(
+    ExperimentalMaterial3Api::class,
+    ExperimentalSharedTransitionApi::class,
+    ExperimentalFoundationApi::class,
+)
 @Composable
 fun FeedsPage(
     //    navController: NavHostController,
@@ -280,43 +291,71 @@ fun FeedsPage(
                         Spacer(modifier = Modifier.height(8.dp))
                     }
 
-                    itemsIndexed(groupWithFeedList) { _, (group, feeds) ->
-                        GroupWithFeedsContainer {
-                            GroupItem(
-                                isExpanded = {
-                                    groupsVisible.getOrPut(group.id, groupListExpand::value)
-                                },
-                                group = group,
-                                importantCount = remember(feeds) { feeds.sumOf { it.important } },
-                                onExpanded = {
-                                    groupsVisible[group.id] =
-                                        groupsVisible
-                                            .getOrPut(group.id, groupListExpand::value)
-                                            .not()
-                                },
-                                onLongClick = { scope.launch { groupDrawerState.show() } },
+                    groupWithFeedList.forEach { (group, feeds) ->
+                        val isGroupExpanded =
+                            groupsVisible.getOrPut(group.id, groupListExpand::value)
+                        val hasFeeds = feeds.isNotEmpty()
+                        item(key = "group-${group.id}", contentType = "group") {
+                            Column(
+                                modifier = Modifier
+                                    .animateItem()
+                                    .padding(top = 16.dp)
+                                    .padding(horizontal = 16.dp)
+                                    .clip(
+                                        if (isGroupExpanded && hasFeeds) ShapeTop32
+                                        else Shape32
+                                    )
+                                    .background(MaterialTheme.colorScheme.surfaceContainerLow),
                             ) {
-                                feedsViewModel.changeFilter(
-                                    filterState.copy(group = group, feed = null)
-                                )
-                                navigationToFlow()
-                            }
-
-                            feeds.forEachIndexed { index, feed ->
-                                FeedItem(
-                                    feed = feed,
-                                    isLastItem = { index == feeds.lastIndex },
+                                GroupItem(
                                     isExpanded = {
-                                        groupsVisible.getOrPut(feed.groupId, groupListExpand::value)
+                                        groupsVisible.getOrPut(group.id, groupListExpand::value)
                                     },
-                                    onClick = {
-                                        feedsViewModel.changeFilter(
-                                            filterState.copy(feed = feed, group = null)
+                                    group = group,
+                                    importantCount = remember(feeds) { feeds.sumOf { it.important } },
+                                    onExpanded = {
+                                        groupsVisible[group.id] =
+                                            groupsVisible
+                                                .getOrPut(group.id, groupListExpand::value)
+                                                .not()
+                                    },
+                                    onLongClick = { scope.launch { groupDrawerState.show() } },
+                                ) {
+                                    feedsViewModel.changeFilter(
+                                        filterState.copy(group = group, feed = null)
+                                    )
+                                    navigationToFlow()
+                                }
+                            }
+                        }
+
+                        if (isGroupExpanded) {
+                            feeds.forEachIndexed { index, feed ->
+                                val isLast = index == feeds.lastIndex
+                                item(key = "feed-${feed.id}", contentType = "feed") {
+                                    Column(
+                                        modifier = Modifier
+                                            .animateItem()
+                                            .padding(horizontal = 16.dp)
+                                            .clip(
+                                                if (isLast) ShapeBottom32
+                                                else RectangleShape
+                                            )
+                                            .background(MaterialTheme.colorScheme.surfaceContainerLow),
+                                    ) {
+                                        FeedItem(
+                                            feed = feed,
+                                            isLastItem = { isLast },
+                                            onClick = {
+                                                feedsViewModel.changeFilter(
+                                                    filterState.copy(feed = feed, group = null)
+                                                )
+                                                navigationToFlow()
+                                            },
+                                            onLongClick = { scope.launch { feedDrawerState.show() } },
                                         )
-                                        navigationToFlow()
-                                    },
-                                    onLongClick = { scope.launch { feedDrawerState.show() } },
-                                )
+                                    }
+                                }
                             }
                         }
                     }

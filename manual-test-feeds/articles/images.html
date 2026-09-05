@@ -1,0 +1,18 @@
+<!DOCTYPE html>
+<html lang="en">
+<head><meta charset="utf-8"><meta name="viewport" content="width=device-width, initial-scale=1"><title>Image-heavy article</title></head>
+<body>
+<p>Image-heavy article for scroll testing. Images load progressively and change the page height mid-load, which is exactly what used to strand the inner scroll position. Half the images below have no width/height attributes on purpose, so the layout shifts as they arrive.</p>
+<figure><img src="https://picsum.photos/seed/reader1/800/450" alt="Test image 1"><figcaption>Image 1, no dimensions, layout shifts when it loads.</figcaption></figure>
+<p>Some text between images to keep the layout honest. Scroll slowly here and watch the body top: it must never clip while the headline is visible.</p>
+<figure><img src="https://picsum.photos/seed/reader2/800/600" width="800" height="600" alt="Test image 2"><figcaption>Image 2, fixed dimensions, no shift.</figcaption></figure>
+<figure><img src="https://picsum.photos/seed/reader3/800/500" alt="Test image 3"><figcaption>Image 3, no dimensions.</figcaption></figure>
+<p>Mid-article checkpoint. If you fling to the bottom and back to the top, the headline should reveal only after the body has fully drained to its first pixel.</p>
+<figure><img src="https://picsum.photos/seed/reader4/800/450" width="800" height="450" alt="Test image 4"><figcaption>Image 4, fixed dimensions.</figcaption></figure>
+<figure><img src="https://picsum.photos/seed/reader5/800/700" alt="Test image 5"><figcaption>Image 5, tall, no dimensions.</figcaption></figure>
+<figure><img src="https://picsum.photos/seed/reader6/800/450" alt="Test image 6"><figcaption>Image 6, no dimensions.</figcaption></figure>
+<p>Almost there. Tapping any image should still open the fullscreen viewer, and long-pressing this <a href="https://example.com">example link</a> should still show the link dialog.</p>
+<figure><img src="https://picsum.photos/seed/reader7/800/500" width="800" height="500" alt="Test image 7"><figcaption>Image 7, fixed dimensions.</figcaption></figure>
+<figure><img src="https://picsum.photos/seed/reader8/800/450" alt="Test image 8"><figcaption>Image 8, no dimensions. End of article.</figcaption></figure>
+</body>
+</html>

@@ -29,7 +29,6 @@ import me.ash.reader.domain.model.group.Group
 import me.ash.reader.domain.model.group.GroupWithFeed
 import me.ash.reader.ui.page.home.feeds.drawer.group.GroupOptionViewModel
 import me.ash.reader.ui.theme.Shape32
-import me.ash.reader.ui.theme.ShapeTop32
 
 @OptIn(androidx.compose.foundation.ExperimentalFoundationApi::class)
 @Composable
