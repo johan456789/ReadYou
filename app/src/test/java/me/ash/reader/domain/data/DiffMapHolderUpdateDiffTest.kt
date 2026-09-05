@@ -277,28 +277,32 @@ class DiffMapHolderUpdateDiffTest {
     }
 
     @Test
-    fun `explicit unread undo by ids participates in remote sync`() = runBlocking {
-        val pendingReadStateOpDao = pendingReadStateOpDao()
-        val rssRepository = mock<AbstractRssRepository>()
-        whenever(rssRepository.syncReadStatus(emptySet(), true)).thenReturn(emptySet())
-        whenever(rssRepository.syncReadStatus(setOf("article"), false)).thenReturn(setOf("article"))
+    fun `explicit unread undo by ids participates in remote sync`() {
+        runBlocking {
+            // In-memory fake: the remote-sync queue is re-read from the DAO, so a
+            // stateless mock would drop the op before syncReadStatus runs.
+            val pendingReadStateOpDao = delayedPendingReadStateOpDao()
+            val rssRepository = mock<AbstractRssRepository>()
+            whenever(rssRepository.syncReadStatus(emptySet(), true)).thenReturn(emptySet())
+            whenever(rssRepository.syncReadStatus(setOf("article"), false)).thenReturn(setOf("article"))
 
-        val holder = createHolder(
-            account = Account(
-                id = 1,
-                name = "FreshRSS",
-                type = AccountType(AccountType.FreshRSS.id),
-            ),
-            pendingReadStateOpDao = pendingReadStateOpDao,
-            rssRepository = rssRepository,
-            deferDbCommits = false,
-        )
+            val holder = createHolder(
+                account = Account(
+                    id = 1,
+                    name = "FreshRSS",
+                    type = AccountType(AccountType.FreshRSS.id),
+                ),
+                pendingReadStateOpDao = pendingReadStateOpDao,
+                rssRepository = rssRepository,
+                deferDbCommits = false,
+            )
 
-        holder.applyReadStateWithSync(setOf("article"), markRead = false)
-        holder.prepareReadStateForSync(1)
+            holder.applyReadStateWithSync(setOf("article"), markRead = false)
+            holder.prepareReadStateForSync(1)
 
-        verify(rssRepository).batchMarkAsRead(setOf("article"), markRead = false)
-        verify(rssRepository).syncReadStatus(setOf("article"), false)
+            verify(rssRepository).batchMarkAsRead(setOf("article"), markRead = false)
+            verify(rssRepository).syncReadStatus(setOf("article"), false)
+        }
     }
 
     private fun createHolder(
