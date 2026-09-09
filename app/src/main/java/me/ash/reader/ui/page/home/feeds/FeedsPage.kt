@@ -9,6 +9,7 @@ import androidx.compose.foundation.background
 import androidx.compose.foundation.clickable
 import androidx.compose.foundation.interaction.MutableInteractionSource
 import androidx.compose.foundation.layout.Arrangement
+import androidx.compose.foundation.layout.asPaddingValues
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.Spacer
@@ -71,6 +72,7 @@ import me.ash.reader.infrastructure.preference.LocalFeedsFilterBarTonalElevation
 import me.ash.reader.infrastructure.preference.LocalFeedsGroupListExpand
 import me.ash.reader.infrastructure.preference.LocalFeedsGroupListTonalElevation
 import me.ash.reader.infrastructure.preference.LocalFeedsTopBarTonalElevation
+import me.ash.reader.infrastructure.preference.FlowFilterBarStylePreference
 import me.ash.reader.infrastructure.preference.LocalNewVersionNumber
 import me.ash.reader.infrastructure.preference.LocalSkipVersionNumber
 import me.ash.reader.ui.component.FilterBar
@@ -93,6 +95,19 @@ import me.ash.reader.ui.page.home.feeds.drawer.group.GroupOptionDrawer
 import me.ash.reader.ui.page.home.feeds.subscribe.SubscribeDialog
 import me.ash.reader.ui.page.home.feeds.subscribe.SubscribeViewModel
 import me.ash.reader.ui.page.settings.accounts.AccountViewModel
+
+private const val FeedsStaticAccountKey = "feeds-static-account"
+private const val FeedsStaticBannerKey = "feeds-static-banner"
+private const val FeedsStaticSectionKey = "feeds-static-section"
+private const val FeedsStaticBottomKey = "feeds-static-bottom"
+
+private val FeedsStaticKeys =
+    setOf(
+        FeedsStaticAccountKey,
+        FeedsStaticBannerKey,
+        FeedsStaticSectionKey,
+        FeedsStaticBottomKey,
+    )
 
 @OptIn(
     ExperimentalMaterial3Api::class,
@@ -189,6 +204,12 @@ fun FeedsPage(
 
     BackHandler(true) { context.findActivity()?.moveTaskToBack(false) }
 
+    // Space the scrollbar thumb travels above the floating filter bar so it
+    // never slides underneath it (which would read as shrinking at the end).
+    val feedListBottomInset =
+        (if (filterBarStyle.value == FlowFilterBarStylePreference.Icon.value) 64.dp else 80.dp) +
+            WindowInsets.navigationBars.asPaddingValues().calculateBottomPadding()
+
     RYScaffold(
         topBarTonalElevation = topBarTonalElevation.value.dp,
         //        containerTonalElevation = groupListTonalElevation.value.dp,
@@ -240,14 +261,19 @@ fun FeedsPage(
         },
         content = {
             PullToRefreshBox(state = syncingState, isRefreshing = isSyncing, onRefresh = doSync) {
-                LazyColumn(modifier = Modifier.fillMaxSize().drawVerticalScrollIndicator(listState), state = listState) {
-                    item {
+                LazyColumn(modifier = Modifier.fillMaxSize().drawVerticalScrollIndicator(
+                    listState,
+                    stableThumb = true,
+                    staticKeys = FeedsStaticKeys,
+                    bottomInset = feedListBottomInset,
+                ), state = listState) {
+                    item(key = FeedsStaticAccountKey) {
                         DisplayText(text = feedsUiState.account?.name ?: "", desc = "") {
                             hapticFeedback.performHapticFeedback(HapticFeedbackType.ContextClick)
                             accountTabVisible = true
                         }
                     }
-                    item {
+                    item(key = FeedsStaticBannerKey) {
                         FeedsBanner(
                             filter = filterState.filter,
                             desc = importantSum.ifEmpty { stringResource(R.string.loading) },
@@ -257,7 +283,7 @@ fun FeedsPage(
                         }
                     }
 
-                    item {
+                    item(key = FeedsStaticSectionKey) {
                         Spacer(modifier = Modifier.height(24.dp))
                         Row(
                             modifier = Modifier
@@ -360,7 +386,7 @@ fun FeedsPage(
                         }
                     }
 
-                    item {
+                    item(key = FeedsStaticBottomKey) {
                         Spacer(modifier = Modifier.height(128.dp))
                         Spacer(
                             modifier =
