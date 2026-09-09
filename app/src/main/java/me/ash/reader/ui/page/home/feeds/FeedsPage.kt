@@ -54,6 +54,7 @@ import androidx.compose.ui.draw.clip
 import androidx.compose.ui.graphics.RectangleShape
 import androidx.compose.ui.hapticfeedback.HapticFeedbackType
 import androidx.compose.ui.platform.LocalContext
+import androidx.compose.ui.platform.LocalDensity
 import androidx.compose.ui.platform.LocalHapticFeedback
 import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.unit.dp
@@ -101,13 +102,11 @@ private const val FeedsStaticBannerKey = "feeds-static-banner"
 private const val FeedsStaticSectionKey = "feeds-static-section"
 private const val FeedsStaticBottomKey = "feeds-static-bottom"
 
-private val FeedsStaticKeys =
-    setOf(
-        FeedsStaticAccountKey,
-        FeedsStaticBannerKey,
-        FeedsStaticSectionKey,
-        FeedsStaticBottomKey,
-    )
+// Measured item heights (emulator, 2.625x): group headers pitch 221px,
+// feed rows pitch 127px. Statics lump account/banner/section/bottom-spacer.
+private val GroupCardHeight = 84.dp
+private val FeedRowHeight = 48.dp
+private val FeedsStaticHeight = 330.dp
 
 @OptIn(
     ExperimentalMaterial3Api::class,
@@ -204,11 +203,29 @@ fun FeedsPage(
 
     BackHandler(true) { context.findActivity()?.moveTaskToBack(false) }
 
-    // Space the scrollbar thumb travels above the floating filter bar so it
-    // never slides underneath it (which would read as shrinking at the end).
+    // Keep the scrollbar thumb above the floating filter bar so it never
+    // slides underneath it (which would read as shrinking at the list end).
+    // Container height mirrors FilterBar (64dp icon-only, else 80dp).
     val feedListBottomInset =
         (if (filterBarStyle.value == FlowFilterBarStylePreference.Icon.value) 64.dp else 80.dp) +
             WindowInsets.navigationBars.asPaddingValues().calculateBottomPadding()
+
+    // Exact content height for a constant-size scrollbar thumb. Recomputed
+    // whenever expansion or data changes; untouched by scrolling.
+    val density = LocalDensity.current
+    val expandedFeedCount =
+        groupWithFeedList.sumOf { (group, feeds) ->
+            if (groupsVisible.getOrPut(group.id, groupListExpand::value)) feeds.size else 0
+        }
+    val feedListContentHeightPx =
+        with(density) {
+            (
+                GroupCardHeight * groupWithFeedList.size +
+                    FeedRowHeight * expandedFeedCount +
+                    FeedsStaticHeight
+                )
+                .toPx()
+        }
 
     RYScaffold(
         topBarTonalElevation = topBarTonalElevation.value.dp,
@@ -263,8 +280,7 @@ fun FeedsPage(
             PullToRefreshBox(state = syncingState, isRefreshing = isSyncing, onRefresh = doSync) {
                 LazyColumn(modifier = Modifier.fillMaxSize().drawVerticalScrollIndicator(
                     listState,
-                    stableThumb = true,
-                    staticKeys = FeedsStaticKeys,
+                    contentHeightPx = feedListContentHeightPx,
                     bottomInset = feedListBottomInset,
                 ), state = listState) {
                     item(key = FeedsStaticAccountKey) {
