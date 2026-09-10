@@ -50,6 +50,7 @@ import androidx.compose.material3.Text
 import androidx.compose.material3.TopAppBarDefaults
 import androidx.compose.material3.rememberTopAppBarState
 import androidx.compose.runtime.Composable
+import androidx.compose.runtime.CompositionLocalProvider
 import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableStateOf
@@ -82,6 +83,8 @@ import me.ash.reader.domain.model.article.ArticleFlowItem
 import me.ash.reader.domain.model.article.ArticleWithFeed
 import me.ash.reader.infrastructure.preference.LocalFlowArticleListDateStickyHeader
 import me.ash.reader.infrastructure.preference.LocalFlowArticleListFeedIcon
+import me.ash.reader.infrastructure.preference.LocalFlowArticleListFeedName
+import me.ash.reader.infrastructure.preference.FlowArticleListFeedNamePreference
 import me.ash.reader.infrastructure.preference.LocalFlowArticleListTonalElevation
 import me.ash.reader.infrastructure.preference.LocalFlowFilterBarPadding
 import me.ash.reader.infrastructure.preference.LocalFlowFilterBarStyle
@@ -131,6 +134,7 @@ fun FlowPage(
     val keyboardController = LocalSoftwareKeyboardController.current
     val articleListTonalElevation = LocalFlowArticleListTonalElevation.current
     val articleListFeedIcon = LocalFlowArticleListFeedIcon.current
+    val articleListFeedName = LocalFlowArticleListFeedName.current
     val articleListDateStickyHeader = LocalFlowArticleListDateStickyHeader.current
     val topBarTonalElevation = LocalFlowTopBarTonalElevation.current
     val filterBarStyle = LocalFlowFilterBarStyle.current
@@ -733,6 +737,17 @@ fun FlowPage(
                             .also { currentPullToLoadState = it }
 
                     Box(modifier = Modifier.fillMaxSize()) {
+                        // Hide redundant feed name when viewing a single feed:
+                        // the feed name is already shown in the top app bar.
+                        val effectiveFeedName =
+                            if (filterState.feed != null) {
+                                FlowArticleListFeedNamePreference.OFF
+                            } else {
+                                articleListFeedName
+                            }
+                        CompositionLocalProvider(
+                            LocalFlowArticleListFeedName provides effectiveFeedName
+                        ) {
                         LazyColumn(
                             modifier =
                                 Modifier.pullToLoad(
@@ -797,6 +812,7 @@ fun FlowPage(
                                         )
                                 )
                             }
+                        }
                         }
                     }
                 }
