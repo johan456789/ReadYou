@@ -19,7 +19,7 @@ val LocalArticleSwitchGesture =
 sealed class ArticleSwitchGesturePreference(val value: Int) : Preference() {
     object HorizontalSwipe : ArticleSwitchGesturePreference(0)
 
-    object VerticalPull : ArticleSwitchGesturePreference(1)
+    object Disabled : ArticleSwitchGesturePreference(1)
 
     override fun put(context: Context, scope: CoroutineScope) {
         scope.launch {
@@ -30,17 +30,17 @@ sealed class ArticleSwitchGesturePreference(val value: Int) : Preference() {
     fun toDesc(context: Context): String =
         when (this) {
             HorizontalSwipe -> context.getString(R.string.horizontal_swipe)
-            VerticalPull -> context.getString(R.string.vertical_pull)
+            Disabled -> context.getString(R.string.disabled)
         }
 
     companion object {
         val default = HorizontalSwipe
-        val values = listOf(HorizontalSwipe, VerticalPull)
+        val values = listOf(HorizontalSwipe, Disabled)
 
         fun fromPreferences(preferences: Preferences): ArticleSwitchGesturePreference {
             return when (preferences[PreferencesKey.intKey(articleSwitchGesture)]) {
                 HorizontalSwipe.value -> HorizontalSwipe
-                VerticalPull.value -> VerticalPull
+                Disabled.value -> Disabled
                 null -> migrateFromLegacy(preferences)
                 else -> default
             }
@@ -51,7 +51,7 @@ sealed class ArticleSwitchGesturePreference(val value: Int) : Preference() {
             val swipe = preferences[PreferencesKey.booleanKey(swipeToSwitchArticle)] == true
             return when {
                 swipe -> HorizontalSwipe
-                pull -> VerticalPull
+                pull -> Disabled
                 else -> default
             }
         }

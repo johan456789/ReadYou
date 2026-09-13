@@ -15,7 +15,6 @@ import androidx.compose.foundation.layout.BoxWithConstraints
 import androidx.compose.foundation.layout.PaddingValues
 import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.offset
-import androidx.compose.material.ExperimentalMaterialApi
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.getValue
@@ -100,7 +99,6 @@ fun ArticleSwipePager(
     currentReaderState: ReaderState,
     contentPadding: PaddingValues,
     enabled: Boolean,
-    isPullToSwitchArticleEnabled: Boolean,
     onLoadArticle: (String, Int) -> Unit,
     loadPreview: suspend (String, Int?) -> ReaderState,
     onBringToTopHandled: () -> Unit,
@@ -380,18 +378,8 @@ fun ArticleSwipePager(
                             readerState = state,
                             scrollState = slot.scrollState,
                             contentPadding = contentPadding,
-                            isPullToSwitchArticleEnabled =
-                                isCurrent && isPullToSwitchArticleEnabled,
                             bringToTopRequest = if (isCurrent) bringToTopRequest else 0,
                             onBringToTopHandled = onBringToTopHandled,
-                            onLoadPrevious = {
-                                state.previousArticle?.let {
-                                    onLoadArticle(it.articleId, it.index)
-                                }
-                            },
-                            onLoadNext = {
-                                state.nextArticle?.let { onLoadArticle(it.articleId, it.index) }
-                            },
                             onHeadlineMeasured = {
                                 if (isCurrent) onCurrentHeadlineMeasured(it)
                             },
@@ -507,17 +495,13 @@ private fun canDragInDirection(
     }
 }
 
-@OptIn(ExperimentalMaterialApi::class)
 @Composable
 private fun ArticleSwipePageContent(
     readerState: ReaderState,
     scrollState: ScrollState,
     contentPadding: PaddingValues,
-    isPullToSwitchArticleEnabled: Boolean,
     bringToTopRequest: Int,
     onBringToTopHandled: () -> Unit,
-    onLoadPrevious: () -> Unit,
-    onLoadNext: () -> Unit,
     onHeadlineMeasured: (Int) -> Unit,
     onScrollSnapshotChange: (WebViewScrollSnapshot) -> Unit,
     onImageClick: (String, String) -> Unit,
@@ -526,19 +510,6 @@ private fun ArticleSwipePageContent(
     onShowCustomView: (View, WebChromeClient.CustomViewCallback) -> Unit,
     onHideCustomView: () -> Unit,
 ) {
-    val pullState =
-        rememberPullToLoadState(
-            key = readerState.content,
-            onLoadNext =
-                if (isPullToSwitchArticleEnabled && readerState.nextArticle != null) {
-                    onLoadNext
-                } else null,
-            onLoadPrevious =
-                if (isPullToSwitchArticleEnabled && readerState.previousArticle != null) {
-                    onLoadPrevious
-                } else null,
-        )
-
     LaunchedEffect(bringToTopRequest) {
         if (bringToTopRequest != 0) {
             scrollState.animateScrollTo(0)
@@ -552,7 +523,7 @@ private fun ArticleSwipePageContent(
         scope.launch {
             val target =
                 with(density) {
-                    64.dp.toPx() + headlineHeightPx.toFloat() + (cssTop * density.density).toFloat()
+                    headlineHeightPx.toFloat() + (cssTop * density.density).toFloat()
                 }.roundToInt()
             scrollState.animateScrollTo(target.coerceIn(0, scrollState.maxValue))
         }
@@ -560,12 +531,6 @@ private fun ArticleSwipePageContent(
 
     Box(modifier = Modifier.fillMaxSize()) {
         Content(
-            modifier =
-                if (isPullToSwitchArticleEnabled) {
-                    Modifier.pullToLoad(pullState)
-                } else {
-                    Modifier
-                },
             contentPadding = contentPadding,
             content = readerState.content.text ?: "",
             feedName = readerState.feedName,
@@ -584,12 +549,5 @@ private fun ArticleSwipePageContent(
             onShowCustomView = onShowCustomView,
             onHideCustomView = onHideCustomView,
         )
-        if (isPullToSwitchArticleEnabled) {
-            PullToLoadIndicator(
-                state = pullState,
-                canLoadPrevious = readerState.previousArticle != null,
-                canLoadNext = readerState.nextArticle != null,
-            )
-        }
     }
 }
