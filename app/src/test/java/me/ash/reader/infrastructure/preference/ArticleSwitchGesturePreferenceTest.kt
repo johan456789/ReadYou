@@ -21,13 +21,13 @@ class ArticleSwitchGesturePreferenceTest {
         val preferences =
             preferencesOf(
                 intPreferencesKey(PreferencesKey.articleSwitchGesture) to
-                    ArticleSwitchGesturePreference.VerticalPull.value,
+                    ArticleSwitchGesturePreference.Disabled.value,
                 booleanPreferencesKey(PreferencesKey.swipeToSwitchArticle) to true,
             )
 
         val preference = ArticleSwitchGesturePreference.fromPreferences(preferences)
 
-        assertEquals(ArticleSwitchGesturePreference.VerticalPull, preference)
+        assertEquals(ArticleSwitchGesturePreference.Disabled, preference)
     }
 
     @Test
@@ -41,13 +41,13 @@ class ArticleSwitchGesturePreferenceTest {
     }
 
     @Test
-    fun `migrates legacy pull to vertical pull`() {
+    fun `migrates legacy pull to disabled`() {
         val preferences =
             preferencesOf(booleanPreferencesKey(PreferencesKey.pullToSwitchArticle) to true)
 
         val preference = ArticleSwitchGesturePreference.fromPreferences(preferences)
 
-        assertEquals(ArticleSwitchGesturePreference.VerticalPull, preference)
+        assertEquals(ArticleSwitchGesturePreference.Disabled, preference)
     }
 
     @Test
