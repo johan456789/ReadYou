@@ -1,15 +1,10 @@
 package me.ash.reader.ui.page.home.reading
 
 import android.view.HapticFeedbackConstants
-import androidx.compose.animation.AnimatedVisibility
-import androidx.compose.animation.core.spring
-import androidx.compose.animation.expandVertically
-import androidx.compose.animation.shrinkVertically
 import androidx.compose.foundation.layout.*
 import androidx.compose.foundation.layout.Arrangement
-import androidx.compose.foundation.layout.Box
+import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.Row
-import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.height
 import androidx.compose.foundation.layout.navigationBarsPadding
@@ -31,19 +26,14 @@ import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.platform.LocalView
 import androidx.compose.ui.res.stringResource
-import androidx.compose.ui.unit.IntSize
 import androidx.compose.ui.unit.dp
-import androidx.compose.ui.zIndex
 import me.ash.reader.R
 import me.ash.reader.infrastructure.preference.LocalReadingPageTonalElevation
 import me.ash.reader.infrastructure.preference.ReadingPageTonalElevationPreference
 import me.ash.reader.ui.component.base.CanBeDisabledIconButton
 
-private val sizeSpec = spring<IntSize>(stiffness = 700f)
-
 @Composable
 fun BottomBar(
-    isShow: Boolean,
     isRead: Boolean,
     isStarred: Boolean,
     isNextArticleAvailable: Boolean,
@@ -56,38 +46,27 @@ fun BottomBar(
 ) {
     val tonalElevation = LocalReadingPageTonalElevation.current
     val isOutlined = tonalElevation == ReadingPageTonalElevationPreference.Outlined
+    val view = LocalView.current
 
-    Box(
-        modifier = Modifier
-            .fillMaxSize()
-            .zIndex(1f),
-        contentAlignment = Alignment.BottomCenter
-    ) {
-        AnimatedVisibility(
-            visible = isShow,
-            enter = expandVertically(expandFrom = Alignment.Top, animationSpec = sizeSpec),
-            exit = shrinkVertically(shrinkTowards = Alignment.Top, animationSpec = sizeSpec)
+    Column {
+        if (isOutlined) {
+            HorizontalDivider(
+                color = MaterialTheme.colorScheme.surfaceContainerHighest,
+                thickness = 0.5f.dp
+            )
+        }
+        Surface(
+            color = MaterialTheme.colorScheme.run { if (isOutlined) surface else surfaceContainer }
         ) {
-            val view = LocalView.current
-            Column {
-                if (isOutlined) {
-                    HorizontalDivider(
-                        color = MaterialTheme.colorScheme.surfaceContainerHighest,
-                        thickness = 0.5f.dp
-                    )
-                }
-                Surface(
-                    color = MaterialTheme.colorScheme.run { if (isOutlined) surface else surfaceContainer }
-                ) {
-                    // TODO: Component styles await refactoring
-                    Row(
-                        modifier = Modifier
-                            .navigationBarsPadding()
-                            .fillMaxWidth()
-                            .height(60.dp),
-                        horizontalArrangement = Arrangement.SpaceAround,
-                        verticalAlignment = Alignment.CenterVertically,
-                    ) {
+            // TODO: Component styles await refactoring
+            Row(
+                modifier = Modifier
+                    .navigationBarsPadding()
+                    .fillMaxWidth()
+                    .height(60.dp),
+                horizontalArrangement = Arrangement.SpaceAround,
+                verticalAlignment = Alignment.CenterVertically,
+            ) {
                         CanBeDisabledIconButton(
                             modifier = Modifier.size(40.dp),
                             disabled = false,
@@ -153,8 +132,6 @@ fun BottomBar(
                             view.performHapticFeedback(HapticFeedbackConstants.KEYBOARD_TAP)
                             onFullContent(!isFullContent)
                         }
-                    }
-                }
             }
         }
     }

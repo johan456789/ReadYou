@@ -15,24 +15,20 @@ import androidx.compose.animation.fadeOut
 import androidx.compose.animation.slideInVertically
 import androidx.compose.animation.slideOutVertically
 import androidx.compose.animation.togetherWith
-import androidx.compose.foundation.ExperimentalFoundationApi
 import androidx.compose.foundation.ScrollState
 import androidx.compose.foundation.background
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.fillMaxSize
-import androidx.compose.material.ExperimentalMaterialApi
 import androidx.compose.material3.LocalTextStyle
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.Scaffold
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.CompositionLocalProvider
-import androidx.compose.runtime.DisposableEffect
 import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
 import androidx.compose.runtime.rememberCoroutineScope
-import androidx.compose.runtime.rememberUpdatedState
 import androidx.compose.runtime.saveable.rememberSaveable
 import androidx.compose.runtime.setValue
 import androidx.compose.runtime.snapshotFlow
@@ -40,7 +36,6 @@ import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.platform.LocalContext
-import androidx.compose.ui.platform.LocalHapticFeedback
 import androidx.compose.ui.platform.LocalDensity
 import androidx.compose.ui.unit.IntOffset
 import androidx.compose.ui.unit.TextUnit
@@ -50,8 +45,6 @@ import androidx.compose.ui.unit.sp
 import androidx.compose.ui.viewinterop.AndroidView
 import android.widget.FrameLayout
 import timber.log.Timber
-import kotlin.math.abs
-import kotlinx.coroutines.flow.distinctUntilChanged
 import kotlinx.coroutines.launch
 import kotlin.math.roundToInt
 import me.ash.reader.R
@@ -61,7 +54,6 @@ import me.ash.reader.ui.component.webview.WebViewScrollSnapshot
 import me.ash.reader.infrastructure.android.TextToSpeechManager
 import me.ash.reader.infrastructure.preference.ArticleSwitchGesturePreference
 import me.ash.reader.infrastructure.preference.LocalArticleSwitchGesture
-import me.ash.reader.infrastructure.preference.LocalReadingAutoHideToolbar
 import me.ash.reader.infrastructure.preference.LocalReadingTextLineHeight
 import me.ash.reader.ui.ext.collectAsStateValue
 import me.ash.reader.ui.ext.showToast
@@ -73,17 +65,8 @@ import me.ash.reader.ui.page.home.reading.tts.TtsButton
 private const val UPWARD = 1
 private const val DOWNWARD = -1
 
-private data class ToolbarScrollSample(
-    val position: Int,
-    val maxScroll: Int,
-    val webViewSnapshot: WebViewScrollSnapshot,
-    val scrollable: Boolean,
-)
-
-@OptIn(ExperimentalFoundationApi::class, ExperimentalMaterialApi::class)
 @Composable
 fun ReadingPage(
-    //    navController: NavHostController,
     viewModel: ArticleListReaderViewModel,
     navigationAction: NavigationAction,
     onLoadArticle: (String, Int) -> Unit,
@@ -91,11 +74,8 @@ fun ReadingPage(
     onNavigateToStylePage: () -> Unit,
 ) {
     val context = LocalContext.current
-    val hapticFeedback = LocalHapticFeedback.current
     val density = LocalDensity.current
     val articleSwitchGesture = LocalArticleSwitchGesture.current
-    val isPullToSwitchArticleEnabled =
-        articleSwitchGesture is ArticleSwitchGesturePreference.VerticalPull
     val isSwipeToSwitchArticleEnabled =
         articleSwitchGesture is ArticleSwitchGesturePreference.HorizontalSwipe
     val readingUiState = viewModel.readingUiState.collectAsStateValue()
@@ -112,7 +92,6 @@ fun ReadingPage(
             ScrollState(0)
         }
 
-    var isReaderScrollingDown by remember { mutableStateOf(false) }
     var showFullScreenImageViewer by remember { mutableStateOf(false) }
     var webViewScrollSnapshot by remember(contentStateKey, readerState.articleId) {
         mutableStateOf(
@@ -126,11 +105,6 @@ fun ReadingPage(
     }
     var headlineHeightPx by remember(contentStateKey, readerState.articleId) { mutableStateOf(0) }
     var scrollToTopRequest by remember(contentStateKey, readerState.articleId) { mutableStateOf(0) }
-    
-    // Track scroll position for toolbar visibility
-    var isScrollable by remember { mutableStateOf(false) }
-    var isAtTop by remember { mutableStateOf(true) }
-    var isAtBottom by remember { mutableStateOf(true) }
 
     var currentImageData by remember { mutableStateOf(ImageData()) }
 
@@ -148,25 +122,10 @@ fun ReadingPage(
         fullscreenVideoCallback?.onCustomViewHidden()
     }
 
-    val isAutoHideEnabled = LocalReadingAutoHideToolbar.current.value
-    val isShowToolBar = readerState.articleId != null && ReaderToolbarState.shouldShowToolbar(
-        isAutoHideEnabled = isAutoHideEnabled,
-        isScrollable = isScrollable,
-        isAtTop = isAtTop,
-        isAtBottom = isAtBottom,
-        isScrollingDown = isReaderScrollingDown
-    )
-
     var showTopDivider by remember { mutableStateOf(false) }
 
-    //    LaunchedEffect(readerState.listIndex) {
-    //        readerState.listIndex?.let {
-    //            navController.previousBackStackEntry?.savedStateHandle?.set("articleIndex", it)
-    //        }
-    //    }
-
     var bringToTop by remember { mutableStateOf(false) }
-    val collapsedHeaderOffsetPx = with(density) { 64.dp.toPx() }.toInt() + headlineHeightPx
+    val collapsedHeaderOffsetPx = headlineHeightPx
 
     LinkActionDialog(
         visible = showLinkActionDialog,
@@ -177,11 +136,9 @@ fun ReadingPage(
     Box(modifier = Modifier.fillMaxSize()) {
         Scaffold(
             containerColor = MaterialTheme.colorScheme.surface,
-            content = { paddings ->
-                Box(modifier = Modifier.fillMaxSize()) {
+            topBar = {
                 if (readerState.articleId != null) {
                     TopBar(
-                        isShow = isShowToolBar,
                         isScrolled = showTopDivider,
                         title = readerState.title,
                         link = readerState.link,
@@ -194,13 +151,65 @@ fun ReadingPage(
                         onNavigateToStylePage = onNavigateToStylePage,
                     )
                 }
+            },
+            bottomBar = {
+                if (readerState.articleId != null) {
+                    BottomBar(
+                        isRead = readingUiState.isRead,
+                        isStarred = readingUiState.isStarred,
+                        isNextArticleAvailable = readerState.nextArticle != null,
+                        isFullContent =
+                            readerState.content is ReaderState.FullContent ||
+                                readerState.content is ReaderState.Error,
+                        onRead = { viewModel.updateReadStatus(it) },
+                        onStarred = { viewModel.updateStarredStatus(it) },
+                        onNextArticle = {
+                            readerState.nextArticle?.let {
+                                val (id, index) = it
+                                onLoadArticle(id, index)
+                            }
+                        },
+                        onFullContent = {
+                            if (it) viewModel.renderFullContent()
+                            else viewModel.renderDescriptionContent()
+                        },
+                        ttsButton = {
+                            TtsButton(
+                                onClick = {
+                                    when (it) {
+                                        TextToSpeechManager.State.Error -> {
+                                            context.showToast("TextToSpeech initialization failed")
+                                        }
 
-                val isNextArticleAvailable = readerState.nextArticle != null
-                val isPreviousArticleAvailable = readerState.previousArticle != null
+                                        TextToSpeechManager.State.Idle -> {
+                                            viewModel.textToSpeechManager.readHtml(
+                                                readerState.content.text ?: ""
+                                            )
+                                        }
 
+                                        is TextToSpeechManager.State.Reading -> {
+                                            viewModel.textToSpeechManager.stop()
+                                        }
+
+                                        TextToSpeechManager.State.Preparing -> {
+                                            /* no-op */
+                                        }
+                                    }
+                                },
+                                state =
+                                    viewModel.textToSpeechManager.stateFlow.collectAsStateValue(),
+                            )
+                        },
+                    )
+                }
+            },
+            content = { paddings ->
                 if (readerState.articleId != null) {
                     // Content
                     if (isSwipeToSwitchArticleEnabled) {
+                        LaunchedEffect(webViewScrollSnapshot) {
+                            showTopDivider = !webViewScrollSnapshot.isAtTop
+                        }
                         CompositionLocalProvider(
                             LocalTextStyle provides
                                 LocalTextStyle.current.run {
@@ -219,7 +228,6 @@ fun ReadingPage(
                                     !showFullScreenImageViewer &&
                                         !showLinkActionDialog &&
                                         !isVideoFullscreen,
-                                isPullToSwitchArticleEnabled = isPullToSwitchArticleEnabled,
                                 onLoadArticle = onLoadArticle,
                                 loadPreview = viewModel::previewReaderState,
                                 bringToTopRequest = scrollToTopRequest,
@@ -307,25 +315,6 @@ fun ReadingPage(
                     ) {
                         remember { it }
                             .run {
-                                val state =
-                                    rememberPullToLoadState(
-                                        key = content,
-                                        onLoadNext =
-                                            if (isPullToSwitchArticleEnabled && isNextArticleAvailable) {
-                                                {
-                                                    val (id, index) = readerState.nextArticle
-                                                    onLoadArticle(id, index)
-                                                }
-                                            } else null,
-                                        onLoadPrevious =
-                                            if (isPullToSwitchArticleEnabled && isPreviousArticleAvailable) {
-                                                {
-                                                    val (id, index) = readerState.previousArticle
-                                                    onLoadArticle(id, index)
-                                                }
-                                            } else null,
-                                    )
-
                                 val scope = rememberCoroutineScope()
 
                                 LaunchedEffect(bringToTop) {
@@ -356,42 +345,6 @@ fun ReadingPage(
                                         }
                                 }
 
-                                // Track scroll position for toolbar visibility
-                                LaunchedEffect(scrollState, collapsedHeaderOffsetPx) {
-                                    var lastPosition =
-                                        scrollState.value.coerceAtMost(collapsedHeaderOffsetPx) +
-                                            webViewScrollSnapshot.scrollY
-                                    snapshotFlow {
-                                        ToolbarScrollSample(
-                                            position = scrollState.value,
-                                            maxScroll = scrollState.maxValue,
-                                            webViewSnapshot = webViewScrollSnapshot,
-                                            scrollable =
-                                                scrollState.maxValue > 0 ||
-                                                    webViewScrollSnapshot.maxScrollY > 0
-                                        )
-                                    }.distinctUntilChanged().collect { sample ->
-                                        isScrollable = sample.scrollable
-                                        isAtTop =
-                                            ReaderToolbarState.isAtTop(sample.position) &&
-                                                sample.webViewSnapshot.isAtTop
-                                        isAtBottom =
-                                            ReaderToolbarState.isAtBottom(
-                                                sample.position,
-                                                sample.maxScroll,
-                                            ) && sample.webViewSnapshot.isAtBottom
-                                        // Track scroll direction for toolbar visibility
-                                        val combinedPosition =
-                                            sample.position.coerceAtMost(collapsedHeaderOffsetPx) +
-                                                sample.webViewSnapshot.scrollY
-                                        val delta = combinedPosition - lastPosition
-                                        if (abs(delta) > 2) {
-                                            isReaderScrollingDown = delta > 0
-                                        }
-                                        lastPosition = combinedPosition
-                                    }
-                                }
-
                                 CompositionLocalProvider(
                                     LocalTextStyle provides
                                         LocalTextStyle.current.run {
@@ -409,15 +362,7 @@ fun ReadingPage(
                                         modifier = Modifier.fillMaxSize(),
                                         contentAlignment = Alignment.Center,
                                     ) {
-                                        val contentModifier = if (isPullToSwitchArticleEnabled) {
-                                            Modifier.pullToLoad(
-                                                state = state,
-                                            )
-                                        } else {
-                                            Modifier
-                                        }
                                         Content(
-                                            modifier = contentModifier,
                                             contentPadding = paddings,
                                             content = content.text ?: "",
                                             feedName = feedName,
@@ -440,8 +385,7 @@ fun ReadingPage(
                                                 scope.launch {
                                                     val target =
                                                         with(density) {
-                                                            64.dp.toPx() +
-                                                                headlineHeightPx.toFloat() +
+                                                            headlineHeightPx.toFloat() +
                                                                 (cssTop * density.density).toFloat()
                                                         }.roundToInt()
                                                     scrollState.animateScrollTo(
@@ -466,70 +410,11 @@ fun ReadingPage(
                                                 fullscreenVideoCallback = null
                                             },
                                         )
-                                        if (isPullToSwitchArticleEnabled) {
-                                            PullToLoadIndicator(
-                                                state = state,
-                                                canLoadPrevious = isPreviousArticleAvailable,
-                                                canLoadNext = isNextArticleAvailable,
-                                            )
-                                        }
                                     }
                                 }
                             }
                     }
                     }
-                }
-                // Bottom Bar
-                if (readerState.articleId != null) {
-                    BottomBar(
-                        isShow = isShowToolBar,
-                        isRead = readingUiState.isRead,
-                        isStarred = readingUiState.isStarred,
-                        isNextArticleAvailable = isNextArticleAvailable,
-                        isFullContent =
-                            readerState.content is ReaderState.FullContent ||
-                                readerState.content is ReaderState.Error,
-                        onRead = { viewModel.updateReadStatus(it) },
-                        onStarred = { viewModel.updateStarredStatus(it) },
-                        onNextArticle = {
-                            readerState.nextArticle?.let {
-                                val (id, index) = it
-                                onLoadArticle(id, index)
-                            }
-                        },
-                        onFullContent = {
-                            if (it) viewModel.renderFullContent()
-                            else viewModel.renderDescriptionContent()
-                        },
-                        ttsButton = {
-                            TtsButton(
-                                onClick = {
-                                    when (it) {
-                                        TextToSpeechManager.State.Error -> {
-                                            context.showToast("TextToSpeech initialization failed")
-                                        }
-
-                                        TextToSpeechManager.State.Idle -> {
-                                            viewModel.textToSpeechManager.readHtml(
-                                                readerState.content.text ?: ""
-                                            )
-                                        }
-
-                                        is TextToSpeechManager.State.Reading -> {
-                                            viewModel.textToSpeechManager.stop()
-                                        }
-
-                                        TextToSpeechManager.State.Preparing -> {
-                                            /* no-op */
-                                        }
-                                    }
-                                },
-                                state =
-                                    viewModel.textToSpeechManager.stateFlow.collectAsStateValue(),
-                            )
-                        },
-                    )
-                }
                 }
             },
         )

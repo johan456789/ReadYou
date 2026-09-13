@@ -86,14 +86,14 @@ fun Content(
         Column(
             modifier =
                 modifier
-                    .padding(top = contentPadding.calculateTopPadding())
+                    .padding(contentPadding)
                     .fillMaxSize()
                     .drawVerticalScrollIndicator(scrollState)
                     .verticalScroll(scrollState),
             horizontalAlignment = Alignment.CenterHorizontally,
         ) {
             Column(modifier = Modifier.then(maxWidthModifier)) {
-                Spacer(modifier = Modifier.height(64.dp))
+                Spacer(modifier = Modifier.height(16.dp))
                 headline()
 
                 RYWebView(
@@ -109,8 +109,7 @@ fun Content(
                     onHideCustomView = onHideCustomView,
                     onScrollSnapshotChange = onScrollSnapshotChange,
                 )
-                Spacer(modifier = Modifier.height(128.dp))
-                Spacer(modifier = Modifier.height(contentPadding.calculateBottomPadding()))
+                Spacer(modifier = Modifier.height(64.dp))
             }
         }
     }

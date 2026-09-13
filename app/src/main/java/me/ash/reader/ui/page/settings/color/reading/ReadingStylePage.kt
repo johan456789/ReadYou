@@ -41,7 +41,6 @@ import androidx.compose.ui.unit.dp
 import me.ash.reader.R
 import me.ash.reader.infrastructure.preference.ArticleSwitchGesturePreference
 import me.ash.reader.infrastructure.preference.LocalArticleSwitchGesture
-import me.ash.reader.infrastructure.preference.LocalReadingAutoHideToolbar
 import me.ash.reader.infrastructure.preference.LocalReadingBoldCharacters
 import me.ash.reader.infrastructure.preference.LocalReadingFonts
 import me.ash.reader.infrastructure.preference.LocalReadingPageTonalElevation
@@ -79,7 +78,6 @@ fun ReadingStylePage(
     val readingTheme = LocalReadingTheme.current
     val tonalElevation = LocalReadingPageTonalElevation.current
     val fonts = LocalReadingFonts.current
-    val autoHideToolbar = LocalReadingAutoHideToolbar.current
     val articleSwitchGesture = LocalArticleSwitchGesture.current
     val boldCharacters = LocalReadingBoldCharacters.current
 
@@ -173,16 +171,6 @@ fun ReadingStylePage(
                         desc = fonts.toDesc(context),
                         onClick = { fontsDialogVisible = true },
                     ) {}
-                    SettingItem(
-                        title = stringResource(R.string.auto_hide_toolbars),
-                        onClick = {
-                            (!autoHideToolbar).put(context, scope)
-                        },
-                    ) {
-                        RYSwitch(activated = autoHideToolbar.value) {
-                            (!autoHideToolbar).put(context, scope)
-                        }
-                    }
                     SettingItem(
                         title = stringResource(R.string.rearrange_buttons),
                         enabled = false,
