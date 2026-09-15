@@ -25,6 +25,7 @@ import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
 import androidx.compose.runtime.rememberCoroutineScope
 import androidx.compose.runtime.setValue
+import androidx.compose.runtime.snapshotFlow
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clipToBounds
 import androidx.compose.ui.input.pointer.changedToUpIgnoreConsumed
@@ -105,6 +106,9 @@ fun ArticleSwipePager(
     bringToTopRequest: Int,
     onCurrentHeadlineMeasured: (Int) -> Unit,
     onCurrentScrollSnapshotChange: (WebViewScrollSnapshot) -> Unit,
+    onCurrentScrollChange: (Int) -> Unit = {},
+    onCurrentTitleVisibleChange: (Boolean) -> Unit = {},
+    onCurrentScrolledChange: (Boolean) -> Unit = {},
     headlineHeightPx: Int,
     onImageClick: (String, String) -> Unit,
     onLinkLongPress: (String, String) -> Unit,
@@ -386,6 +390,15 @@ fun ArticleSwipePager(
                             onScrollSnapshotChange = {
                                 if (isCurrent) onCurrentScrollSnapshotChange(it)
                             },
+                            onScrollChange = {
+                                if (isCurrent) onCurrentScrollChange(it)
+                            },
+                            onTitleVisibleChange = {
+                                if (isCurrent) onCurrentTitleVisibleChange(it)
+                            },
+                            onScrolledChange = {
+                                if (isCurrent) onCurrentScrolledChange(it)
+                            },
                             headlineHeightPx = headlineHeightPx,
                             onImageClick = onImageClick,
                             onLinkLongPress = onLinkLongPress,
@@ -504,6 +517,9 @@ private fun ArticleSwipePageContent(
     onBringToTopHandled: () -> Unit,
     onHeadlineMeasured: (Int) -> Unit,
     onScrollSnapshotChange: (WebViewScrollSnapshot) -> Unit,
+    onScrollChange: (Int) -> Unit = {},
+    onTitleVisibleChange: (Boolean) -> Unit = {},
+    onScrolledChange: (Boolean) -> Unit = {},
     onImageClick: (String, String) -> Unit,
     onLinkLongPress: (String, String) -> Unit,
     headlineHeightPx: Int,
@@ -515,6 +531,23 @@ private fun ArticleSwipePageContent(
             scrollState.animateScrollTo(0)
             onBringToTopHandled()
         }
+    }
+
+    LaunchedEffect(scrollState, readerState.articleId) {
+        snapshotFlow { scrollState.value }
+            .collect { onScrollChange(it) }
+    }
+
+    LaunchedEffect(scrollState, readerState.articleId, headlineHeightPx) {
+        snapshotFlow {
+                headlineHeightPx > 0 && scrollState.value >= headlineHeightPx
+            }
+            .collect { onTitleVisibleChange(it) }
+    }
+
+    LaunchedEffect(scrollState, readerState.articleId) {
+        snapshotFlow { scrollState.value >= 120 }
+            .collect { onScrolledChange(it) }
     }
 
     val density = LocalDensity.current
