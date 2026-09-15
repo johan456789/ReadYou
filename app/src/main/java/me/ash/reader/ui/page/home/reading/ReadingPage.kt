@@ -105,6 +105,9 @@ fun ReadingPage(
     }
     var headlineHeightPx by remember(contentStateKey, readerState.articleId) { mutableStateOf(0) }
     var scrollToTopRequest by remember(contentStateKey, readerState.articleId) { mutableStateOf(0) }
+    var swipeScrolled by remember(contentStateKey, readerState.articleId) {
+        mutableStateOf(false)
+    }
 
     var currentImageData by remember { mutableStateOf(ImageData()) }
 
@@ -122,7 +125,12 @@ fun ReadingPage(
         fullscreenVideoCallback?.onCustomViewHidden()
     }
 
-    var showTopDivider by remember { mutableStateOf(false) }
+    var showTopDivider by remember(contentStateKey, readerState.articleId) {
+        mutableStateOf(false)
+    }
+    var showTitleInTopBar by remember(contentStateKey, readerState.articleId) {
+        mutableStateOf(false)
+    }
 
     var bringToTop by remember { mutableStateOf(false) }
     val collapsedHeaderOffsetPx = headlineHeightPx
@@ -142,6 +150,7 @@ fun ReadingPage(
                         isScrolled = showTopDivider,
                         title = readerState.title,
                         link = readerState.link,
+                        showTitle = showTitleInTopBar,
                         onClick = {
                             scrollToTopRequest += 1
                             bringToTop = true
@@ -207,8 +216,8 @@ fun ReadingPage(
                 if (readerState.articleId != null) {
                     // Content
                     if (isSwipeToSwitchArticleEnabled) {
-                        LaunchedEffect(webViewScrollSnapshot) {
-                            showTopDivider = !webViewScrollSnapshot.isAtTop
+                        LaunchedEffect(webViewScrollSnapshot, swipeScrolled) {
+                            showTopDivider = swipeScrolled || !webViewScrollSnapshot.isAtTop
                         }
                         CompositionLocalProvider(
                             LocalTextStyle provides
@@ -236,6 +245,8 @@ fun ReadingPage(
                                 onCurrentScrollSnapshotChange = {
                                     webViewScrollSnapshot = it
                                 },
+                                onCurrentScrolledChange = { swipeScrolled = it },
+                                onCurrentTitleVisibleChange = { showTitleInTopBar = it },
                                 headlineHeightPx = headlineHeightPx,
                                 onImageClick = { imgUrl, altText ->
                                     currentImageData = ImageData(imgUrl, altText)
@@ -330,6 +341,13 @@ fun ReadingPage(
                                 showTopDivider =
                                     snapshotFlow {
                                             scrollState.value >= 120 || !webViewScrollSnapshot.isAtTop
+                                        }
+                                        .collectAsStateValue(initial = false)
+
+                                showTitleInTopBar =
+                                    snapshotFlow {
+                                            headlineHeightPx > 0 &&
+                                                scrollState.value >= headlineHeightPx
                                         }
                                         .collectAsStateValue(initial = false)
 
