@@ -18,6 +18,7 @@ import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Spacer
 import androidx.compose.foundation.layout.WindowInsets
 import androidx.compose.foundation.layout.WindowInsetsSides
+import androidx.compose.foundation.layout.asPaddingValues
 import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.height
@@ -25,6 +26,7 @@ import androidx.compose.foundation.layout.navigationBars
 import androidx.compose.foundation.layout.only
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.safeContent
+import androidx.compose.foundation.layout.statusBars
 import androidx.compose.foundation.layout.windowInsetsBottomHeight
 import androidx.compose.foundation.layout.windowInsetsPadding
 import androidx.compose.foundation.lazy.LazyColumn
@@ -53,6 +55,7 @@ import androidx.compose.runtime.Composable
 import androidx.compose.runtime.CompositionLocalProvider
 import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.getValue
+import androidx.compose.runtime.mutableIntStateOf
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
 import androidx.compose.runtime.rememberCoroutineScope
@@ -64,7 +67,9 @@ import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.focus.FocusRequester
 import androidx.compose.ui.input.nestedscroll.nestedScroll
+import androidx.compose.ui.layout.onSizeChanged
 import androidx.compose.ui.platform.LocalContext
+import androidx.compose.ui.platform.LocalDensity
 import androidx.compose.ui.platform.LocalSoftwareKeyboardController
 import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.text.font.FontWeight
@@ -193,6 +198,16 @@ fun FlowPage(
 
     var currentPullToLoadState: PullToLoadState? by remember { mutableStateOf(null) }
     var currentLoadAction: LoadAction? by remember { mutableStateOf(null) }
+
+    // The scrollbar is drawn on a fixed overlay (see below) whose track spans
+    // the content area. Its top is the compact top app bar's bottom, so the
+    // thumb sits right below the bar rather than at the (larger) expanded
+    // large-title height; its bottom is the filter bar's measured height so it
+    // never slides behind it.
+    val topBarCompactHeight =
+        64.dp + WindowInsets.statusBars.asPaddingValues().calculateTopPadding()
+    var filterBarHeightPx by remember { mutableIntStateOf(0) }
+    val density = LocalDensity.current
 
     val settleSpec = remember { spring<Float>(dampingRatio = Spring.DampingRatioLowBouncy) }
 
@@ -771,8 +786,7 @@ fun FlowPage(
                                         },
                                     )
                                     .nestedScroll(scrollBehavior.nestedScrollConnection)
-                                    .fillMaxSize()
-                                    .drawVerticalScrollIndicator(listState),
+                                    .fillMaxSize(),
                             state = listState,
                         ) {
                             ArticleList(
@@ -822,11 +836,12 @@ fun FlowPage(
                 FilterBar(
                     modifier =
                         with(sharedTransitionScope) {
-                            Modifier.sharedElement(
-                                sharedContentState = rememberSharedContentState("filterBar"),
-                                animatedVisibilityScope = animatedVisibilityScope,
-                            )
-                        },
+                                Modifier.sharedElement(
+                                    sharedContentState = rememberSharedContentState("filterBar"),
+                                    animatedVisibilityScope = animatedVisibilityScope,
+                                )
+                            }
+                            .onSizeChanged { filterBarHeightPx = it.height },
                     filter = filterUiState.filter,
                     filterBarStyle = filterBarStyle.value,
                     filterBarFilled = true,
@@ -844,6 +859,21 @@ fun FlowPage(
                     }
                 }
             },
+        )
+
+        // Fixed scrollbar frame: drawn on an overlay pinned to the pane instead
+        // of inside the list, so the collapsing top app bar (which resizes the
+        // list viewport) cannot drag or squash the thumb. Constant insets keep
+        // it clear of the app bar and the filter bar.
+        Box(
+            modifier =
+                Modifier
+                    .fillMaxSize()
+                    .drawVerticalScrollIndicator(
+                        listState = listState,
+                        topInset = topBarCompactHeight,
+                        bottomInset = with(density) { filterBarHeightPx.toDp() },
+                    )
         )
         currentPullToLoadState?.let {
             PullToSyncIndicator(pullToLoadState = it, isSyncing = isSyncing)
