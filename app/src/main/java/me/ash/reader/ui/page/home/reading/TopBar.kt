@@ -1,8 +1,11 @@
 package me.ash.reader.ui.page.home.reading
 
+import androidx.compose.animation.AnimatedVisibility
 import androidx.compose.animation.animateColorAsState
 import androidx.compose.animation.core.Spring
 import androidx.compose.animation.core.spring
+import androidx.compose.animation.fadeIn
+import androidx.compose.animation.fadeOut
 import androidx.compose.foundation.clickable
 import androidx.compose.foundation.interaction.MutableInteractionSource
 import androidx.compose.foundation.layout.Column
@@ -23,6 +26,7 @@ import androidx.compose.material.icons.rounded.MenuOpen
 import androidx.compose.material3.ExperimentalMaterial3Api
 import androidx.compose.material3.HorizontalDivider
 import androidx.compose.material3.MaterialTheme
+import androidx.compose.material3.Text
 import androidx.compose.material3.TopAppBar
 import androidx.compose.material3.TopAppBarDefaults
 import androidx.compose.runtime.Composable
@@ -33,7 +37,10 @@ import androidx.compose.ui.draw.drawBehind
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.res.stringResource
+import androidx.compose.ui.text.font.FontWeight
+import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.unit.dp
+import androidx.compose.ui.unit.sp
 import me.ash.reader.R
 import me.ash.reader.infrastructure.preference.LocalReadingPageTonalElevation
 import me.ash.reader.infrastructure.preference.LocalSharedContent
@@ -47,6 +54,7 @@ fun TopBar(
     isScrolled: Boolean = false,
     title: String? = "",
     link: String? = "",
+    showTitle: Boolean = isScrolled,
     navigationAction: NavigationAction,
     onClick: (() -> Unit)? = null,
     onNavButtonClick: (NavigationAction) -> Unit = {},
@@ -73,7 +81,24 @@ fun TopBar(
                         .height(WindowInsets.statusBars.asPaddingValues().calculateTopPadding())
             )
             TopAppBar(
-                title = {},
+                title = {
+                    AnimatedVisibility(
+                        visible = showTitle && !title.isNullOrBlank(),
+                        enter = fadeIn(),
+                        exit = fadeOut(),
+                    ) {
+                        Text(
+                            text = title.orEmpty(),
+                            maxLines = 1,
+                            overflow = TextOverflow.Ellipsis,
+                            style =
+                                MaterialTheme.typography.titleLarge.merge(
+                                    fontSize = 18.sp,
+                                    fontWeight = FontWeight.Medium,
+                                ),
+                        )
+                    }
+                },
                 modifier =
                     if (onClick == null) Modifier
                     else
