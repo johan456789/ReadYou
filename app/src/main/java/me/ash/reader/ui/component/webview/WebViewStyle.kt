@@ -39,6 +39,13 @@ object WebViewStyle {
         tableMargin: Int,
         selectionTextColor: Int,
         selectionBgColor: Int,
+        titleColor: Int = boldTextColor,
+        labelColor: Int = textColor,
+        titleBold: Boolean = false,
+        titleUpperCase: Boolean = false,
+        titleAlign: String = textAlign,
+        contentMaxWidthPx: Int = 0,
+        scrollbarThumbColor: Int = textColor,
     ): String = """
 ${applyFontFace(fontPath)}
 :root {
@@ -79,6 +86,56 @@ ${applyFontFace(fontPath)}
     --code-font-family: Menlo, Monospace, 'Courier New';
     --code-font-size: 0.9em;
     --pre-color;
+    --scrollbar-thumb-color: ${argbToCssColor(scrollbarThumbColor)};
+    --title-color: ${argbToCssColor(titleColor)};
+    --label-color: ${argbToCssColor(labelColor)};
+    --title-bold: ${if (titleBold) "700" else "500"};
+    --title-upper-case: ${if (titleUpperCase) "uppercase" else "none"};
+    --title-align: ${titleAlign};
+}
+
+main {
+    padding-bottom: 64px;
+    ${if (contentMaxWidthPx > 0) "max-width: ${contentMaxWidthPx}px;" else ""}
+    margin-left: auto !important;
+    margin-right: auto !important;
+}
+
+/* Headline (rendered inside the page so the WebView owns all scrolling) */
+.ry-headline {
+    margin-left: var(--text-margin) !important;
+    margin-right: var(--text-margin) !important;
+    margin-top: 16px !important;
+    margin-bottom: 8px !important;
+    padding: 0 !important;
+}
+
+.ry-headline .ry-date,
+.ry-headline .ry-author,
+.ry-headline .ry-feed {
+    font-size: 12px !important;
+    color: var(--label-color) !important;
+    opacity: 0.7 !important;
+    text-align: var(--title-align) !important;
+    line-height: 1.4 !important;
+    margin: 0 0 4px 0 !important;
+}
+
+.ry-headline .ry-title {
+    font-family: var(--font-family) !important;
+    font-size: calc(var(--font-size) * 1.375) !important;
+    font-weight: var(--title-bold) !important;
+    text-transform: var(--title-upper-case) !important;
+    text-align: var(--title-align) !important;
+    color: var(--title-color) !important;
+    line-height: 1.25 !important;
+    margin: 0 0 4px 0 !important;
+}
+
+.ry-headline .ry-title a {
+    color: var(--title-color) !important;
+    font-weight: var(--title-bold) !important;
+    text-decoration: none !important;
 }
 
 article {
@@ -102,6 +159,21 @@ body {
 ::selection {
     background-color: var(--selection-bg-color) !important;
     color: var(--selection-text-color) !important;
+}
+
+/* Page scrollbar (WebView renders its own now that it owns scrolling) */
+::-webkit-scrollbar {
+    width: 8px;
+}
+
+::-webkit-scrollbar-track {
+    background: transparent;
+}
+
+::-webkit-scrollbar-thumb {
+    background-color: var(--scrollbar-thumb-color);
+    opacity: 0.5;
+    border-radius: 4px;
 }
 
 /* Heading  */

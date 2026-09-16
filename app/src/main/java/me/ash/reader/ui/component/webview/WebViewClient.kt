@@ -201,14 +201,11 @@ class WebViewClient(
                     if (href.charAt(0) !== '#') return;
                     if (event.target.tagName === 'IMG') return;
                     var fragment = href.substring(1);
+                    // The WebView owns vertical scrolling, so scroll natively in-page.
+                    event.preventDefault();
+                    event.stopPropagation();
                     if (fragment === '') {
-                        event.preventDefault();
-                        event.stopPropagation();
-                        if (window.${JavaScriptInterface.NAME} && window.${JavaScriptInterface.NAME}.onAnchorScrollTo) {
-                            window.${JavaScriptInterface.NAME}.onAnchorScrollTo(0);
-                        } else {
-                            document.body.scrollIntoView();
-                        }
+                        document.body.scrollIntoView();
                         return;
                     }
                     try {
@@ -222,13 +219,7 @@ class WebViewClient(
                         }
                     }
                     if (!target) return;
-                    event.preventDefault();
-                    event.stopPropagation();
-                    if (window.${JavaScriptInterface.NAME} && window.${JavaScriptInterface.NAME}.onAnchorScrollTo) {
-                        window.${JavaScriptInterface.NAME}.onAnchorScrollTo(target.getBoundingClientRect().top);
-                    } else {
-                        target.scrollIntoView();
-                    }
+                    target.scrollIntoView();
                 }, false);
             })()
             """

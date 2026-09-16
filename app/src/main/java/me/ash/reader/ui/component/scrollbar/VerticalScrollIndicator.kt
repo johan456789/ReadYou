@@ -8,9 +8,11 @@ import androidx.compose.foundation.gestures.Orientation
 import androidx.compose.foundation.lazy.LazyListState
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.runtime.Composable
+import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.remember
 import androidx.compose.runtime.snapshotFlow
 import androidx.compose.ui.Modifier
+import androidx.compose.ui.draw.drawWithContent
 import androidx.compose.ui.geometry.CornerRadius
 import androidx.compose.ui.geometry.Offset
 import androidx.compose.ui.geometry.Size
@@ -105,6 +107,64 @@ fun Modifier.drawVerticalScrollIndicator(
         indicatorState,
         Orientation.Vertical,
     )
+}
+
+/**
+ * Same visuals and fade behavior as [drawVerticalScrollIndicator], but driven
+ * by an externally-scrolled viewport (e.g. a WebView that owns its scrolling)
+ * instead of a Compose scroll state.
+ *
+ * Each page holds its own snapshot, so the indicator survives horizontal
+ * article swipes by construction.
+ */
+@Composable
+fun Modifier.drawWebViewScrollIndicator(
+    scrollYPx: Int,
+    contentHeightPx: Int,
+    viewportHeightPx: Int,
+    isAtTop: Boolean,
+    isAtBottom: Boolean,
+): Modifier {
+    val thumbColor = MaterialTheme.colorScheme.outline.copy(alpha = .5f)
+    val alpha = remember { Animatable(0f) }
+    LaunchedEffect(scrollYPx) {
+        alpha.snapTo(1f)
+        delay(3000)
+        alpha.animateTo(0f, animationSpec = spring())
+    }
+    return this.drawWithContent {
+        drawContent()
+
+        val content = contentHeightPx.toFloat()
+        val viewport = viewportHeightPx.toFloat()
+        // Don't draw when everything fits.
+        if (content <= 0f || viewport <= 0f || content <= viewport) return@drawWithContent
+        if (alpha.value == 0f) return@drawWithContent
+
+        val trackSize = size.height
+        val thumbLength = (trackSize * (viewport / content)).coerceIn(0f, trackSize)
+        if (thumbLength >= trackSize) return@drawWithContent
+
+        val travel = (content - viewport).coerceAtLeast(1f)
+        val progress =
+            when {
+                isAtTop -> 0f
+                isAtBottom -> 1f
+                else -> (scrollYPx.toFloat() / travel).coerceIn(0f, 1f)
+            }
+        val thumbPosition = progress * (trackSize - thumbLength)
+        val thumbThicknessPx = 4.dp.toPx()
+        val x =
+            if (layoutDirection == LayoutDirection.Rtl) 0f
+            else size.width - thumbThicknessPx
+        drawRoundRect(
+            cornerRadius = CornerRadius(thumbThicknessPx / 2),
+            color = thumbColor,
+            topLeft = Offset(x, thumbPosition),
+            size = Size(thumbThicknessPx, thumbLength),
+            alpha = alpha.value,
+        )
+    }
 }
 
 data class VerticalScrollIndicatorFactory(

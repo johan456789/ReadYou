@@ -15,7 +15,6 @@ import androidx.compose.animation.fadeOut
 import androidx.compose.animation.slideInVertically
 import androidx.compose.animation.slideOutVertically
 import androidx.compose.animation.togetherWith
-import androidx.compose.foundation.ScrollState
 import androidx.compose.foundation.background
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.fillMaxSize
@@ -28,15 +27,11 @@ import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
-import androidx.compose.runtime.rememberCoroutineScope
-import androidx.compose.runtime.saveable.rememberSaveable
 import androidx.compose.runtime.setValue
-import androidx.compose.runtime.snapshotFlow
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.platform.LocalContext
-import androidx.compose.ui.platform.LocalDensity
 import androidx.compose.ui.unit.IntOffset
 import androidx.compose.ui.unit.TextUnit
 import androidx.compose.ui.unit.dp
@@ -45,8 +40,6 @@ import androidx.compose.ui.unit.sp
 import androidx.compose.ui.viewinterop.AndroidView
 import android.widget.FrameLayout
 import timber.log.Timber
-import kotlinx.coroutines.launch
-import kotlin.math.roundToInt
 import me.ash.reader.R
 import me.ash.reader.ui.component.webview.LinkActionDialog
 import me.ash.reader.ui.component.webview.LinkActionData
@@ -65,6 +58,11 @@ import me.ash.reader.ui.page.home.reading.tts.TtsButton
 private const val UPWARD = 1
 private const val DOWNWARD = -1
 
+internal fun shouldShowTopDivider(isAtTop: Boolean): Boolean = !isAtTop
+
+internal fun shouldShowTitleInTopBar(scrollY: Int, headlineHeightPx: Int): Boolean =
+    headlineHeightPx > 0 && scrollY >= headlineHeightPx
+
 @Composable
 fun ReadingPage(
     viewModel: ArticleListReaderViewModel,
@@ -74,7 +72,6 @@ fun ReadingPage(
     onNavigateToStylePage: () -> Unit,
 ) {
     val context = LocalContext.current
-    val density = LocalDensity.current
     val articleSwitchGesture = LocalArticleSwitchGesture.current
     val isSwipeToSwitchArticleEnabled =
         articleSwitchGesture is ArticleSwitchGesturePreference.HorizontalSwipe
@@ -86,10 +83,6 @@ fun ReadingPage(
             is ReaderState.FullContent -> "full_content"
             is ReaderState.Error -> "error"
             ReaderState.Loading -> "loading"
-        }
-    val scrollState =
-        rememberSaveable(readerState.articleId, contentStateKey, saver = ScrollState.Saver) {
-            ScrollState(0)
         }
 
     var showFullScreenImageViewer by remember { mutableStateOf(false) }
@@ -105,9 +98,6 @@ fun ReadingPage(
     }
     var headlineHeightPx by remember(contentStateKey, readerState.articleId) { mutableStateOf(0) }
     var scrollToTopRequest by remember(contentStateKey, readerState.articleId) { mutableStateOf(0) }
-    var swipeScrolled by remember(contentStateKey, readerState.articleId) {
-        mutableStateOf(false)
-    }
 
     var currentImageData by remember { mutableStateOf(ImageData()) }
 
@@ -132,8 +122,26 @@ fun ReadingPage(
         mutableStateOf(false)
     }
 
+    // The WebView owns vertical scrolling; the top bar follows its native position.
+    LaunchedEffect(webViewScrollSnapshot, headlineHeightPx) {
+        val newDivider = shouldShowTopDivider(webViewScrollSnapshot.isAtTop)
+        val newTitle =
+            shouldShowTitleInTopBar(webViewScrollSnapshot.scrollY, headlineHeightPx)
+        if (newDivider != showTopDivider || newTitle != showTitleInTopBar) {
+            Timber.tag("ReaderTopBar").d(
+                "divider=%s title=%s scrollY=%d max=%d headlinePx=%d",
+                newDivider,
+                newTitle,
+                webViewScrollSnapshot.scrollY,
+                webViewScrollSnapshot.maxScrollY,
+                headlineHeightPx,
+            )
+        }
+        showTopDivider = newDivider
+        showTitleInTopBar = newTitle
+    }
+
     var bringToTop by remember { mutableStateOf(false) }
-    val collapsedHeaderOffsetPx = headlineHeightPx
 
     LinkActionDialog(
         visible = showLinkActionDialog,
@@ -216,9 +224,6 @@ fun ReadingPage(
                 if (readerState.articleId != null) {
                     // Content
                     if (isSwipeToSwitchArticleEnabled) {
-                        LaunchedEffect(webViewScrollSnapshot, swipeScrolled) {
-                            showTopDivider = swipeScrolled || !webViewScrollSnapshot.isAtTop
-                        }
                         CompositionLocalProvider(
                             LocalTextStyle provides
                                 LocalTextStyle.current.run {
@@ -245,9 +250,6 @@ fun ReadingPage(
                                 onCurrentScrollSnapshotChange = {
                                     webViewScrollSnapshot = it
                                 },
-                                onCurrentScrolledChange = { swipeScrolled = it },
-                                onCurrentTitleVisibleChange = { showTitleInTopBar = it },
-                                headlineHeightPx = headlineHeightPx,
                                 onImageClick = { imgUrl, altText ->
                                     currentImageData = ImageData(imgUrl, altText)
                                     showFullScreenImageViewer = true
@@ -326,41 +328,10 @@ fun ReadingPage(
                     ) {
                         remember { it }
                             .run {
-                                val scope = rememberCoroutineScope()
-
                                 LaunchedEffect(bringToTop) {
                                     if (bringToTop) {
-                                        scope
-                                            .launch {
-                                                scrollState.animateScrollTo(0)
-                                            }
-                                            .invokeOnCompletion { bringToTop = false }
+                                        bringToTop = false
                                     }
-                                }
-
-                                showTopDivider =
-                                    snapshotFlow {
-                                            scrollState.value >= 120 || !webViewScrollSnapshot.isAtTop
-                                        }
-                                        .collectAsStateValue(initial = false)
-
-                                showTitleInTopBar =
-                                    snapshotFlow {
-                                            headlineHeightPx > 0 &&
-                                                scrollState.value >= headlineHeightPx
-                                        }
-                                        .collectAsStateValue(initial = false)
-
-                                LaunchedEffect(scrollState, webViewScrollSnapshot, collapsedHeaderOffsetPx) {
-                                    snapshotFlow { scrollState.value }
-                                        .collect { position ->
-                                            if (!webViewScrollSnapshot.isAtTop &&
-                                                collapsedHeaderOffsetPx > 0 &&
-                                                position < collapsedHeaderOffsetPx
-                                            ) {
-                                                scrollState.scrollTo(collapsedHeaderOffsetPx)
-                                            }
-                                        }
                                 }
 
                                 CompositionLocalProvider(
@@ -389,7 +360,6 @@ fun ReadingPage(
                                             link = link,
                                             publishedDate = publishedDate,
                                             isLoading = content is ReaderState.Loading,
-                                            scrollState = scrollState,
                                             scrollToTopRequest = scrollToTopRequest,
                                             onHeadlineMeasured = { headlineHeightPx = it },
                                             onImageClick = { imgUrl, altText ->
@@ -398,18 +368,6 @@ fun ReadingPage(
                                             },
                                             onScrollSnapshotChange = {
                                                 webViewScrollSnapshot = it
-                                            },
-                                            onAnchorScroll = { cssTop ->
-                                                scope.launch {
-                                                    val target =
-                                                        with(density) {
-                                                            headlineHeightPx.toFloat() +
-                                                                (cssTop * density.density).toFloat()
-                                                        }.roundToInt()
-                                                    scrollState.animateScrollTo(
-                                                        target.coerceIn(0, scrollState.maxValue)
-                                                    )
-                                                }
                                             },
                                             onLinkLongPress = { url, text ->
                                                 linkActionData = LinkActionData(
