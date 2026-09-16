@@ -5,7 +5,6 @@ import android.webkit.WebChromeClient
 import androidx.compose.animation.core.Animatable
 import androidx.compose.animation.core.Spring
 import androidx.compose.animation.core.spring
-import androidx.compose.foundation.ScrollState
 import androidx.compose.foundation.gestures.awaitEachGesture
 import androidx.compose.foundation.gestures.awaitFirstDown
 import androidx.compose.foundation.gestures.awaitHorizontalTouchSlopOrCancellation
@@ -25,9 +24,9 @@ import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
 import androidx.compose.runtime.rememberCoroutineScope
 import androidx.compose.runtime.setValue
-import androidx.compose.runtime.snapshotFlow
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clipToBounds
+import androidx.compose.ui.geometry.Offset
 import androidx.compose.ui.input.pointer.changedToUpIgnoreConsumed
 import androidx.compose.ui.input.pointer.pointerInput
 import androidx.compose.ui.input.pointer.positionChange
@@ -88,7 +87,6 @@ internal fun articleSwipeSettleOffset(
 
 private class ArticleSwipeSlot(
     val index: Int,
-    val scrollState: ScrollState,
 ) {
     var articleId by mutableStateOf<String?>(null)
     var readerState by mutableStateOf<ReaderState?>(null)
@@ -106,10 +104,6 @@ fun ArticleSwipePager(
     bringToTopRequest: Int,
     onCurrentHeadlineMeasured: (Int) -> Unit,
     onCurrentScrollSnapshotChange: (WebViewScrollSnapshot) -> Unit,
-    onCurrentScrollChange: (Int) -> Unit = {},
-    onCurrentTitleVisibleChange: (Boolean) -> Unit = {},
-    onCurrentScrolledChange: (Boolean) -> Unit = {},
-    headlineHeightPx: Int,
     onImageClick: (String, String) -> Unit,
     onLinkLongPress: (String, String) -> Unit,
     onShowCustomView: (View, WebChromeClient.CustomViewCallback) -> Unit,
@@ -117,7 +111,7 @@ fun ArticleSwipePager(
 ) {
     val slots =
         remember {
-            List(3) { index -> ArticleSwipeSlot(index = index, scrollState = ScrollState(0)) }
+            List(3) { index -> ArticleSwipeSlot(index = index) }
         }
     var previousSlotIndex by remember { mutableIntStateOf(1) }
     var currentSlotIndex by remember { mutableIntStateOf(0) }
@@ -153,12 +147,10 @@ fun ArticleSwipePager(
                     slot.articleId = articleId
                     slot.readerState = currentReaderState
                     slot.target = null
-                    slot.scrollState.scrollTo(0)
                 } else {
                     slot.articleId = null
                     slot.readerState = null
                     slot.target = null
-                    slot.scrollState.scrollTo(0)
                 }
             }
         }
@@ -200,14 +192,12 @@ fun ArticleSwipePager(
                 slot.articleId = null
                 slot.readerState = null
                 slot.target = null
-                slot.scrollState.scrollTo(0)
                 return
             }
             slot.target = target
             if (slot.articleId == target.articleId && slot.readerState != null) return
             slot.articleId = target.articleId
             slot.readerState = ReaderState(articleId = target.articleId)
-            slot.scrollState.scrollTo(0)
             val preview = loadPreview(target.articleId, target.index)
             if (slot.articleId == target.articleId && currentId == visibleCurrentState.articleId) {
                 slot.readerState = preview
@@ -380,7 +370,6 @@ fun ArticleSwipePager(
                         val isCurrent = slotIndex == currentSlotIndex
                         ArticleSwipePageContent(
                             readerState = state,
-                            scrollState = slot.scrollState,
                             contentPadding = contentPadding,
                             bringToTopRequest = if (isCurrent) bringToTopRequest else 0,
                             onBringToTopHandled = onBringToTopHandled,
@@ -390,16 +379,6 @@ fun ArticleSwipePager(
                             onScrollSnapshotChange = {
                                 if (isCurrent) onCurrentScrollSnapshotChange(it)
                             },
-                            onScrollChange = {
-                                if (isCurrent) onCurrentScrollChange(it)
-                            },
-                            onTitleVisibleChange = {
-                                if (isCurrent) onCurrentTitleVisibleChange(it)
-                            },
-                            onScrolledChange = {
-                                if (isCurrent) onCurrentScrolledChange(it)
-                            },
-                            headlineHeightPx = headlineHeightPx,
                             onImageClick = onImageClick,
                             onLinkLongPress = onLinkLongPress,
                             onShowCustomView = onShowCustomView,
@@ -430,16 +409,24 @@ private fun Modifier.articleSwipePointerInput(
             val down = awaitFirstDown(requireUnconsumed = false)
             var dragOffset = 0f
             var totalDragOffset = 0f
+            var totalOffset = Offset.Zero
             val drag =
                 awaitHorizontalTouchSlopOrCancellation(down.id) { change, overSlop ->
                     totalDragOffset += overSlop
+                    totalOffset += change.positionChange()
+                    // Only claim the gesture for clearly horizontal drags (like ViewPager2:
+                    // horizontal must exceed slop AND dominate vertical). Otherwise a
+                    // slightly diagonal vertical scroll would get stolen mid-flight and
+                    // stutter against the WebView's own vertical scroll.
+                    val horizontalDominant = abs(totalOffset.x) > abs(totalOffset.y)
                     val canDrag =
-                        canDragInDirection(
-                            offset = totalDragOffset,
-                            layoutDirection = layoutDirection,
-                            canLoadPrevious = getPreviousTarget() != null,
-                            canLoadNext = getNextTarget() != null,
-                        )
+                        horizontalDominant &&
+                            canDragInDirection(
+                                offset = totalDragOffset,
+                                layoutDirection = layoutDirection,
+                                canLoadPrevious = getPreviousTarget() != null,
+                                canLoadNext = getNextTarget() != null,
+                            )
                     dragOffset = if (canDrag) totalDragOffset else 0f
                     onDragOffsetChange(dragOffset)
                     if (canDrag) {
@@ -511,54 +498,19 @@ private fun canDragInDirection(
 @Composable
 private fun ArticleSwipePageContent(
     readerState: ReaderState,
-    scrollState: ScrollState,
     contentPadding: PaddingValues,
     bringToTopRequest: Int,
     onBringToTopHandled: () -> Unit,
     onHeadlineMeasured: (Int) -> Unit,
     onScrollSnapshotChange: (WebViewScrollSnapshot) -> Unit,
-    onScrollChange: (Int) -> Unit = {},
-    onTitleVisibleChange: (Boolean) -> Unit = {},
-    onScrolledChange: (Boolean) -> Unit = {},
     onImageClick: (String, String) -> Unit,
     onLinkLongPress: (String, String) -> Unit,
-    headlineHeightPx: Int,
     onShowCustomView: (View, WebChromeClient.CustomViewCallback) -> Unit,
     onHideCustomView: () -> Unit,
 ) {
     LaunchedEffect(bringToTopRequest) {
         if (bringToTopRequest != 0) {
-            scrollState.animateScrollTo(0)
             onBringToTopHandled()
-        }
-    }
-
-    LaunchedEffect(scrollState, readerState.articleId) {
-        snapshotFlow { scrollState.value }
-            .collect { onScrollChange(it) }
-    }
-
-    LaunchedEffect(scrollState, readerState.articleId, headlineHeightPx) {
-        snapshotFlow {
-                headlineHeightPx > 0 && scrollState.value >= headlineHeightPx
-            }
-            .collect { onTitleVisibleChange(it) }
-    }
-
-    LaunchedEffect(scrollState, readerState.articleId) {
-        snapshotFlow { scrollState.value >= 120 }
-            .collect { onScrolledChange(it) }
-    }
-
-    val density = LocalDensity.current
-    val scope = rememberCoroutineScope()
-    val onAnchorScroll: (Double) -> Unit = { cssTop ->
-        scope.launch {
-            val target =
-                with(density) {
-                    headlineHeightPx.toFloat() + (cssTop * density.density).toFloat()
-                }.roundToInt()
-            scrollState.animateScrollTo(target.coerceIn(0, scrollState.maxValue))
         }
     }
 
@@ -572,13 +524,11 @@ private fun ArticleSwipePageContent(
             link = readerState.link,
             publishedDate = readerState.publishedDate,
             isLoading = readerState.content is ReaderState.Loading,
-            scrollState = scrollState,
             scrollToTopRequest = bringToTopRequest,
             onHeadlineMeasured = onHeadlineMeasured,
             onImageClick = onImageClick,
             onScrollSnapshotChange = onScrollSnapshotChange,
             onLinkLongPress = onLinkLongPress,
-            onAnchorScroll = onAnchorScroll,
             onShowCustomView = onShowCustomView,
             onHideCustomView = onHideCustomView,
         )

@@ -43,8 +43,13 @@ import me.ash.reader.infrastructure.preference.LocalReadingTextFontSize
 import me.ash.reader.infrastructure.preference.LocalReadingTextHorizontalPadding
 import me.ash.reader.infrastructure.preference.LocalReadingTextLetterSpacing
 import me.ash.reader.infrastructure.preference.LocalReadingTextLineHeight
+import me.ash.reader.infrastructure.preference.LocalReadingTitleAlign
+import me.ash.reader.infrastructure.preference.LocalReadingTitleBold
+import me.ash.reader.infrastructure.preference.LocalReadingTitleUpperCase
 import me.ash.reader.infrastructure.preference.ReadingFontsPreference
+import me.ash.reader.infrastructure.preference.ReadingTitleAlignPreference
 import me.ash.reader.ui.ext.ExternalFonts
+import me.ash.reader.ui.ext.formatAsString
 import me.ash.reader.ui.ext.openURL
 import me.ash.reader.ui.ext.surfaceColorAtElevation
 import me.ash.reader.ui.theme.palette.alwaysLight
@@ -54,6 +59,7 @@ internal val LocalWebViewCreatedForTest = compositionLocalOf<((WebView) -> Unit)
 data class WebViewScrollSnapshot(
     val scrollY: Int,
     val maxScrollY: Int,
+    val viewportHeight: Int = 0,
     val isAtTop: Boolean,
     val isAtBottom: Boolean,
 )
@@ -71,6 +77,7 @@ class HorizontalScrollAwareWebView(context: Context) : WebView(context) {
     private val touchSlop = ViewConfiguration.get(context).scaledTouchSlop.toFloat()
     var loadedContentKey: WebViewContentKey? = null
     var onScrollSnapshotChanged: ((WebViewScrollSnapshot) -> Unit)? = null
+    var onHeadlineMeasured: ((Int) -> Unit)? = null
     var onImageClick: ((imgUrl: String, altText: String) -> Unit)? = null
     var onLinkLongPress: ((url: String, text: String) -> Unit)? = null
     var onAnchorScroll: ((cssTop: Double) -> Unit)? = null
@@ -109,61 +116,40 @@ class HorizontalScrollAwareWebView(context: Context) : WebView(context) {
     }
 
     fun emitScrollSnapshot() {
-        val maxScrollY = (computeVerticalScrollRange() - computeVerticalScrollExtent()).coerceAtLeast(0)
+        val contentHeight = computeVerticalScrollRange()
+        val viewportHeight = computeVerticalScrollExtent()
+        val maxScrollY = (contentHeight - viewportHeight).coerceAtLeast(0)
         onScrollSnapshotChanged?.invoke(
             WebViewScrollSnapshot(
                 scrollY = scrollY,
                 maxScrollY = maxScrollY,
-                isAtTop = !canScrollVertically(-1),
-                isAtBottom = !canScrollVertically(1),
+                viewportHeight = viewportHeight,
+                isAtTop = scrollY <= 0,
+                isAtBottom = scrollY >= maxScrollY,
             )
         )
     }
 
-    // Option B: the outer Compose verticalScroll column owns ALL vertical scrolling, so the
-    // inner WebView viewport must never gain scrollY (otherwise the outer returns to 0 first
-    // and the inner strands above 0, clipping the article top). Clamp every vertical scroll
-    // path to 0 while preserving horizontal scrolling, taps, selection and fullscreen.
-    override fun scrollTo(x: Int, y: Int) {
-        super.scrollTo(x, 0)
-    }
-
-    override fun scrollBy(x: Int, y: Int) {
-        super.scrollBy(x, 0)
-    }
-
-    override fun onOverScrolled(scrollX: Int, scrollY: Int, clampedX: Boolean, clampedY: Boolean) {
-        super.onOverScrolled(scrollX, 0, clampedX, true)
-    }
-
-    override fun computeScroll() {
-        super.computeScroll()
-        if (scrollY != 0) {
-            scrollTo(scrollX, 0)
-        }
-    }
-
-    override fun computeVerticalScrollRange(): Int = computeVerticalScrollExtent()
-
-    override fun canScrollVertically(direction: Int): Boolean = false
-
     override fun onScrollChanged(l: Int, t: Int, oldl: Int, oldt: Int) {
-        if (t != 0) {
-            // Native-driven scroll bypassed the clamp; snap back and report the clamped value.
-            post { scrollTo(l, 0) }
-            super.onScrollChanged(l, 0, oldl, oldt)
-        } else {
-            super.onScrollChanged(l, t, oldl, oldt)
+        super.onScrollChanged(l, t, oldl, oldt)
+        if (!headlineMeasured && t > 0) {
+            // Fallback: if the page-finish measurement never landed, measure on
+            // first real scroll so the top-bar title still has a threshold.
+            headlineMeasured = true
+            runHeadlineMeasure(settleCheckToken)
         }
         emitScrollSnapshot()
     }
 
     private var settleCheckToken = 0
+    private var headlineMeasured = false
 
     companion object {
-        // Genuine short boxes strand tens of px (observed ~67px); content-vs-box px
-        // rounding accounts for only a few px, so anything at/below this is noise.
-        private const val SHORT_BOX_TOLERANCE_PX = 8
+        private const val MEASURE_HEADLINE_JS =
+            "(function(){var h=document.getElementById('ry-headline');" +
+                "if(!h) return -1;" +
+                "return Math.round((h.getBoundingClientRect().bottom + window.scrollY)" +
+                " * window.devicePixelRatio);})()"
     }
 
     override fun loadDataWithBaseURL(
@@ -175,11 +161,13 @@ class HorizontalScrollAwareWebView(context: Context) : WebView(context) {
     ) {
         // New article invalidates any pending settle checks from the previous content.
         settleCheckToken++
+        headlineMeasured = false
         super.loadDataWithBaseURL(baseUrl, data, mimeType, encoding, historyUrl)
     }
 
     override fun loadUrl(url: String) {
         settleCheckToken++
+        headlineMeasured = false
         super.loadUrl(url)
     }
 
@@ -188,50 +176,33 @@ class HorizontalScrollAwareWebView(context: Context) : WebView(context) {
     }
 
     /**
-     * Called on page finish; re-checks after async image loads settle. If the measured box is
-     * still shorter than the content, the article top would clip, so force a remeasure/grow
-     * and log a warning (no crash).
+     * Called on page finish; the headline is text-only so its height is stable
+     * regardless of article images below. Measure it (plus once more after web
+     * fonts settle) so the top bar can show the title once it scrolls past.
      */
     fun notifyPageFinished() {
         val token = ++settleCheckToken
-        postDelayed({ runVerticalSettleCheck(token, "page-finished+500ms") }, 500)
-        postDelayed({ runVerticalSettleCheck(token, "page-finished+1500ms") }, 1500)
-        postDelayed({ runVerticalSettleCheck(token, "page-finished+3000ms") }, 3000)
+        post { runHeadlineMeasure(token) }
+        postDelayed({ runHeadlineMeasure(token) }, 500)
+        postDelayed({ runHeadlineMeasure(token) }, 1500)
+        postDelayed({ runHeadlineMeasure(token) }, 3000)
     }
 
-    private fun runVerticalSettleCheck(token: Int, stage: String) {
+    private fun runHeadlineMeasure(token: Int) {
         if (token != settleCheckToken) return
-        if (scrollY != 0) {
-            scrollTo(scrollX, 0)
-        }
-        val range = computeVerticalScrollRange()
-        val extent = computeVerticalScrollExtent()
-        if (range <= 0 || extent <= 0) return
-        val shortfall = (range - extent).coerceAtLeast(0)
-        if (shortfall > SHORT_BOX_TOLERANCE_PX) {
-            Timber.tag("RYWebView").w(
-                "short box at settle (%s): range=%dpx extent=%dpx shortfall=%dpx; forcing remeasure",
-                stage,
-                range,
-                extent,
-                shortfall,
-            )
-            requestLayout()
-            postDelayed({
-                if (token != settleCheckToken) return@postDelayed
-                val grownRange = computeVerticalScrollRange()
-                val grownExtent = computeVerticalScrollExtent()
-                val grownShortfall = (grownRange - grownExtent).coerceAtLeast(0)
-                if (grownExtent > 0 && grownShortfall > SHORT_BOX_TOLERANCE_PX) {
-                    Timber.tag("RYWebView").w(
-                        "box still short after remeasure (%s): range=%dpx extent=%dpx",
-                        stage,
-                        grownRange,
-                        grownExtent,
-                    )
+        runCatching {
+            evaluateJavascript(MEASURE_HEADLINE_JS) { result ->
+                if (token != settleCheckToken) return@evaluateJavascript
+                val px = result?.trim()?.trim('"')?.toDoubleOrNull()?.toInt()
+                    ?: return@evaluateJavascript
+                Timber.tag("RYWebView").d("headline measure raw=%s px=%d", result, px)
+                if (px > 0) {
+                    headlineMeasured = true
+                    onHeadlineMeasured?.invoke(px)
                 }
-            }, 500)
+            }
         }
+        emitScrollSnapshot()
     }
 
     @SuppressLint("ClickableViewAccessibility")
@@ -276,10 +247,15 @@ fun RYWebView(
     content: String,
     baseUrl: String? = null,
     refererDomain: String? = null,
+    headlineTitle: String = "",
+    headlineFeedName: String = "",
+    headlineAuthor: String? = null,
+    publishedDate: java.util.Date? = null,
     scrollToTopRequest: Int = 0,
     onImageClick: ((imgUrl: String, altText: String) -> Unit)? = null,
     onLinkLongPress: ((url: String, text: String) -> Unit)? = null,
     onAnchorScroll: ((cssTop: Double) -> Unit)? = null,
+    onHeadlineMeasured: ((Int) -> Unit)? = null,
     onShowCustomView: ((View, WebChromeClient.CustomViewCallback) -> Unit)? = null,
     onHideCustomView: (() -> Unit)? = null,
     onScrollSnapshotChange: ((WebViewScrollSnapshot) -> Unit)? = null,
@@ -311,10 +287,33 @@ fun RYWebView(
         MaterialTheme.colorScheme.surfaceColorAtElevation((tonalElevation.value + 6).dp).toArgb()
     val boldCharacters = LocalReadingBoldCharacters.current
     val onWebViewCreatedForTest = LocalWebViewCreatedForTest.current
+    val titleBold = LocalReadingTitleBold.current
+    val titleUpperCase = LocalReadingTitleUpperCase.current
+    val titleAlignCss =
+        when (LocalReadingTitleAlign.current) {
+            ReadingTitleAlignPreference.Center -> "center"
+            ReadingTitleAlignPreference.End -> "end"
+            ReadingTitleAlignPreference.Justify -> "justify"
+            else -> "start"
+        }
+    val headlineTitleColor: Int = MaterialTheme.colorScheme.onSurface.toArgb()
+    val headlineLabelColor: Int =
+        MaterialTheme.colorScheme.outline.copy(alpha = .7f).toArgb()
+    val textContentWidth = me.ash.reader.ui.component.reader.LocalTextContentWidth.current
+    val density = androidx.compose.ui.platform.LocalDensity.current
+    val contentMaxWidthPx =
+        remember(textContentWidth, density) {
+            with(density) { textContentWidth.roundToPx() }
+        }
+    val dateString =
+        remember(context, publishedDate) {
+            publishedDate?.formatAsString(context, atHourMinute = true).orEmpty()
+        }
 
     val currentOpenLink by rememberUpdatedState(openLink)
     val currentOpenLinkSpecificBrowser by rememberUpdatedState(openLinkSpecificBrowser)
     val onScrollSnapshotChangeState by rememberUpdatedState(onScrollSnapshotChange)
+    val onHeadlineMeasuredState by rememberUpdatedState(onHeadlineMeasured)
     val dynamicWebViewClient = remember(context, refererDomain) {
         WebViewClient(
             context = context,
@@ -360,8 +359,26 @@ fun RYWebView(
             "/android_res/font/google_sans_flex.ttf"
         } else null
     val htmlBaseUrl = baseUrl ?: "about:blank"
+    val headlineHtml =
+        remember(
+            headlineTitle,
+            headlineFeedName,
+            headlineAuthor,
+            dateString,
+            htmlBaseUrl,
+            titleUpperCase.value,
+        ) {
+            buildHeadlineHtml(
+                title = headlineTitle,
+                feedName = headlineFeedName,
+                author = headlineAuthor,
+                dateString = dateString,
+                link = htmlBaseUrl,
+                upperCaseTitle = titleUpperCase.value,
+            )
+        }
     val articleHtml by
-        produceState<String?>(initialValue = null, content, htmlBaseUrl, fontSize, fontPath, lineHeight, letterSpacing, textMargin, textColor, textBold, textAlign, boldTextColor, subheadBold, subheadUpperCase, imgMargin, imgBorderRadius, linkTextColor, codeTextColor, codeBgColor, selectionTextColor, selectionBgColor, boldCharacters.value) {
+        produceState<String?>(initialValue = null, content, headlineHtml, htmlBaseUrl, fontSize, fontPath, lineHeight, letterSpacing, textMargin, textColor, textBold, textAlign, boldTextColor, subheadBold, subheadUpperCase, imgMargin, imgBorderRadius, linkTextColor, codeTextColor, codeBgColor, selectionTextColor, selectionBgColor, headlineTitleColor, headlineLabelColor, titleBold.value, titleUpperCase.value, titleAlignCss, contentMaxWidthPx, boldCharacters.value) {
             val buildStartedAtMs = SystemClock.elapsedRealtime()
             value = null
             value =
@@ -387,8 +404,15 @@ fun RYWebView(
                             tableMargin = textMargin,
                             selectionTextColor = selectionTextColor,
                             selectionBgColor = selectionBgColor,
+                            titleColor = headlineTitleColor,
+                            labelColor = headlineLabelColor,
+                            titleBold = titleBold.value,
+                            titleUpperCase = titleUpperCase.value,
+                            titleAlign = titleAlignCss,
+                            contentMaxWidthPx = contentMaxWidthPx,
                         ),
                         htmlBaseUrl,
+                        headlineHtml,
                         content,
                         WebViewScript.get(boldCharacters.value),
                     )
@@ -411,6 +435,7 @@ fun RYWebView(
         factory = { webView },
         update = { wv ->
             wv.onScrollSnapshotChanged = { snapshot -> onScrollSnapshotChangeState?.invoke(snapshot) }
+            wv.onHeadlineMeasured = { px -> onHeadlineMeasuredState?.invoke(px) }
             if (wv.webViewClient !== dynamicWebViewClient) {
                 wv.webViewClient = dynamicWebViewClient
             }
@@ -447,4 +472,49 @@ fun RYWebView(
             }
         },
     )
+}
+
+private fun String.escapeHtml(): String =
+    replace("&", "&amp;")
+        .replace("<", "&lt;")
+        .replace(">", "&gt;")
+        .replace("\"", "&quot;")
+
+private fun buildHeadlineHtml(
+    title: String,
+    feedName: String,
+    author: String?,
+    dateString: String,
+    link: String,
+    upperCaseTitle: Boolean,
+): String {
+    if (title.isBlank() && feedName.isBlank()) return ""
+    val displayTitle = (if (upperCaseTitle) title.uppercase() else title).escapeHtml()
+    val titleHtml =
+        if (displayTitle.isNotBlank() && link.isNotBlank() && link != "about:blank") {
+            """<div class="ry-title" dir="auto"><a href="${link.escapeHtml()}">$displayTitle</a></div>"""
+        } else if (displayTitle.isNotBlank()) {
+            """<div class="ry-title" dir="auto">$displayTitle</div>"""
+        } else {
+            ""
+        }
+    val authorHtml =
+        if (!author.isNullOrBlank()) {
+            """<div class="ry-author" dir="auto">${author.escapeHtml()}</div>"""
+        } else {
+            ""
+        }
+    val feedHtml =
+        if (feedName.isNotBlank()) {
+            """<div class="ry-feed" dir="auto">${feedName.escapeHtml()}</div>"""
+        } else {
+            ""
+        }
+    val dateHtml =
+        if (dateString.isNotBlank()) {
+            """<div class="ry-date" dir="auto">${dateString.escapeHtml()}</div>"""
+        } else {
+            ""
+        }
+    return dateHtml + titleHtml + authorHtml + feedHtml
 }

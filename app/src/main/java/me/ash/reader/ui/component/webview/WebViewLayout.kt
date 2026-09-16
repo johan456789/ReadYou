@@ -74,6 +74,7 @@ object WebViewLayout {
         webView.cancelPendingSettleCheck()
         webView.loadedContentKey = null
         webView.onScrollSnapshotChanged = null
+        webView.onHeadlineMeasured = null
         webView.onImageClick = null
         webView.onLinkLongPress = null
         webView.onAnchorScroll = null
@@ -144,9 +145,10 @@ object WebViewLayout {
         onAnchorScroll: ((cssTop: Double) -> Unit)?,
     ): HorizontalScrollAwareWebView =
         HorizontalScrollAwareWebView(context).apply {
-            scrollBarSize = 0
             isHorizontalScrollBarEnabled = false
-            isVerticalScrollBarEnabled = true
+            // The reading screen draws the shared Compose scroll indicator over
+            // the page, so the native one stays off for a consistent look.
+            isVerticalScrollBarEnabled = false
             setBackgroundColor(Color.TRANSPARENT)
             addJavascriptInterface(
                 object : JavaScriptInterface {

@@ -15,6 +15,9 @@ object WebViewHtml {
 </head>
 <body>
 <main>
+    <header id="ry-headline" class="ry-headline">
+        %s
+    </header>
     <article>
         %s
     </article>
