@@ -85,12 +85,26 @@ internal fun articleSwipeSettleOffset(
     layoutDirection: LayoutDirection,
 ): Float = -articleSwipePageOffset(direction, widthPx, layoutDirection)
 
+/**
+ * A headline measurement only applies to the article the slot currently owns.
+ * Prefetched neighbor WebViews can report measurements while their slot has
+ * already moved on to a different article, so guard against stale results.
+ */
+internal fun resolveSlotHeadlineHeightPx(
+    slotArticleId: String?,
+    measuredArticleId: String?,
+    measuredPx: Int,
+): Int? =
+    measuredPx
+        .takeIf { it > 0 && slotArticleId != null && slotArticleId == measuredArticleId }
+
 private class ArticleSwipeSlot(
     val index: Int,
 ) {
     var articleId by mutableStateOf<String?>(null)
     var readerState by mutableStateOf<ReaderState?>(null)
     var target by mutableStateOf<ReaderState.PrefetchResult?>(null)
+    var headlineHeightPx by mutableStateOf(0)
 }
 
 @Composable
@@ -147,10 +161,12 @@ fun ArticleSwipePager(
                     slot.articleId = articleId
                     slot.readerState = currentReaderState
                     slot.target = null
+                    slot.headlineHeightPx = 0
                 } else {
                     slot.articleId = null
                     slot.readerState = null
                     slot.target = null
+                    slot.headlineHeightPx = 0
                 }
             }
         }
@@ -192,12 +208,14 @@ fun ArticleSwipePager(
                 slot.articleId = null
                 slot.readerState = null
                 slot.target = null
+                slot.headlineHeightPx = 0
                 return
             }
             slot.target = target
             if (slot.articleId == target.articleId && slot.readerState != null) return
             slot.articleId = target.articleId
             slot.readerState = ReaderState(articleId = target.articleId)
+            slot.headlineHeightPx = 0
             val preview = loadPreview(target.articleId, target.index)
             if (slot.articleId == target.articleId && currentId == visibleCurrentState.articleId) {
                 slot.readerState = preview
@@ -206,6 +224,28 @@ fun ArticleSwipePager(
 
         launch { loadInto(previousSlotIndex, previous) }
         launch { loadInto(nextSlotIndex, next) }
+    }
+
+    // The headline measurement is per-slot state so that a prefetched neighbor
+    // can be measured off-screen. When a slot becomes current (or the parent
+    // reloads the article after a swipe), seed the top-bar threshold from that
+    // slot's stored value. Live measurements for the current slot are forwarded
+    // directly below, so this only needs to fire on slot/article changes.
+    val currentSlot = slots[currentSlotIndex]
+    LaunchedEffect(
+        currentSlotIndex,
+        currentSlot.articleId,
+        currentReaderState.articleId,
+    ) {
+        // Only seed once the parent has actually switched to this slot's
+        // article; seeding against the previous article's scroll position would
+        // make the top bar flash the new title before the page settles at top.
+        if (
+            currentSlot.articleId != null &&
+                currentSlot.articleId == currentReaderState.articleId
+        ) {
+            onCurrentHeadlineMeasured(currentSlot.headlineHeightPx)
+        }
     }
 
     BoxWithConstraints(
@@ -373,8 +413,15 @@ fun ArticleSwipePager(
                             contentPadding = contentPadding,
                             bringToTopRequest = if (isCurrent) bringToTopRequest else 0,
                             onBringToTopHandled = onBringToTopHandled,
-                            onHeadlineMeasured = {
-                                if (isCurrent) onCurrentHeadlineMeasured(it)
+                            onHeadlineMeasured = { px ->
+                                resolveSlotHeadlineHeightPx(
+                                    slotArticleId = slot.articleId,
+                                    measuredArticleId = state.articleId,
+                                    measuredPx = px,
+                                )?.let { measuredPx ->
+                                    slot.headlineHeightPx = measuredPx
+                                    if (isCurrent) onCurrentHeadlineMeasured(measuredPx)
+                                }
                             },
                             onScrollSnapshotChange = {
                                 if (isCurrent) onCurrentScrollSnapshotChange(it)

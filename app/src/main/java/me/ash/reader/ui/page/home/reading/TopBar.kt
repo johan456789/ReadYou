@@ -30,8 +30,11 @@ import androidx.compose.material3.Text
 import androidx.compose.material3.TopAppBar
 import androidx.compose.material3.TopAppBarDefaults
 import androidx.compose.runtime.Composable
+import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.getValue
+import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
+import androidx.compose.runtime.setValue
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.drawBehind
 import androidx.compose.ui.graphics.Color
@@ -64,6 +67,14 @@ fun TopBar(
     val sharedContent = LocalSharedContent.current
     val isOutlined =
         LocalReadingPageTonalElevation.current == ReadingPageTonalElevationPreference.Outlined
+    val isTitleVisible = showTitle && !title.isNullOrBlank()
+    // Keep the last visible title while the bar is fading out. Otherwise the
+    // exit animation would render the newly selected article's title, which
+    // makes the title flash on screen right after a horizontal swipe.
+    var displayedTitle by remember { mutableStateOf(title) }
+    LaunchedEffect(isTitleVisible, title) {
+        if (isTitleVisible) displayedTitle = title
+    }
 
     val containerColor by
         animateColorAsState(
@@ -83,12 +94,12 @@ fun TopBar(
             TopAppBar(
                 title = {
                     AnimatedVisibility(
-                        visible = showTitle && !title.isNullOrBlank(),
+                        visible = isTitleVisible,
                         enter = fadeIn(),
                         exit = fadeOut(),
                     ) {
                         Text(
-                            text = title.orEmpty(),
+                            text = displayedTitle.orEmpty(),
                             maxLines = 1,
                             overflow = TextOverflow.Ellipsis,
                             style =

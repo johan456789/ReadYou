@@ -115,30 +115,29 @@ fun ReadingPage(
         fullscreenVideoCallback?.onCustomViewHidden()
     }
 
-    var showTopDivider by remember(contentStateKey, readerState.articleId) {
-        mutableStateOf(false)
-    }
-    var showTitleInTopBar by remember(contentStateKey, readerState.articleId) {
-        mutableStateOf(false)
-    }
-
-    // The WebView owns vertical scrolling; the top bar follows its native position.
-    LaunchedEffect(webViewScrollSnapshot, headlineHeightPx) {
-        val newDivider = shouldShowTopDivider(webViewScrollSnapshot.isAtTop)
-        val newTitle =
-            shouldShowTitleInTopBar(webViewScrollSnapshot.scrollY, headlineHeightPx)
-        if (newDivider != showTopDivider || newTitle != showTitleInTopBar) {
-            Timber.tag("ReaderTopBar").d(
-                "divider=%s title=%s scrollY=%d max=%d headlinePx=%d",
-                newDivider,
-                newTitle,
-                webViewScrollSnapshot.scrollY,
-                webViewScrollSnapshot.maxScrollY,
-                headlineHeightPx,
-            )
-        }
-        showTopDivider = newDivider
-        showTitleInTopBar = newTitle
+    // The WebView owns vertical scrolling; the top bar follows its native
+    // position. Derive visibility during composition instead of in an effect so
+    // that when the article (and its title) changes, visibility is recomputed in
+    // the same recomposition and cannot briefly show the new title for the old
+    // article's scroll position.
+    val showTopDivider = shouldShowTopDivider(webViewScrollSnapshot.isAtTop)
+    val showTitleInTopBar =
+        shouldShowTitleInTopBar(webViewScrollSnapshot.scrollY, headlineHeightPx)
+    LaunchedEffect(
+        showTopDivider,
+        showTitleInTopBar,
+        webViewScrollSnapshot.scrollY,
+        webViewScrollSnapshot.maxScrollY,
+        headlineHeightPx,
+    ) {
+        Timber.tag("ReaderTopBar").d(
+            "divider=%s title=%s scrollY=%d max=%d headlinePx=%d",
+            showTopDivider,
+            showTitleInTopBar,
+            webViewScrollSnapshot.scrollY,
+            webViewScrollSnapshot.maxScrollY,
+            headlineHeightPx,
+        )
     }
 
     var bringToTop by remember { mutableStateOf(false) }
