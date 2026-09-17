@@ -4,7 +4,6 @@ import androidx.compose.ui.unit.LayoutDirection
 import org.junit.Assert.assertEquals
 import org.junit.Assert.assertNull
 import org.junit.Test
-
 class ArticleSwipePagerTest {
 
     @Test
@@ -134,6 +133,84 @@ class ArticleSwipePagerTest {
                 widthPx = 300f,
                 layoutDirection = LayoutDirection.Rtl,
             ),
+        )
+    }
+
+    @Test
+    fun `headline measurement accepted for matching article`() {
+        assertEquals(
+            600,
+            resolveSlotHeadlineHeightPx(
+                slotArticleId = "article-a",
+                measuredArticleId = "article-a",
+                measuredPx = 600,
+            ),
+        )
+    }
+
+    @Test
+    fun `headline measurement rejected when slot moved on`() {
+        assertNull(
+            resolveSlotHeadlineHeightPx(
+                slotArticleId = "article-b",
+                measuredArticleId = "article-a",
+                measuredPx = 600,
+            ),
+        )
+    }
+
+    @Test
+    fun `headline measurement rejected without slot article`() {
+        assertNull(
+            resolveSlotHeadlineHeightPx(
+                slotArticleId = null,
+                measuredArticleId = "article-a",
+                measuredPx = 600,
+            ),
+        )
+    }
+
+    @Test
+    fun `non positive headline measurement rejected`() {
+        assertNull(
+            resolveSlotHeadlineHeightPx(
+                slotArticleId = "article-a",
+                measuredArticleId = "article-a",
+                measuredPx = 0,
+            ),
+        )
+    }
+
+    @Test
+    fun `drag direction is null at rest`() {
+        assertNull(articleSwipeDragDirection(dragOffset = 0f, layoutDirection = LayoutDirection.Ltr))
+    }
+
+    @Test
+    fun `ltr drag left pulls in next article`() {
+        assertEquals(
+            ArticleSwipeDirection.Next,
+            articleSwipeDragDirection(dragOffset = -120f, layoutDirection = LayoutDirection.Ltr),
+        )
+    }
+
+    @Test
+    fun `ltr drag right pulls in previous article`() {
+        assertEquals(
+            ArticleSwipeDirection.Previous,
+            articleSwipeDragDirection(dragOffset = 120f, layoutDirection = LayoutDirection.Ltr),
+        )
+    }
+
+    @Test
+    fun `rtl drag reverses pull direction`() {
+        assertEquals(
+            ArticleSwipeDirection.Previous,
+            articleSwipeDragDirection(dragOffset = -120f, layoutDirection = LayoutDirection.Rtl),
+        )
+        assertEquals(
+            ArticleSwipeDirection.Next,
+            articleSwipeDragDirection(dragOffset = 120f, layoutDirection = LayoutDirection.Rtl),
         )
     }
 }

@@ -4,7 +4,9 @@ import android.view.View
 import android.webkit.WebChromeClient
 import androidx.compose.animation.core.Animatable
 import androidx.compose.animation.core.Spring
+import androidx.compose.animation.core.animateFloatAsState
 import androidx.compose.animation.core.spring
+import androidx.compose.animation.core.tween
 import androidx.compose.foundation.gestures.awaitEachGesture
 import androidx.compose.foundation.gestures.awaitFirstDown
 import androidx.compose.foundation.gestures.awaitHorizontalTouchSlopOrCancellation
@@ -16,6 +18,7 @@ import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.offset
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.LaunchedEffect
+import androidx.compose.runtime.SideEffect
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.key
 import androidx.compose.runtime.mutableFloatStateOf
@@ -85,12 +88,44 @@ internal fun articleSwipeSettleOffset(
     layoutDirection: LayoutDirection,
 ): Float = -articleSwipePageOffset(direction, widthPx, layoutDirection)
 
+/**
+ * Which way a horizontal drag is heading (i.e. which page is being pulled in),
+ * independent of the settle threshold. Null when the finger is at rest.
+ */
+internal fun articleSwipeDragDirection(
+    dragOffset: Float,
+    layoutDirection: LayoutDirection,
+): ArticleSwipeDirection? {
+    if (dragOffset == 0f) return null
+    return when {
+        layoutDirection == LayoutDirection.Ltr && dragOffset < 0f -> ArticleSwipeDirection.Next
+        layoutDirection == LayoutDirection.Ltr -> ArticleSwipeDirection.Previous
+        dragOffset < 0f -> ArticleSwipeDirection.Previous
+        else -> ArticleSwipeDirection.Next
+    }
+}
+
+/**
+ * A headline measurement only applies to the article the slot currently owns.
+ * Prefetched neighbor WebViews can report measurements while their slot has
+ * already moved on to a different article, so guard against stale results.
+ */
+internal fun resolveSlotHeadlineHeightPx(
+    slotArticleId: String?,
+    measuredArticleId: String?,
+    measuredPx: Int,
+): Int? =
+    measuredPx
+        .takeIf { it > 0 && slotArticleId != null && slotArticleId == measuredArticleId }
+
 private class ArticleSwipeSlot(
     val index: Int,
 ) {
     var articleId by mutableStateOf<String?>(null)
     var readerState by mutableStateOf<ReaderState?>(null)
     var target by mutableStateOf<ReaderState.PrefetchResult?>(null)
+    var headlineHeightPx by mutableStateOf(0)
+    var scrollSnapshot by mutableStateOf(WebViewScrollSnapshot(0, 0, 0, true, true))
 }
 
 @Composable
@@ -104,6 +139,7 @@ fun ArticleSwipePager(
     bringToTopRequest: Int,
     onCurrentHeadlineMeasured: (Int) -> Unit,
     onCurrentScrollSnapshotChange: (WebViewScrollSnapshot) -> Unit,
+    onTitleLayersChange: (List<TopBarTitleLayer>) -> Unit,
     onImageClick: (String, String) -> Unit,
     onLinkLongPress: (String, String) -> Unit,
     onShowCustomView: (View, WebChromeClient.CustomViewCallback) -> Unit,
@@ -147,10 +183,12 @@ fun ArticleSwipePager(
                     slot.articleId = articleId
                     slot.readerState = currentReaderState
                     slot.target = null
+                    slot.headlineHeightPx = 0
                 } else {
                     slot.articleId = null
                     slot.readerState = null
                     slot.target = null
+                    slot.headlineHeightPx = 0
                 }
             }
         }
@@ -192,12 +230,14 @@ fun ArticleSwipePager(
                 slot.articleId = null
                 slot.readerState = null
                 slot.target = null
+                slot.headlineHeightPx = 0
                 return
             }
             slot.target = target
             if (slot.articleId == target.articleId && slot.readerState != null) return
             slot.articleId = target.articleId
             slot.readerState = ReaderState(articleId = target.articleId)
+            slot.headlineHeightPx = 0
             val preview = loadPreview(target.articleId, target.index)
             if (slot.articleId == target.articleId && currentId == visibleCurrentState.articleId) {
                 slot.readerState = preview
@@ -208,6 +248,53 @@ fun ArticleSwipePager(
         launch { loadInto(nextSlotIndex, next) }
     }
 
+    // The headline measurement is per-slot state so that a prefetched neighbor
+    // can be measured off-screen. When a slot becomes current (or the parent
+    // reloads the article after a swipe), seed the top-bar threshold from that
+    // slot's stored value. Live measurements for the current slot are forwarded
+    // directly below, so this only needs to fire on slot/article changes.
+    val currentSlot = slots[currentSlotIndex]
+    LaunchedEffect(
+        currentSlotIndex,
+        currentSlot.articleId,
+        currentReaderState.articleId,
+    ) {
+        // Only seed once the parent has actually switched to this slot's
+        // article; seeding against the previous article's scroll position would
+        // make the top bar flash the new title before the page settles at top.
+        if (
+            currentSlot.articleId != null &&
+                currentSlot.articleId == currentReaderState.articleId
+        ) {
+            onCurrentHeadlineMeasured(currentSlot.headlineHeightPx)
+        }
+    }
+
+    // Animate each slot's "title should show" boolean so a title fades in and
+    // out as its headline scrolls past. During a swipe these alphas are
+    // multiplied by the drag progress, so the crossfade tracks the finger
+    // instead of running on an independent bar-level animation.
+    val slotTitleAlpha =
+        slots.map { slot ->
+            key(slot.index) {
+                animateFloatAsState(
+                    targetValue =
+                        if (
+                            shouldShowTitleInTopBar(
+                                slot.scrollSnapshot.scrollY,
+                                slot.headlineHeightPx,
+                            )
+                        ) {
+                            1f
+                        } else {
+                            0f
+                        },
+                    animationSpec = tween(durationMillis = 200),
+                    label = "slotTitleAlpha",
+                ).value
+            }
+        }
+
     BoxWithConstraints(
         modifier =
             Modifier
@@ -215,6 +302,35 @@ fun ArticleSwipePager(
                 .clipToBounds()
     ) {
         val widthPx = with(LocalDensity.current) { maxWidth.toPx() }
+
+        // Crossfade the top-bar title with the horizontal drag: the outgoing
+        // slot's title fades out and the incoming slot's fades in, each only if
+        // its own headline is scrolled out of view. The incoming layer is
+        // invisible when that article is still at the top.
+        val swipeProgress = (abs(dragOffsetPx) / widthPx).coerceIn(0f, 1f)
+        val incomingSlotIndex =
+            articleSwipeDragDirection(dragOffsetPx, layoutDirection)?.let { direction ->
+                when (direction) {
+                    ArticleSwipeDirection.Next -> nextSlotIndex
+                    ArticleSwipeDirection.Previous -> previousSlotIndex
+                }
+            }
+        val titleLayers =
+            buildList {
+                val outgoingTitle = visibleCurrentState.title
+                val outgoingAlpha = slotTitleAlpha[currentSlotIndex] * (1f - swipeProgress)
+                if (outgoingAlpha > 0.01f && !outgoingTitle.isNullOrBlank()) {
+                    add(TopBarTitleLayer(outgoingTitle, outgoingAlpha))
+                }
+                if (incomingSlotIndex != null) {
+                    val incomingTitle = slots[incomingSlotIndex].readerState?.title
+                    val incomingAlpha = slotTitleAlpha[incomingSlotIndex] * swipeProgress
+                    if (incomingAlpha > 0.01f && !incomingTitle.isNullOrBlank()) {
+                        add(TopBarTitleLayer(incomingTitle, incomingAlpha))
+                    }
+                }
+            }
+        SideEffect { onTitleLayersChange(titleLayers) }
 
         Box(
             modifier =
@@ -373,11 +489,19 @@ fun ArticleSwipePager(
                             contentPadding = contentPadding,
                             bringToTopRequest = if (isCurrent) bringToTopRequest else 0,
                             onBringToTopHandled = onBringToTopHandled,
-                            onHeadlineMeasured = {
-                                if (isCurrent) onCurrentHeadlineMeasured(it)
+                            onHeadlineMeasured = { px ->
+                                resolveSlotHeadlineHeightPx(
+                                    slotArticleId = slot.articleId,
+                                    measuredArticleId = state.articleId,
+                                    measuredPx = px,
+                                )?.let { measuredPx ->
+                                    slot.headlineHeightPx = measuredPx
+                                    if (isCurrent) onCurrentHeadlineMeasured(measuredPx)
+                                }
                             },
-                            onScrollSnapshotChange = {
-                                if (isCurrent) onCurrentScrollSnapshotChange(it)
+                            onScrollSnapshotChange = { snapshot ->
+                                slot.scrollSnapshot = snapshot
+                                if (isCurrent) onCurrentScrollSnapshotChange(snapshot)
                             },
                             onImageClick = onImageClick,
                             onLinkLongPress = onLinkLongPress,

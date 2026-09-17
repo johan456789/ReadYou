@@ -1,13 +1,11 @@
 package me.ash.reader.ui.page.home.reading
 
-import androidx.compose.animation.AnimatedVisibility
 import androidx.compose.animation.animateColorAsState
 import androidx.compose.animation.core.Spring
 import androidx.compose.animation.core.spring
-import androidx.compose.animation.fadeIn
-import androidx.compose.animation.fadeOut
 import androidx.compose.foundation.clickable
 import androidx.compose.foundation.interaction.MutableInteractionSource
+import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.Spacer
 import androidx.compose.foundation.layout.WindowInsets
@@ -32,7 +30,9 @@ import androidx.compose.material3.TopAppBarDefaults
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.remember
+import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
+import androidx.compose.ui.draw.alpha
 import androidx.compose.ui.draw.drawBehind
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.platform.LocalContext
@@ -48,13 +48,22 @@ import me.ash.reader.infrastructure.preference.ReadingPageTonalElevationPreferen
 import me.ash.reader.ui.component.base.FeedbackIconButton
 import me.ash.reader.ui.page.adaptive.NavigationAction
 
+/**
+ * One title drawn in the top bar. During a horizontal swipe the bar renders the
+ * outgoing and incoming layers at complementary alphas, so the title crossfades
+ * in step with the pages instead of lingering behind a fixed-duration animation.
+ */
+data class TopBarTitleLayer(
+    val text: String,
+    val alpha: Float,
+)
+
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable
 fun TopBar(
     isScrolled: Boolean = false,
-    title: String? = "",
+    titleLayers: List<TopBarTitleLayer> = emptyList(),
     link: String? = "",
-    showTitle: Boolean = isScrolled,
     navigationAction: NavigationAction,
     onClick: (() -> Unit)? = null,
     onNavButtonClick: (NavigationAction) -> Unit = {},
@@ -82,21 +91,25 @@ fun TopBar(
             )
             TopAppBar(
                 title = {
-                    AnimatedVisibility(
-                        visible = showTitle && !title.isNullOrBlank(),
-                        enter = fadeIn(),
-                        exit = fadeOut(),
-                    ) {
-                        Text(
-                            text = title.orEmpty(),
-                            maxLines = 1,
-                            overflow = TextOverflow.Ellipsis,
-                            style =
-                                MaterialTheme.typography.titleLarge.merge(
-                                    fontSize = 18.sp,
-                                    fontWeight = FontWeight.Medium,
-                                ),
-                        )
+                    Box {
+                        // Outgoing and incoming titles overlap and fade past each
+                        // other while their pages slide, so the title follows the
+                        // gesture rather than waiting for a bar-level animation.
+                        titleLayers.forEach { layer ->
+                            if (layer.alpha > 0.01f) {
+                                Text(
+                                    modifier = Modifier.alpha(layer.alpha),
+                                    text = layer.text,
+                                    maxLines = 1,
+                                    overflow = TextOverflow.Ellipsis,
+                                    style =
+                                        MaterialTheme.typography.titleLarge.merge(
+                                            fontSize = 18.sp,
+                                            fontWeight = FontWeight.Medium,
+                                        ),
+                                )
+                            }
+                        }
                     }
                 },
                 modifier =
@@ -144,7 +157,8 @@ fun TopBar(
                         contentDescription = stringResource(R.string.share),
                         tint = MaterialTheme.colorScheme.onSurface,
                     ) {
-                        sharedContent.share(context, title, link)
+                        val shareTitle = titleLayers.maxByOrNull { it.alpha }?.text
+                        sharedContent.share(context, shareTitle, link)
                     }
                 },
                 colors = TopAppBarDefaults.topAppBarColors(containerColor = Color.Transparent),
