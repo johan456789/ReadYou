@@ -180,4 +180,37 @@ class ArticleSwipePagerTest {
             ),
         )
     }
+
+    @Test
+    fun `drag direction is null at rest`() {
+        assertNull(articleSwipeDragDirection(dragOffset = 0f, layoutDirection = LayoutDirection.Ltr))
+    }
+
+    @Test
+    fun `ltr drag left pulls in next article`() {
+        assertEquals(
+            ArticleSwipeDirection.Next,
+            articleSwipeDragDirection(dragOffset = -120f, layoutDirection = LayoutDirection.Ltr),
+        )
+    }
+
+    @Test
+    fun `ltr drag right pulls in previous article`() {
+        assertEquals(
+            ArticleSwipeDirection.Previous,
+            articleSwipeDragDirection(dragOffset = 120f, layoutDirection = LayoutDirection.Ltr),
+        )
+    }
+
+    @Test
+    fun `rtl drag reverses pull direction`() {
+        assertEquals(
+            ArticleSwipeDirection.Previous,
+            articleSwipeDragDirection(dragOffset = -120f, layoutDirection = LayoutDirection.Rtl),
+        )
+        assertEquals(
+            ArticleSwipeDirection.Next,
+            articleSwipeDragDirection(dragOffset = 120f, layoutDirection = LayoutDirection.Rtl),
+        )
+    }
 }

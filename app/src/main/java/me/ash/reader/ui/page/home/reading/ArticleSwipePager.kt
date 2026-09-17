@@ -4,7 +4,9 @@ import android.view.View
 import android.webkit.WebChromeClient
 import androidx.compose.animation.core.Animatable
 import androidx.compose.animation.core.Spring
+import androidx.compose.animation.core.animateFloatAsState
 import androidx.compose.animation.core.spring
+import androidx.compose.animation.core.tween
 import androidx.compose.foundation.gestures.awaitEachGesture
 import androidx.compose.foundation.gestures.awaitFirstDown
 import androidx.compose.foundation.gestures.awaitHorizontalTouchSlopOrCancellation
@@ -16,6 +18,7 @@ import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.offset
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.LaunchedEffect
+import androidx.compose.runtime.SideEffect
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.key
 import androidx.compose.runtime.mutableFloatStateOf
@@ -86,6 +89,23 @@ internal fun articleSwipeSettleOffset(
 ): Float = -articleSwipePageOffset(direction, widthPx, layoutDirection)
 
 /**
+ * Which way a horizontal drag is heading (i.e. which page is being pulled in),
+ * independent of the settle threshold. Null when the finger is at rest.
+ */
+internal fun articleSwipeDragDirection(
+    dragOffset: Float,
+    layoutDirection: LayoutDirection,
+): ArticleSwipeDirection? {
+    if (dragOffset == 0f) return null
+    return when {
+        layoutDirection == LayoutDirection.Ltr && dragOffset < 0f -> ArticleSwipeDirection.Next
+        layoutDirection == LayoutDirection.Ltr -> ArticleSwipeDirection.Previous
+        dragOffset < 0f -> ArticleSwipeDirection.Previous
+        else -> ArticleSwipeDirection.Next
+    }
+}
+
+/**
  * A headline measurement only applies to the article the slot currently owns.
  * Prefetched neighbor WebViews can report measurements while their slot has
  * already moved on to a different article, so guard against stale results.
@@ -105,6 +125,7 @@ private class ArticleSwipeSlot(
     var readerState by mutableStateOf<ReaderState?>(null)
     var target by mutableStateOf<ReaderState.PrefetchResult?>(null)
     var headlineHeightPx by mutableStateOf(0)
+    var scrollSnapshot by mutableStateOf(WebViewScrollSnapshot(0, 0, 0, true, true))
 }
 
 @Composable
@@ -118,6 +139,7 @@ fun ArticleSwipePager(
     bringToTopRequest: Int,
     onCurrentHeadlineMeasured: (Int) -> Unit,
     onCurrentScrollSnapshotChange: (WebViewScrollSnapshot) -> Unit,
+    onTitleLayersChange: (List<TopBarTitleLayer>) -> Unit,
     onImageClick: (String, String) -> Unit,
     onLinkLongPress: (String, String) -> Unit,
     onShowCustomView: (View, WebChromeClient.CustomViewCallback) -> Unit,
@@ -248,6 +270,31 @@ fun ArticleSwipePager(
         }
     }
 
+    // Animate each slot's "title should show" boolean so a title fades in and
+    // out as its headline scrolls past. During a swipe these alphas are
+    // multiplied by the drag progress, so the crossfade tracks the finger
+    // instead of running on an independent bar-level animation.
+    val slotTitleAlpha =
+        slots.map { slot ->
+            key(slot.index) {
+                animateFloatAsState(
+                    targetValue =
+                        if (
+                            shouldShowTitleInTopBar(
+                                slot.scrollSnapshot.scrollY,
+                                slot.headlineHeightPx,
+                            )
+                        ) {
+                            1f
+                        } else {
+                            0f
+                        },
+                    animationSpec = tween(durationMillis = 200),
+                    label = "slotTitleAlpha",
+                ).value
+            }
+        }
+
     BoxWithConstraints(
         modifier =
             Modifier
@@ -255,6 +302,35 @@ fun ArticleSwipePager(
                 .clipToBounds()
     ) {
         val widthPx = with(LocalDensity.current) { maxWidth.toPx() }
+
+        // Crossfade the top-bar title with the horizontal drag: the outgoing
+        // slot's title fades out and the incoming slot's fades in, each only if
+        // its own headline is scrolled out of view. The incoming layer is
+        // invisible when that article is still at the top.
+        val swipeProgress = (abs(dragOffsetPx) / widthPx).coerceIn(0f, 1f)
+        val incomingSlotIndex =
+            articleSwipeDragDirection(dragOffsetPx, layoutDirection)?.let { direction ->
+                when (direction) {
+                    ArticleSwipeDirection.Next -> nextSlotIndex
+                    ArticleSwipeDirection.Previous -> previousSlotIndex
+                }
+            }
+        val titleLayers =
+            buildList {
+                val outgoingTitle = visibleCurrentState.title
+                val outgoingAlpha = slotTitleAlpha[currentSlotIndex] * (1f - swipeProgress)
+                if (outgoingAlpha > 0.01f && !outgoingTitle.isNullOrBlank()) {
+                    add(TopBarTitleLayer(outgoingTitle, outgoingAlpha))
+                }
+                if (incomingSlotIndex != null) {
+                    val incomingTitle = slots[incomingSlotIndex].readerState?.title
+                    val incomingAlpha = slotTitleAlpha[incomingSlotIndex] * swipeProgress
+                    if (incomingAlpha > 0.01f && !incomingTitle.isNullOrBlank()) {
+                        add(TopBarTitleLayer(incomingTitle, incomingAlpha))
+                    }
+                }
+            }
+        SideEffect { onTitleLayersChange(titleLayers) }
 
         Box(
             modifier =
@@ -423,8 +499,9 @@ fun ArticleSwipePager(
                                     if (isCurrent) onCurrentHeadlineMeasured(measuredPx)
                                 }
                             },
-                            onScrollSnapshotChange = {
-                                if (isCurrent) onCurrentScrollSnapshotChange(it)
+                            onScrollSnapshotChange = { snapshot ->
+                                slot.scrollSnapshot = snapshot
+                                if (isCurrent) onCurrentScrollSnapshotChange(snapshot)
                             },
                             onImageClick = onImageClick,
                             onLinkLongPress = onLinkLongPress,

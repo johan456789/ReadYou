@@ -8,6 +8,7 @@ import androidx.compose.animation.core.FastOutLinearInEasing
 import androidx.compose.animation.core.LinearOutSlowInEasing
 import androidx.compose.animation.core.Spring
 import androidx.compose.animation.core.VisibilityThreshold
+import androidx.compose.animation.core.animateFloatAsState
 import androidx.compose.animation.core.spring
 import androidx.compose.animation.core.tween
 import androidx.compose.animation.fadeIn
@@ -142,6 +143,34 @@ fun ReadingPage(
 
     var bringToTop by remember { mutableStateOf(false) }
 
+    // The swipe pager computes a crossfading pair of title layers from the live
+    // drag progress. The other reading path (tap / next-article animations) has
+    // no drag, so it drives a single layer from the scroll visibility.
+    var swipeTitleLayers by remember { mutableStateOf<List<TopBarTitleLayer>>(emptyList()) }
+    val fallbackTitleAlpha by
+        animateFloatAsState(
+            targetValue = if (showTitleInTopBar) 1f else 0f,
+            animationSpec = tween(durationMillis = 200),
+            label = "fallbackTitleAlpha",
+        )
+    // Keep the outgoing article's title while the fallback bar fades out so a
+    // newly opened article's title cannot flash for the previous scroll position.
+    var fallbackTitle by remember { mutableStateOf(readerState.title) }
+    LaunchedEffect(showTitleInTopBar, readerState.title) {
+        if (showTitleInTopBar) fallbackTitle = readerState.title
+    }
+    val topBarTitleLayers =
+        if (isSwipeToSwitchArticleEnabled) {
+            swipeTitleLayers
+        } else {
+            val text = fallbackTitle
+            if (fallbackTitleAlpha > 0.01f && !text.isNullOrBlank()) {
+                listOf(TopBarTitleLayer(text, fallbackTitleAlpha))
+            } else {
+                emptyList()
+            }
+        }
+
     LinkActionDialog(
         visible = showLinkActionDialog,
         linkData = linkActionData,
@@ -155,9 +184,8 @@ fun ReadingPage(
                 if (readerState.articleId != null) {
                     TopBar(
                         isScrolled = showTopDivider,
-                        title = readerState.title,
+                        titleLayers = topBarTitleLayers,
                         link = readerState.link,
-                        showTitle = showTitleInTopBar,
                         onClick = {
                             scrollToTopRequest += 1
                             bringToTop = true
@@ -249,6 +277,7 @@ fun ReadingPage(
                                 onCurrentScrollSnapshotChange = {
                                     webViewScrollSnapshot = it
                                 },
+                                onTitleLayersChange = { swipeTitleLayers = it },
                                 onImageClick = { imgUrl, altText ->
                                     currentImageData = ImageData(imgUrl, altText)
                                     showFullScreenImageViewer = true
