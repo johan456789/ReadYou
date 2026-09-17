@@ -59,7 +59,7 @@ material3Adaptive = "1.3.0-alpha06"
 
 navigationevent = "1.0.0-beta01"
 composeBomStable = "2025.10.01"
-composeBomAlpha = "2025.10.01"
+composeBomAlpha = "2025.12.00"
 
 [libraries]
 # AboutLibraries
