@@ -328,6 +328,17 @@ constructor(
     private val currentFeed: Feed?
         get() = readingUiState.value.articleWithFeed?.feed
 
+    /**
+     * Manual per-article FullContent choice ("Parse full content" toggle in [BottomBar]).
+     * True = user asked for FullContent, False = user explicitly switched back to Description.
+     * Needed because [readerCacheHelper] disk cache alone cannot distinguish "user switched
+     * back to Description" (cache still exists) from "still wants FullContent", and
+     * [Feed.isFullContent] alone ignores the manual toggle. Preserved across horizontal
+     * swipe navigation so swiping back to an article still in the 3-slot
+     * [ArticleSwipePager] quota reuses its FullContent page instead of resetting.
+     */
+    private val fullContentManualOverride = mutableMapOf<String, Boolean>()
+
     fun initData(articleId: String, listIndex: Int? = null) {
         viewModelScope.launch {
             val snapshotList = articleListUseCase.itemSnapshotList
@@ -391,18 +402,33 @@ constructor(
     }
 
     suspend fun ReaderState.renderContent(articleWithFeed: ArticleWithFeed): ReaderState {
-        val contentState =
-            if (articleWithFeed.feed.isFullContent) {
-                val fullContent =
-                    readerCacheHelper.readFullContent(articleWithFeed.article.id).getOrNull()
+        val articleId = articleWithFeed.article.id
+        if (articleWithFeed.feed.isFullContent) {
+            val fullContent = readerCacheHelper.readFullContent(articleId).getOrNull()
+            val contentState =
                 if (fullContent != null) ReaderState.FullContent(fullContent)
                 else {
                     renderFullContent()
                     ReaderState.Loading
                 }
-            } else ReaderState.Description(articleWithFeed.article.rawDescription)
+            return copy(content = contentState)
+        }
 
-        return copy(content = contentState)
+        // Feed is not auto-FullContent: preserve the manual "Parse full content" toggle
+        // and disk cache across swipe navigation. An explicit switch back to Description
+        // (override == false) wins over a stale cache entry.
+        if (fullContentManualOverride[articleId] == false) {
+            return copy(content = ReaderState.Description(articleWithFeed.article.rawDescription))
+        }
+        val cachedFullContent = readerCacheHelper.readFullContent(articleId).getOrNull()
+        if (cachedFullContent != null) {
+            return copy(content = ReaderState.FullContent(cachedFullContent))
+        }
+        if (fullContentManualOverride[articleId] == true) {
+            renderFullContent()
+            return copy(content = ReaderState.Loading)
+        }
+        return copy(content = ReaderState.Description(articleWithFeed.article.rawDescription))
     }
 
     suspend fun previewReaderState(articleId: String, listIndex: Int? = null): ReaderState =
@@ -433,18 +459,21 @@ constructor(
                 .copy(content = articleWithFeed.previewContent())
         }
 
-    private suspend fun ArticleWithFeed.previewContent(): ReaderState.ContentState =
-        if (feed.isFullContent) {
-            readerCacheHelper
-                .readFullContent(article.id)
-                .getOrNull()
-                ?.let { ReaderState.FullContent(it) }
-                ?: ReaderState.Description(article.rawDescription)
-        } else {
-            ReaderState.Description(article.rawDescription)
+    private suspend fun ArticleWithFeed.previewContent(): ReaderState.ContentState {
+        // Neighbor prefetch for the 3-slot ArticleSwipePager: reuse the FullContent page
+        // when the article is still loaded (manual toggle or disk cache), so swiping back
+        // does not flash a Description. Never triggers a network fetch here.
+        if (fullContentManualOverride[article.id] == false) {
+            return ReaderState.Description(article.rawDescription)
         }
+        readerCacheHelper.readFullContent(article.id).getOrNull()?.let {
+            return ReaderState.FullContent(it)
+        }
+        return ReaderState.Description(article.rawDescription)
+    }
 
     fun renderDescriptionContent() {
+        currentArticle?.id?.let { fullContentManualOverride[it] = false }
         _readerState.update {
             it.copy(
                 content = ReaderState.Description(content = currentArticle?.rawDescription ?: "")
@@ -453,6 +482,7 @@ constructor(
     }
 
     fun renderFullContent() {
+        currentArticle?.id?.let { fullContentManualOverride[it] = true }
         val fetchJob =
             viewModelScope.launch {
                 readerCacheHelper
