@@ -35,7 +35,9 @@ import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.graphics.Color
+import androidx.compose.ui.graphics.Shadow
 import androidx.compose.ui.graphics.graphicsLayer
+import androidx.compose.ui.geometry.Offset
 import androidx.compose.ui.layout.ContentScale
 import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.platform.LocalView
@@ -233,11 +235,18 @@ fun ReaderImageViewer(
                         Modifier.align(Alignment.BottomCenter)
                             .fillMaxWidth()
                             .graphicsLayer { alpha = backgroundAlpha }
-                            .background(Color.Black.copy(alpha = 0.5f))
                             .navigationBarsPadding()
                             .padding(horizontal = 24.dp, vertical = 16.dp),
                     color = Color.White,
-                    style = MaterialTheme.typography.bodyMedium,
+                    style =
+                        MaterialTheme.typography.bodyMedium.copy(
+                            shadow =
+                                Shadow(
+                                    color = Color.Black.copy(alpha = 0.8f),
+                                    offset = Offset(0f, 2f),
+                                    blurRadius = 8f,
+                                )
+                        ),
                     textAlign = TextAlign.Center,
                     maxLines = 3,
                     overflow = TextOverflow.Ellipsis,
