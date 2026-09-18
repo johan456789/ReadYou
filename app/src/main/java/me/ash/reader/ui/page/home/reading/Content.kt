@@ -19,6 +19,7 @@ import androidx.compose.ui.unit.dp
 import java.util.Date
 import me.ash.reader.ui.component.scrollbar.drawWebViewScrollIndicator
 import me.ash.reader.ui.component.webview.RYWebView
+import me.ash.reader.ui.component.webview.HorizontalScrollAwareWebView
 import me.ash.reader.ui.component.webview.WebViewScrollSnapshot
 import me.ash.reader.ui.ext.extractDomain
 
@@ -41,6 +42,7 @@ fun Content(
     onScrollSnapshotChange: ((WebViewScrollSnapshot) -> Unit)? = null,
     onShowCustomView: ((View, WebChromeClient.CustomViewCallback) -> Unit)? = null,
     onHideCustomView: (() -> Unit)? = null,
+    onWebViewCreated: ((HorizontalScrollAwareWebView?) -> Unit)? = null,
 ) {
     // NetNewsWire-style: the WebView owns ALL vertical scrolling (headline is
     // rendered inside the page). There is no outer scroll container, so content
@@ -88,6 +90,7 @@ fun Content(
                 onHeadlineMeasured = onHeadlineMeasured,
                 onShowCustomView = onShowCustomView,
                 onHideCustomView = onHideCustomView,
+                onWebViewCreated = onWebViewCreated,
                 onScrollSnapshotChange = {
                     snapshot = it
                     onScrollSnapshotChange?.invoke(it)

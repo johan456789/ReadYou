@@ -150,6 +150,16 @@ class HorizontalScrollAwareWebView(context: Context) : WebView(context) {
                 "if(!h) return -1;" +
                 "return Math.round((h.getBoundingClientRect().bottom + window.scrollY)" +
                 " * window.devicePixelRatio);})()"
+
+        /**
+         * Pauses every inline `<audio>`/`<video>` element in the page.
+         * Evaluated when an article scrolls off-screen so its media cannot
+         * keep playing while another article is visible.
+         */
+        internal const val PAUSE_ALL_MEDIA_JS =
+            "(function(){try{var els=document.querySelectorAll('audio,video');" +
+                "for(var i=0;i<els.length;i++){try{els[i].pause();}catch(e){}}}" +
+                "catch(e){}})()"
     }
 
     override fun loadDataWithBaseURL(
@@ -173,6 +183,24 @@ class HorizontalScrollAwareWebView(context: Context) : WebView(context) {
 
     fun cancelPendingSettleCheck() {
         settleCheckToken++
+    }
+
+    /**
+     * Stops audible media without destroying page state (scroll position and
+     * DOM are preserved, unlike [WebViewLayout.recycle][me.ash.reader.ui.component.webview.WebViewLayout.recycle]).
+     * Must be called on the UI thread.
+     */
+    fun pauseMediaPlayback() {
+        runCatching { evaluateJavascript(PAUSE_ALL_MEDIA_JS, null) }
+        runCatching { onPause() }
+    }
+
+    /**
+     * Counterpart to [pauseMediaPlayback]: lets a visible page play media again.
+     * Must be called on the UI thread.
+     */
+    fun resumeMediaPlayback() {
+        runCatching { onResume() }
     }
 
     /**
@@ -259,6 +287,7 @@ fun RYWebView(
     onShowCustomView: ((View, WebChromeClient.CustomViewCallback) -> Unit)? = null,
     onHideCustomView: (() -> Unit)? = null,
     onScrollSnapshotChange: ((WebViewScrollSnapshot) -> Unit)? = null,
+    onWebViewCreated: ((HorizontalScrollAwareWebView?) -> Unit)? = null,
 ) {
     val context = LocalContext.current
     val openLink = LocalOpenLink.current
@@ -314,6 +343,7 @@ fun RYWebView(
     val currentOpenLinkSpecificBrowser by rememberUpdatedState(openLinkSpecificBrowser)
     val onScrollSnapshotChangeState by rememberUpdatedState(onScrollSnapshotChange)
     val onHeadlineMeasuredState by rememberUpdatedState(onHeadlineMeasured)
+    val onWebViewCreatedState by rememberUpdatedState(onWebViewCreated)
     val dynamicWebViewClient = remember(context, refererDomain) {
         WebViewClient(
             context = context,
@@ -348,7 +378,10 @@ fun RYWebView(
                     onImageClick = onImageClick,
                     onLinkLongPress = onLinkLongPress,
                     onAnchorScroll = onAnchorScroll,
-                ).also { onWebViewCreatedForTest?.invoke(it) }
+                ).also {
+                    onWebViewCreatedForTest?.invoke(it)
+                    onWebViewCreatedState?.invoke(it)
+                }
             )
         }
 
@@ -426,6 +459,9 @@ fun RYWebView(
 
     DisposableEffect(Unit) {
         onDispose {
+            // Clear the owner's reference first: the pooled WebView may be
+            // handed to another slot afterwards, which then owns it.
+            onWebViewCreatedState?.invoke(null)
             WebViewLayout.recycle(webView)
         }
     }

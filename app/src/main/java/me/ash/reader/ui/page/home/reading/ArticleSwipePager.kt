@@ -39,6 +39,7 @@ import androidx.compose.ui.unit.IntOffset
 import androidx.compose.ui.unit.LayoutDirection
 import androidx.compose.ui.unit.dp
 import kotlinx.coroutines.launch
+import me.ash.reader.ui.component.webview.HorizontalScrollAwareWebView
 import me.ash.reader.ui.component.webview.WebViewScrollSnapshot
 import me.ash.reader.ui.page.adaptive.ReaderState
 import kotlin.math.abs
@@ -118,6 +119,25 @@ internal fun resolveSlotHeadlineHeightPx(
     measuredPx
         .takeIf { it > 0 && slotArticleId != null && slotArticleId == measuredArticleId }
 
+/**
+ * Which slots need a media state change when a swipe settles onto a new
+ * current slot: every off-screen slot is muted, the incoming slot resumes.
+ */
+internal data class ArticleSwipeMediaUpdate(
+    val pauseSlotIndices: List<Int>,
+    val resumeSlotIndex: Int,
+)
+
+internal fun resolveArticleSwipeMediaUpdate(
+    oldCurrentSlotIndex: Int,
+    newCurrentSlotIndex: Int,
+    slotIndices: List<Int>,
+): ArticleSwipeMediaUpdate =
+    ArticleSwipeMediaUpdate(
+        pauseSlotIndices = slotIndices.filter { it != newCurrentSlotIndex },
+        resumeSlotIndex = newCurrentSlotIndex,
+    )
+
 private class ArticleSwipeSlot(
     val index: Int,
 ) {
@@ -126,6 +146,7 @@ private class ArticleSwipeSlot(
     var target by mutableStateOf<ReaderState.PrefetchResult?>(null)
     var headlineHeightPx by mutableStateOf(0)
     var scrollSnapshot by mutableStateOf(WebViewScrollSnapshot(0, 0, 0, true, true))
+    var webView by mutableStateOf<HorizontalScrollAwareWebView?>(null)
 }
 
 @Composable
@@ -158,6 +179,24 @@ fun ArticleSwipePager(
     val settleOffset = remember { Animatable(0f) }
     val layoutDirection = LocalLayoutDirection.current
     val scope = rememberCoroutineScope()
+
+    fun setSlotWebView(slotIndex: Int, webView: HorizontalScrollAwareWebView?) {
+        // The pool can hand the same physical WebView to another slot, so
+        // only the current owner may keep a reference to it.
+        if (webView != null) {
+            slots.forEach { slot ->
+                if (slot.index != slotIndex && slot.webView === webView) slot.webView = null
+            }
+        }
+        slots.firstOrNull { it.index == slotIndex }?.webView = webView
+    }
+
+    fun applyArticleSwipeMediaUpdate(update: ArticleSwipeMediaUpdate) {
+        update.pauseSlotIndices.forEach { index ->
+            slots.firstOrNull { it.index == index }?.webView?.pauseMediaPlayback()
+        }
+        slots.firstOrNull { it.index == update.resumeSlotIndex }?.webView?.resumeMediaPlayback()
+    }
 
     LaunchedEffect(currentReaderState.articleId, currentReaderState.content) {
         val articleId = currentReaderState.articleId ?: return@LaunchedEffect
@@ -348,6 +387,15 @@ fun ArticleSwipePager(
                                     scope.launch {
                                         val target =
                                             slots[previousSlotIndex].target ?: return@launch
+                                        // Silence the outgoing article up front so its
+                                        // audio/video cannot play under the incoming page.
+                                        applyArticleSwipeMediaUpdate(
+                                            resolveArticleSwipeMediaUpdate(
+                                                oldCurrentSlotIndex = currentSlotIndex,
+                                                newCurrentSlotIndex = previousSlotIndex,
+                                                slotIndices = slots.map { it.index },
+                                            )
+                                        )
                                         isSettling = true
                                         try {
                                             settleOffset.snapTo(dragOffsetPx)
@@ -388,6 +436,15 @@ fun ArticleSwipePager(
                                 onSettleNext = {
                                     scope.launch {
                                         val target = slots[nextSlotIndex].target ?: return@launch
+                                        // Silence the outgoing article up front so its
+                                        // audio/video cannot play under the incoming page.
+                                        applyArticleSwipeMediaUpdate(
+                                            resolveArticleSwipeMediaUpdate(
+                                                oldCurrentSlotIndex = currentSlotIndex,
+                                                newCurrentSlotIndex = nextSlotIndex,
+                                                slotIndices = slots.map { it.index },
+                                            )
+                                        )
                                         isSettling = true
                                         try {
                                             settleOffset.snapTo(dragOffsetPx)
@@ -489,6 +546,7 @@ fun ArticleSwipePager(
                             contentPadding = contentPadding,
                             bringToTopRequest = if (isCurrent) bringToTopRequest else 0,
                             onBringToTopHandled = onBringToTopHandled,
+                            onWebViewCreated = { webView -> setSlotWebView(slotIndex, webView) },
                             onHeadlineMeasured = { px ->
                                 resolveSlotHeadlineHeightPx(
                                     slotArticleId = slot.articleId,
@@ -625,6 +683,7 @@ private fun ArticleSwipePageContent(
     contentPadding: PaddingValues,
     bringToTopRequest: Int,
     onBringToTopHandled: () -> Unit,
+    onWebViewCreated: ((HorizontalScrollAwareWebView?) -> Unit)? = null,
     onHeadlineMeasured: (Int) -> Unit,
     onScrollSnapshotChange: (WebViewScrollSnapshot) -> Unit,
     onImageClick: (String, String, String) -> Unit,
@@ -655,6 +714,7 @@ private fun ArticleSwipePageContent(
             onLinkLongPress = onLinkLongPress,
             onShowCustomView = onShowCustomView,
             onHideCustomView = onHideCustomView,
+            onWebViewCreated = onWebViewCreated,
         )
     }
 }
