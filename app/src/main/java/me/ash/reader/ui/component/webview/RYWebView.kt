@@ -78,7 +78,7 @@ class HorizontalScrollAwareWebView(context: Context) : WebView(context) {
     var loadedContentKey: WebViewContentKey? = null
     var onScrollSnapshotChanged: ((WebViewScrollSnapshot) -> Unit)? = null
     var onHeadlineMeasured: ((Int) -> Unit)? = null
-    var onImageClick: ((imgUrl: String, altText: String) -> Unit)? = null
+    var onImageClick: ((imgUrl: String, altText: String, caption: String) -> Unit)? = null
     var onLinkLongPress: ((url: String, text: String) -> Unit)? = null
     var onAnchorScroll: ((cssTop: Double) -> Unit)? = null
     var handledScrollToTopRequest: Int = 0
@@ -252,7 +252,7 @@ fun RYWebView(
     headlineAuthor: String? = null,
     publishedDate: java.util.Date? = null,
     scrollToTopRequest: Int = 0,
-    onImageClick: ((imgUrl: String, altText: String) -> Unit)? = null,
+    onImageClick: ((imgUrl: String, altText: String, caption: String) -> Unit)? = null,
     onLinkLongPress: ((url: String, text: String) -> Unit)? = null,
     onAnchorScroll: ((cssTop: Double) -> Unit)? = null,
     onHeadlineMeasured: ((Int) -> Unit)? = null,

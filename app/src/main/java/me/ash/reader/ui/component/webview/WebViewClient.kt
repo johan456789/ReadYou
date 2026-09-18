@@ -117,7 +117,13 @@ class WebViewClient(
                     imgs[i].pos = i;
                     imgs[i].onclick = function(event) {
                         event.preventDefault();
-                        window.${JavaScriptInterface.NAME}.onImgTagClick(this.src, this.alt);
+                        var caption = '';
+                        var figure = this.closest ? this.closest('figure') : null;
+                        if (figure) {
+                            var figcaption = figure.getElementsByTagName('figcaption')[0];
+                            if (figcaption) { caption = figcaption.innerText || ''; }
+                        }
+                        window.${JavaScriptInterface.NAME}.onImgTagClick(this.src, this.alt, caption);
                     }
                 }
             })()

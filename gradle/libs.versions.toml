@@ -99,6 +99,7 @@ readability4j = { group = "net.dankito.readability4j", name = "readability4j", v
 rome = { group = "com.rometools", name = "rome", version.ref = "rome" }
 rome-modules = { module = "com.rometools:rome-modules", version.ref = "rome" }
 telephoto = { group = "me.saket.telephoto", name = "zoomable", version.ref = "telephoto" }
+telephoto-flick = { group = "me.saket.telephoto", name = "flick", version.ref = "telephoto" }
 swipe = { group = "me.saket.swipe", name = "swipe", version.ref = "swipe" }
 okhttp = { group = "com.squareup.okhttp3", name = "okhttp", version.ref = "okhttp" }
 okhttp-coroutines = { group = "com.squareup.okhttp3", name = "okhttp-coroutines-jvm", version.ref = "okhttp" }

@@ -181,6 +181,7 @@ dependencies {
     implementation(libs.rome)
     implementation(libs.rome.modules)
     implementation(libs.telephoto)
+    implementation(libs.telephoto.flick)
     implementation(libs.okhttp)
     implementation(libs.okhttp.coroutines)
     implementation(libs.retrofit)

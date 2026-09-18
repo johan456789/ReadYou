@@ -6,11 +6,13 @@ import android.os.Build
 import androidx.activity.compose.rememberLauncherForActivityResult
 import androidx.activity.result.contract.ActivityResultContracts
 import androidx.compose.foundation.Image
+import androidx.compose.foundation.background
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.Spacer
 import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.fillMaxWidth
+import androidx.compose.foundation.layout.navigationBarsPadding
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.safeDrawingPadding
 import androidx.compose.foundation.layout.wrapContentSize
@@ -19,6 +21,7 @@ import androidx.compose.material.icons.outlined.Close
 import androidx.compose.material.icons.outlined.MoreHoriz
 import androidx.compose.material3.DropdownMenu
 import androidx.compose.material3.DropdownMenuItem
+import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.Icon
 import androidx.compose.material3.IconButton
 import androidx.compose.material3.IconButtonDefaults
@@ -32,10 +35,15 @@ import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.graphics.Color
+import androidx.compose.ui.graphics.Shadow
+import androidx.compose.ui.graphics.graphicsLayer
+import androidx.compose.ui.geometry.Offset
 import androidx.compose.ui.layout.ContentScale
 import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.platform.LocalView
 import androidx.compose.ui.res.stringResource
+import androidx.compose.ui.text.style.TextAlign
+import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.window.Dialog
 import androidx.compose.ui.window.DialogProperties
@@ -44,15 +52,19 @@ import androidx.core.content.ContextCompat
 import androidx.core.view.HapticFeedbackConstantsCompat
 import coil.compose.rememberAsyncImagePainter
 import coil.request.ImageRequest
+import kotlinx.coroutines.delay
 import me.ash.reader.R
 import me.ash.reader.ui.ext.extractDomain
 import me.ash.reader.ui.ext.showToast
+import me.saket.telephoto.flick.FlickToDismiss
+import me.saket.telephoto.flick.FlickToDismissState
+import me.saket.telephoto.flick.rememberFlickToDismissState
 import me.saket.telephoto.zoomable.ZoomSpec
 import me.saket.telephoto.zoomable.ZoomableContentLocation
 import me.saket.telephoto.zoomable.rememberZoomableState
 import me.saket.telephoto.zoomable.zoomable
 
-data class ImageData(val imageUrl: String = "", val altText: String = "")
+data class ImageData(val imageUrl: String = "", val altText: String = "", val caption: String = "")
 
 @Composable
 fun ReaderImageViewer(
@@ -65,45 +77,79 @@ fun ReaderImageViewer(
         properties =
             DialogProperties(usePlatformDefaultWidth = false, decorFitsSystemWindows = false),
     ) {
-        Box(modifier = Modifier.fillMaxSize()) {
-            val view = LocalView.current
-            val context = LocalContext.current
+        val view = LocalView.current
+        val context = LocalContext.current
 
-            val dialogWindowProvider = view.parent as? DialogWindowProvider
-            dialogWindowProvider?.window?.setDimAmount(1f)
+        val dialogWindowProvider = view.parent as? DialogWindowProvider
+        // Fully transparent window dim: the content below draws its own fading
+        // black background so the article underneath is revealed while dragging.
+        dialogWindowProvider?.window?.setDimAmount(0f)
 
-            val zoomableState = rememberZoomableState(zoomSpec = ZoomSpec(maxZoomFactor = 4f))
+        val zoomableState = rememberZoomableState(zoomSpec = ZoomSpec(maxZoomFactor = 4f))
+        val flickState = rememberFlickToDismissState()
+        val gestureState = flickState.gestureState
 
-            val painter =
-                rememberAsyncImagePainter(
-                    ImageRequest.Builder(LocalContext.current)
-                        .addHeader("Referer", imageData.imageUrl.extractDomain() ?: "")
-                        .data(data = imageData.imageUrl)
-                        .build()
-                )
+        // The flick animation keeps running while the dialog exits; schedule the
+        // actual dismiss slightly before it finishes to hide navigation latency.
+        if (gestureState is FlickToDismissState.GestureState.Dismissing) {
+            LaunchedEffect(Unit) {
+                delay(gestureState.animationDuration / 2)
+                onDismissRequest()
+            }
+        }
 
-            var expanded by remember { mutableStateOf(false) }
+        // If the user starts a flick while zoomed in, reset zoom so the image
+        // settles back to its unzoomed size while following the finger.
+        if (gestureState is FlickToDismissState.GestureState.Dragging) {
+            LaunchedEffect(Unit) {
+                zoomableState.resetZoom()
+            }
+        }
 
-            LaunchedEffect(painter.intrinsicSize) {
-                zoomableState.setContentLocation(
-                    ZoomableContentLocation.scaledInsideAndCenterAligned(painter.intrinsicSize)
+        // Background fades out continuously as the photo follows the finger.
+        val backgroundAlpha = (1f - flickState.offsetFraction).coerceIn(0f, 1f)
+
+        var expanded by remember { mutableStateOf(false) }
+
+        Box(
+            modifier =
+                Modifier.fillMaxSize().background(Color.Black.copy(alpha = backgroundAlpha))
+        ) {
+            // Only the photo lives inside FlickToDismiss so that only it follows
+            // the finger. The top bar below stays pinned in place.
+            FlickToDismiss(
+                state = flickState,
+                modifier = Modifier.fillMaxSize(),
+            ) {
+                val painter =
+                    rememberAsyncImagePainter(
+                        ImageRequest.Builder(LocalContext.current)
+                            .addHeader("Referer", imageData.imageUrl.extractDomain() ?: "")
+                            .data(data = imageData.imageUrl)
+                            .build()
+                    )
+
+                LaunchedEffect(painter.intrinsicSize) {
+                    zoomableState.setContentLocation(
+                        ZoomableContentLocation.scaledInsideAndCenterAligned(painter.intrinsicSize)
+                    )
+                }
+
+                Image(
+                    painter = painter,
+                    contentDescription = imageData.altText,
+                    modifier =
+                        Modifier.zoomable(
+                                state = zoomableState,
+                                clipToBounds = true,
+                                onClick = { onDismissRequest() },
+                                onLongClick = { expanded = true },
+                            )
+                            .fillMaxSize(),
+                    alignment = Alignment.Center,
+                    contentScale = ContentScale.Inside,
                 )
             }
-
-            Image(
-                painter = painter,
-                contentDescription = imageData.altText,
-                modifier =
-                    Modifier.zoomable(
-                            state = zoomableState,
-                            clipToBounds = true,
-                            onClick = { onDismissRequest() },
-                            onLongClick = { expanded = true },
-                        )
-                        .fillMaxSize(),
-                alignment = Alignment.Center,
-                contentScale = ContentScale.Inside,
-            )
 
             val launcher =
                 rememberLauncherForActivityResult(
@@ -118,7 +164,11 @@ fun ReaderImageViewer(
                 )
 
             Row(
-                modifier = Modifier.fillMaxWidth().safeDrawingPadding().align(Alignment.TopCenter),
+                modifier =
+                    Modifier.fillMaxWidth()
+                        .safeDrawingPadding()
+                        .align(Alignment.TopCenter)
+                        .graphicsLayer { alpha = backgroundAlpha },
                 verticalAlignment = Alignment.CenterVertically,
             ) {
                 IconButton(
@@ -176,6 +226,31 @@ fun ReaderImageViewer(
                         )
                     }
                 }
+            }
+
+            if (imageData.caption.isNotBlank()) {
+                Text(
+                    text = imageData.caption,
+                    modifier =
+                        Modifier.align(Alignment.BottomCenter)
+                            .fillMaxWidth()
+                            .graphicsLayer { alpha = backgroundAlpha }
+                            .navigationBarsPadding()
+                            .padding(horizontal = 24.dp, vertical = 16.dp),
+                    color = Color.White,
+                    style =
+                        MaterialTheme.typography.bodyMedium.copy(
+                            shadow =
+                                Shadow(
+                                    color = Color.Black.copy(alpha = 0.8f),
+                                    offset = Offset(0f, 2f),
+                                    blurRadius = 8f,
+                                )
+                        ),
+                    textAlign = TextAlign.Center,
+                    maxLines = 3,
+                    overflow = TextOverflow.Ellipsis,
+                )
             }
         }
     }
