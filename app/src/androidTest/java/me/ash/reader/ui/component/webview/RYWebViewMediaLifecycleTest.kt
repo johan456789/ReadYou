@@ -58,6 +58,43 @@ class RYWebViewMediaLifecycleTest {
         }
     }
 
+    @Test
+    fun pauseAllMediaJsTargetsAudioAndVideo() {
+        val js = HorizontalScrollAwareWebView.PAUSE_ALL_MEDIA_JS
+        assert(js.contains("audio"))
+        assert(js.contains("video"))
+        assert(js.contains("pause()"))
+    }
+
+    @Test
+    fun pausingOffScreenWebViewPreservesContent() {
+        var articleWebView: WebView? = null
+
+        composeRule.setContent {
+            MaterialTheme {
+                CompositionLocalProvider(
+                    LocalWebViewCreatedForTest provides { articleWebView = it },
+                ) {
+                    RYWebView(content = MEDIA_ARTICLE_HTML)
+                }
+            }
+        }
+
+        composeRule.waitUntil {
+            articleWebView != null
+        }
+
+        // Pausing (swipe-away path) must not blank the page the way recycle()
+        // does: the article stays loaded so swiping back is instant.
+        composeRule.runOnUiThread {
+            val webView = articleWebView as HorizontalScrollAwareWebView
+            webView.pauseMediaPlayback()
+            webView.resumeMediaPlayback()
+            assertNotNull(webView.parent)
+            assertNotNull(webView.loadedContentKey)
+        }
+    }
+
     private companion object {
         const val MEDIA_ARTICLE_HTML = """
             <p>Article with embedded audio.</p>

@@ -213,4 +213,46 @@ class ArticleSwipePagerTest {
             articleSwipeDragDirection(dragOffset = 120f, layoutDirection = LayoutDirection.Rtl),
         )
     }
+
+    @Test
+    fun `settle to next pauses outgoing and stale slots, resumes incoming`() {
+        val update =
+            resolveArticleSwipeMediaUpdate(
+                oldCurrentSlotIndex = 0,
+                newCurrentSlotIndex = 2,
+                slotIndices = listOf(0, 1, 2),
+            )
+
+        assertEquals(2, update.resumeSlotIndex)
+        assertEquals(listOf(0, 1), update.pauseSlotIndices)
+    }
+
+    @Test
+    fun `settle to previous pauses outgoing and stale slots, resumes incoming`() {
+        val update =
+            resolveArticleSwipeMediaUpdate(
+                oldCurrentSlotIndex = 0,
+                newCurrentSlotIndex = 1,
+                slotIndices = listOf(0, 1, 2),
+            )
+
+        assertEquals(1, update.resumeSlotIndex)
+        assertEquals(listOf(0, 2), update.pauseSlotIndices)
+    }
+
+    @Test
+    fun `outgoing slot is always among paused slots`() {
+        listOf(1, 2).forEach { newCurrent ->
+            val update =
+                resolveArticleSwipeMediaUpdate(
+                    oldCurrentSlotIndex = 0,
+                    newCurrentSlotIndex = newCurrent,
+                    slotIndices = listOf(0, 1, 2),
+                )
+
+            assertEquals(newCurrent, update.resumeSlotIndex)
+            assert(update.pauseSlotIndices.contains(0))
+            assert(!update.pauseSlotIndices.contains(newCurrent))
+        }
+    }
 }
