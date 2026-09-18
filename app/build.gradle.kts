@@ -48,7 +48,7 @@ android {
         applicationId = "com.thyu.reader"
         minSdk = 26
         targetSdk = 34
-        versionCode = 60
+        versionCode = 61
         versionName = "0.16.1"
 
         buildConfigField(
