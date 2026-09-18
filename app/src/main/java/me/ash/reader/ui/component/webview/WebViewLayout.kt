@@ -39,7 +39,7 @@ object WebViewLayout {
         readingFontsPreference: ReadingFontsPreference,
         webViewClient: WebViewClient,
         webChromeClient: RYWebChromeClient? = null,
-        onImageClick: ((imgUrl: String, altText: String) -> Unit)? = null,
+        onImageClick: ((imgUrl: String, altText: String, caption: String) -> Unit)? = null,
         onLinkLongPress: ((url: String, text: String) -> Unit)? = null,
         onAnchorScroll: ((cssTop: Double) -> Unit)? = null,
     ): HorizontalScrollAwareWebView {
@@ -98,7 +98,7 @@ object WebViewLayout {
         readingFontsPreference: ReadingFontsPreference,
         webViewClient: WebViewClient,
         webChromeClient: RYWebChromeClient? = null,
-        onImageClick: ((imgUrl: String, altText: String) -> Unit)? = null,
+        onImageClick: ((imgUrl: String, altText: String, caption: String) -> Unit)? = null,
         onLinkLongPress: ((url: String, text: String) -> Unit)? = null,
         onAnchorScroll: ((cssTop: Double) -> Unit)? = null,
     ): HorizontalScrollAwareWebView =
@@ -140,7 +140,7 @@ object WebViewLayout {
         readingFontsPreference: ReadingFontsPreference,
         webViewClient: android.webkit.WebViewClient,
         webChromeClient: RYWebChromeClient?,
-        onImageClick: ((imgUrl: String, altText: String) -> Unit)?,
+        onImageClick: ((imgUrl: String, altText: String, caption: String) -> Unit)?,
         onLinkLongPress: ((url: String, text: String) -> Unit)?,
         onAnchorScroll: ((cssTop: Double) -> Unit)?,
     ): HorizontalScrollAwareWebView =
@@ -153,9 +153,9 @@ object WebViewLayout {
             addJavascriptInterface(
                 object : JavaScriptInterface {
                     @JavascriptInterface
-                    override fun onImgTagClick(imgUrl: String?, alt: String?) {
+                    override fun onImgTagClick(imgUrl: String?, alt: String?, caption: String?) {
                         if (imgUrl != null) {
-                            this@apply.onImageClick?.invoke(imgUrl, alt ?: "")
+                            this@apply.onImageClick?.invoke(imgUrl, alt ?: "", caption ?: "")
                         }
                     }
 
@@ -199,7 +199,7 @@ object WebViewLayout {
         readingFontsPreference: ReadingFontsPreference,
         webViewClient: android.webkit.WebViewClient,
         webChromeClient: RYWebChromeClient?,
-        onImageClick: ((imgUrl: String, altText: String) -> Unit)?,
+        onImageClick: ((imgUrl: String, altText: String, caption: String) -> Unit)?,
         onLinkLongPress: ((url: String, text: String) -> Unit)?,
         onAnchorScroll: ((cssTop: Double) -> Unit)?,
     ) {

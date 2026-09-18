@@ -5,7 +5,7 @@ import android.webkit.JavascriptInterface
 interface JavaScriptInterface {
 
     @JavascriptInterface
-    fun onImgTagClick(imgUrl: String?, alt: String?)
+    fun onImgTagClick(imgUrl: String?, alt: String?, caption: String?)
 
     @JavascriptInterface
     fun onLinkLongPress(url: String?, text: String?)

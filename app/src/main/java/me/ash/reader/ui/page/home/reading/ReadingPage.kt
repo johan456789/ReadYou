@@ -278,8 +278,8 @@ fun ReadingPage(
                                     webViewScrollSnapshot = it
                                 },
                                 onTitleLayersChange = { swipeTitleLayers = it },
-                                onImageClick = { imgUrl, altText ->
-                                    currentImageData = ImageData(imgUrl, altText)
+                                onImageClick = { imgUrl, altText, caption ->
+                                    currentImageData = ImageData(imgUrl, altText, caption.trim())
                                     showFullScreenImageViewer = true
                                 },
                                 onLinkLongPress = { url, text ->
@@ -390,8 +390,8 @@ fun ReadingPage(
                                             isLoading = content is ReaderState.Loading,
                                             scrollToTopRequest = scrollToTopRequest,
                                             onHeadlineMeasured = { headlineHeightPx = it },
-                                            onImageClick = { imgUrl, altText ->
-                                                currentImageData = ImageData(imgUrl, altText)
+                                            onImageClick = { imgUrl, altText, caption ->
+                                                currentImageData = ImageData(imgUrl, altText, caption.trim())
                                                 showFullScreenImageViewer = true
                                             },
                                             onScrollSnapshotChange = {
