@@ -18,7 +18,17 @@ import androidx.compose.animation.slideOutVertically
 import androidx.compose.animation.togetherWith
 import androidx.compose.foundation.background
 import androidx.compose.foundation.layout.Box
+import androidx.compose.foundation.layout.Row
+import androidx.compose.foundation.layout.Spacer
 import androidx.compose.foundation.layout.fillMaxSize
+import androidx.compose.foundation.layout.fillMaxWidth
+import androidx.compose.foundation.layout.padding
+import androidx.compose.foundation.layout.safeDrawingPadding
+import androidx.compose.material.icons.Icons
+import androidx.compose.material.icons.outlined.Close
+import androidx.compose.material3.Icon
+import androidx.compose.material3.IconButton
+import androidx.compose.material3.IconButtonDefaults
 import androidx.compose.material3.LocalTextStyle
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.Scaffold
@@ -33,6 +43,8 @@ import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.platform.LocalContext
+import androidx.compose.ui.platform.LocalView
+import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.unit.IntOffset
 import androidx.compose.ui.unit.TextUnit
 import androidx.compose.ui.unit.dp
@@ -40,6 +52,7 @@ import androidx.compose.ui.unit.isSpecified
 import androidx.compose.ui.unit.sp
 import androidx.compose.ui.viewinterop.AndroidView
 import android.widget.FrameLayout
+import androidx.core.view.HapticFeedbackConstantsCompat
 import timber.log.Timber
 import me.ash.reader.R
 import me.ash.reader.ui.component.webview.LinkActionDialog
@@ -445,19 +458,20 @@ fun ReadingPage(
         Timber.tag("ReadingPage").d("Checking fullscreen: isVideoFullscreen=$isVideoFullscreen, view=${fullscreenVideoView}")
         if (isVideoFullscreen) {
             Timber.tag("ReadingPage").d("Rendering fullscreen overlay NOW")
+            val view = LocalView.current
             Box(
                 modifier = Modifier
                     .fillMaxSize()
                     .background(Color.Black),
                 contentAlignment = Alignment.Center,
             ) {
-                fullscreenVideoView?.let { view ->
+                fullscreenVideoView?.let { videoView ->
                     AndroidView(
                         modifier = Modifier.fillMaxSize(),
                         factory = { ctx ->
                             FrameLayout(ctx).apply {
                                 addView(
-                                    view,
+                                    videoView,
                                     FrameLayout.LayoutParams(
                                         FrameLayout.LayoutParams.MATCH_PARENT,
                                         FrameLayout.LayoutParams.MATCH_PARENT
@@ -470,6 +484,34 @@ fun ReadingPage(
                             (container as? FrameLayout)?.removeAllViews()
                         }
                     )
+                }
+
+                Row(
+                    modifier =
+                        Modifier.fillMaxWidth()
+                            .safeDrawingPadding()
+                            .align(Alignment.TopCenter),
+                    verticalAlignment = Alignment.CenterVertically,
+                ) {
+                    IconButton(
+                        onClick = {
+                            view.performHapticFeedback(HapticFeedbackConstantsCompat.KEYBOARD_TAP)
+                            fullscreenVideoCallback?.onCustomViewHidden()
+                        },
+                        colors =
+                            IconButtonDefaults.iconButtonColors(
+                                containerColor = Color.Black.copy(alpha = 0.5f),
+                                contentColor = Color.White,
+                            ),
+                        modifier = Modifier.padding(4.dp),
+                    ) {
+                        Icon(
+                            imageVector = Icons.Outlined.Close,
+                            contentDescription = stringResource(id = R.string.close),
+                        )
+                    }
+
+                    Spacer(Modifier.weight(1f))
                 }
             }
         }
