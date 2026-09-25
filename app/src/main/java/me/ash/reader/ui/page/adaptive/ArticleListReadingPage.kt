@@ -46,7 +46,7 @@ import me.ash.reader.ui.page.home.flow.FlowPage
 import me.ash.reader.ui.page.home.reading.ReadingPage
 import timber.log.Timber
 
-@Parcelize data class ArticleData(val articleId: String, val listIndex: Int? = null) : Parcelable
+@Parcelize data class ArticleData(val articleId: String) : Parcelable
 
 @OptIn(ExperimentalMaterial3AdaptiveApi::class, ExperimentalSharedTransitionApi::class)
 @Composable
@@ -146,11 +146,11 @@ fun ArticleListReaderPage(
                             viewModel = viewModel,
                             onNavigateUp = onBack,
                             isTwoPane = isTwoPane,
-                            navigateToArticle = { id, index ->
+                            navigateToArticle = { id ->
                                 scope.launch {
                                     navigator.navigateTo(
                                         pane = ListDetailPaneScaffoldRole.Detail,
-                                        contentKey = ArticleData(articleId = id, listIndex = index),
+                                        contentKey = ArticleData(articleId = id),
                                     )
                                 }
                             },
@@ -173,10 +173,7 @@ fun ArticleListReaderPage(
                         if (hasOpenedArticle) viewModel.clearCurrentArticle()
                     } else {
                         hasOpenedArticle = true
-                        viewModel.initData(
-                            articleId = contentKey.articleId,
-                            listIndex = contentKey.listIndex,
-                        )
+                        viewModel.initData(articleId = contentKey.articleId)
                         viewModel.setCurrentArticle(contentKey.articleId)
                     }
                 }
@@ -185,11 +182,11 @@ fun ArticleListReaderPage(
                     ReadingPage(
                         viewModel = viewModel,
                         navigationAction = navigationAction,
-                        onLoadArticle = { id, index ->
+                        onLoadArticle = { id ->
                             scope.launch {
                                 navigator.navigateTo(
                                     pane = ListDetailPaneScaffoldRole.Detail,
-                                    contentKey = ArticleData(articleId = id, listIndex = index),
+                                    contentKey = ArticleData(articleId = id),
                                 )
                             }
                         },

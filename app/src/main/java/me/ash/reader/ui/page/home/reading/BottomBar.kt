@@ -34,13 +34,15 @@ import me.ash.reader.ui.component.base.CanBeDisabledIconButton
 
 @Composable
 fun BottomBar(
+    articleId: String?,
     isRead: Boolean,
     isStarred: Boolean,
+    actionsEnabled: Boolean = true,
     isNextArticleAvailable: Boolean,
     isFullContent: Boolean,
     ttsButton: @Composable () -> Unit,
-    onRead: (markRead: Boolean) -> Unit = {},
-    onStarred: (isStarred: Boolean) -> Unit = {},
+    onRead: (articleId: String, markRead: Boolean) -> Unit = { _, _ -> },
+    onStarred: (articleId: String, isStarred: Boolean) -> Unit = { _, _ -> },
     onNextArticle: () -> Unit = {},
     onFullContent: (isFullContent: Boolean) -> Unit = {},
 ) {
@@ -69,7 +71,7 @@ fun BottomBar(
             ) {
                         CanBeDisabledIconButton(
                             modifier = Modifier.size(40.dp),
-                            disabled = false,
+                            disabled = !actionsEnabled,
                             imageVector = if (isRead) {
                                 Icons.Outlined.FiberManualRecord
                             } else {
@@ -82,12 +84,14 @@ fun BottomBar(
                                 MaterialTheme.colorScheme.onSecondaryContainer
                             },
                         ) {
-                            view.performHapticFeedback(HapticFeedbackConstants.KEYBOARD_TAP)
-                            onRead(!isRead)
+                            articleId?.let {
+                                view.performHapticFeedback(HapticFeedbackConstants.KEYBOARD_TAP)
+                                onRead(it, !isRead)
+                            }
                         }
                         CanBeDisabledIconButton(
                             modifier = Modifier.size(40.dp),
-                            disabled = false,
+                            disabled = !actionsEnabled,
                             imageVector = if (isStarred) {
                                 Icons.Rounded.Star
                             } else {
@@ -100,8 +104,10 @@ fun BottomBar(
                                 MaterialTheme.colorScheme.outline
                             },
                         ) {
-                            view.performHapticFeedback(HapticFeedbackConstants.KEYBOARD_TAP)
-                            onStarred(!isStarred)
+                            articleId?.let {
+                                view.performHapticFeedback(HapticFeedbackConstants.KEYBOARD_TAP)
+                                onStarred(it, !isStarred)
+                            }
                         }
                         CanBeDisabledIconButton(
                             disabled = !isNextArticleAvailable,

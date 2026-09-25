@@ -62,6 +62,7 @@ import me.ash.reader.infrastructure.android.TextToSpeechManager
 import me.ash.reader.infrastructure.preference.ArticleSwitchGesturePreference
 import me.ash.reader.infrastructure.preference.LocalArticleSwitchGesture
 import me.ash.reader.infrastructure.preference.LocalReadingTextLineHeight
+import me.ash.reader.infrastructure.preference.LocalSharedContent
 import me.ash.reader.ui.ext.collectAsStateValue
 import me.ash.reader.ui.ext.showToast
 import me.ash.reader.ui.page.adaptive.ArticleListReaderViewModel
@@ -81,11 +82,12 @@ internal fun shouldShowTitleInTopBar(scrollY: Int, headlineHeightPx: Int): Boole
 fun ReadingPage(
     viewModel: ArticleListReaderViewModel,
     navigationAction: NavigationAction,
-    onLoadArticle: (String, Int) -> Unit,
+    onLoadArticle: (String) -> Unit,
     onNavAction: (NavigationAction) -> Unit,
     onNavigateToStylePage: () -> Unit,
 ) {
     val context = LocalContext.current
+    val sharedContent = LocalSharedContent.current
     val articleSwitchGesture = LocalArticleSwitchGesture.current
     val isSwipeToSwitchArticleEnabled =
         articleSwitchGesture is ArticleSwitchGesturePreference.HorizontalSwipe
@@ -156,9 +158,26 @@ fun ReadingPage(
 
     var bringToTop by remember { mutableStateOf(false) }
 
-    // The swipe pager computes a crossfading pair of title layers from the live
-    // drag progress. The other reading path (tap / next-article animations) has
-    // no drag, so it drives a single layer from the scroll visibility.
+    // The article the user currently sees. In swipe mode the pager reports
+    // the incoming slot from drag start (not only after settle), so taps act
+    // on the article on screen. Keyed by article so reopening the reader can
+    // never serve the previous article's id for a frame.
+    var visibleArticleId by remember(readerState.articleId) { mutableStateOf<String?>(null) }
+    val actionArticleId =
+        if (isSwipeToSwitchArticleEnabled) visibleArticleId ?: readerState.articleId
+        else readerState.articleId
+    // Read/star toggles derive their direction from the displayed flags, which
+    // track the committed article: only offer them once the committed article
+    // is the targeted one (or nothing is displayed yet on first open).
+    val actionsTargetDisplayed =
+        readingUiState.articleWithFeed?.article?.id?.let { it == actionArticleId } ?: true
+
+    fun shareArticle(articleId: String) {
+        viewModel.shareArticle(articleId) { title, link ->
+            sharedContent.share(context, title, link)
+        }
+    }
+
     var swipeTitleLayers by remember { mutableStateOf<List<TopBarTitleLayer>>(emptyList()) }
     val fallbackTitleAlpha by
         animateFloatAsState(
@@ -198,7 +217,7 @@ fun ReadingPage(
                     TopBar(
                         isScrolled = showTopDivider,
                         titleLayers = topBarTitleLayers,
-                        link = readerState.link,
+                        articleId = actionArticleId,
                         onClick = {
                             scrollToTopRequest += 1
                             bringToTop = true
@@ -206,25 +225,25 @@ fun ReadingPage(
                         navigationAction = navigationAction,
                         onNavButtonClick = onNavAction,
                         onNavigateToStylePage = onNavigateToStylePage,
+                        onShareClick = ::shareArticle,
                     )
                 }
             },
             bottomBar = {
                 if (readerState.articleId != null) {
                     BottomBar(
+                        articleId = actionArticleId,
                         isRead = readingUiState.isRead,
                         isStarred = readingUiState.isStarred,
+                        actionsEnabled = actionsTargetDisplayed,
                         isNextArticleAvailable = readerState.nextArticle != null,
                         isFullContent =
                             readerState.content is ReaderState.FullContent ||
                                 readerState.content is ReaderState.Error,
-                        onRead = { viewModel.updateReadStatus(it) },
-                        onStarred = { viewModel.updateStarredStatus(it) },
+                        onRead = viewModel::updateReadStatus,
+                        onStarred = viewModel::updateStarredStatus,
                         onNextArticle = {
-                            readerState.nextArticle?.let {
-                                val (id, index) = it
-                                onLoadArticle(id, index)
-                            }
+                            readerState.nextArticle?.let { onLoadArticle(it.articleId) }
                         },
                         onFullContent = {
                             if (it) viewModel.renderFullContent()
@@ -291,6 +310,7 @@ fun ReadingPage(
                                     webViewScrollSnapshot = it
                                 },
                                 onTitleLayersChange = { swipeTitleLayers = it },
+                                onVisibleArticleChange = { visibleArticleId = it },
                                 onImageClick = { imgUrl, altText, caption ->
                                     currentImageData = ImageData(imgUrl, altText, caption.trim())
                                     showFullScreenImageViewer = true
