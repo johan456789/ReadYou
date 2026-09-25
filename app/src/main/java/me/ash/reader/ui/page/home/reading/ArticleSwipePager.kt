@@ -154,13 +154,14 @@ fun ArticleSwipePager(
     currentReaderState: ReaderState,
     contentPadding: PaddingValues,
     enabled: Boolean,
-    onLoadArticle: (String, Int) -> Unit,
-    loadPreview: suspend (String, Int?) -> ReaderState,
+    onLoadArticle: (String) -> Unit,
+    loadPreview: suspend (String) -> ReaderState,
     onBringToTopHandled: () -> Unit,
     bringToTopRequest: Int,
     onCurrentHeadlineMeasured: (Int) -> Unit,
     onCurrentScrollSnapshotChange: (WebViewScrollSnapshot) -> Unit,
     onTitleLayersChange: (List<TopBarTitleLayer>) -> Unit,
+    onVisibleArticleChange: (String?) -> Unit,
     onImageClick: (String, String, String) -> Unit,
     onLinkLongPress: (String, String) -> Unit,
     onShowCustomView: (View, WebChromeClient.CustomViewCallback) -> Unit,
@@ -277,7 +278,7 @@ fun ArticleSwipePager(
             slot.articleId = target.articleId
             slot.readerState = ReaderState(articleId = target.articleId)
             slot.headlineHeightPx = 0
-            val preview = loadPreview(target.articleId, target.index)
+            val preview = loadPreview(target.articleId)
             if (slot.articleId == target.articleId && currentId == visibleCurrentState.articleId) {
                 slot.readerState = preview
             }
@@ -370,6 +371,15 @@ fun ArticleSwipePager(
                 }
             }
         SideEffect { onTitleLayersChange(titleLayers) }
+        // During an active drag (including the settle animation, where
+        // dragOffsetPx is driven to its target) report the incoming slot so
+        // taps act on the article on screen, not the outgoing one.
+        SideEffect {
+            onVisibleArticleChange(
+                incomingSlotIndex?.let { slots[it].articleId }
+                    ?: visibleCurrentState.articleId
+            )
+        }
 
         Box(
             modifier =
@@ -427,7 +437,7 @@ fun ArticleSwipePager(
                                             pendingSwipeCommitArticleId = target.articleId
                                             dragOffsetPx = 0f
                                             settleOffset.snapTo(0f)
-                                            onLoadArticle(target.articleId, target.index)
+                                            onLoadArticle(target.articleId)
                                         } finally {
                                             isSettling = false
                                         }
@@ -476,7 +486,7 @@ fun ArticleSwipePager(
                                             pendingSwipeCommitArticleId = target.articleId
                                             dragOffsetPx = 0f
                                             settleOffset.snapTo(0f)
-                                            onLoadArticle(target.articleId, target.index)
+                                            onLoadArticle(target.articleId)
                                         } finally {
                                             isSettling = false
                                         }

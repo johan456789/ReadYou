@@ -134,7 +134,7 @@ fun FlowPage(
     isTwoPane: Boolean,
     viewModel: ArticleListReaderViewModel,
     onNavigateUp: () -> Unit,
-    navigateToArticle: (String, Int) -> Unit,
+    navigateToArticle: (String) -> Unit,
 ) {
     val keyboardController = LocalSoftwareKeyboardController.current
     val articleListTonalElevation = LocalFlowArticleListTonalElevation.current
@@ -796,7 +796,7 @@ fun FlowPage(
                                 isShowStickyHeader = articleListDateStickyHeader.value,
                                 articleListTonalElevation = articleListTonalElevation.value,
                                 isSwipeEnabled = { listState.isScrollInProgress },
-                                onClick = { articleWithFeed, index ->
+                                onClick = { articleWithFeed, _ ->
                                     if (articleWithFeed.feed.isBrowser) {
                                         viewModel.diffMapHolder.updateDiff(
                                             articleWithFeed,
@@ -808,7 +808,7 @@ fun FlowPage(
                                             openLinkSpecificBrowser,
                                         )
                                     } else {
-                                        navigateToArticle(articleWithFeed.article.id, index)
+                                        navigateToArticle(articleWithFeed.article.id)
                                     }
                                 },
                                 onToggleStarred = onToggleStarred,

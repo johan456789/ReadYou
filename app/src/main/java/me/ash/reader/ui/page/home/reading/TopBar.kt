@@ -35,7 +35,6 @@ import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.alpha
 import androidx.compose.ui.draw.drawBehind
 import androidx.compose.ui.graphics.Color
-import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.style.TextOverflow
@@ -43,7 +42,6 @@ import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import me.ash.reader.R
 import me.ash.reader.infrastructure.preference.LocalReadingPageTonalElevation
-import me.ash.reader.infrastructure.preference.LocalSharedContent
 import me.ash.reader.infrastructure.preference.ReadingPageTonalElevationPreference
 import me.ash.reader.ui.component.base.FeedbackIconButton
 import me.ash.reader.ui.page.adaptive.NavigationAction
@@ -63,14 +61,13 @@ data class TopBarTitleLayer(
 fun TopBar(
     isScrolled: Boolean = false,
     titleLayers: List<TopBarTitleLayer> = emptyList(),
-    link: String? = "",
+    articleId: String? = null,
     navigationAction: NavigationAction,
     onClick: (() -> Unit)? = null,
     onNavButtonClick: (NavigationAction) -> Unit = {},
     onNavigateToStylePage: () -> Unit,
+    onShareClick: (articleId: String) -> Unit = {},
 ) {
-    val context = LocalContext.current
-    val sharedContent = LocalSharedContent.current
     val isOutlined =
         LocalReadingPageTonalElevation.current == ReadingPageTonalElevationPreference.Outlined
 
@@ -157,8 +154,7 @@ fun TopBar(
                         contentDescription = stringResource(R.string.share),
                         tint = MaterialTheme.colorScheme.onSurface,
                     ) {
-                        val shareTitle = titleLayers.maxByOrNull { it.alpha }?.text
-                        sharedContent.share(context, shareTitle, link)
+                        articleId?.let { onShareClick(it) }
                     }
                 },
                 colors = TopAppBarDefaults.topAppBarColors(containerColor = Color.Transparent),
