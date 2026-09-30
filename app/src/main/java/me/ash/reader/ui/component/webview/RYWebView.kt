@@ -145,6 +145,12 @@ class HorizontalScrollAwareWebView(context: Context) : WebView(context) {
     private var headlineMeasured = false
 
     companion object {
+        /** How long a load that never commits may keep rendering before it is paused again. */
+        private const val RE_PAUSE_MAX_DELAY_MS = 1500L
+
+        /** Grace period after a commit so the renderer can present the frame first. */
+        private const val RE_PAUSE_DELAY_MS = 300L
+
         private const val MEASURE_HEADLINE_JS =
             "(function(){var h=document.getElementById('ry-headline');" +
                 "if(!h) return -1;" +
@@ -172,14 +178,68 @@ class HorizontalScrollAwareWebView(context: Context) : WebView(context) {
         // New article invalidates any pending settle checks from the previous content.
         settleCheckToken++
         headlineMeasured = false
+        loadStartedAtMs = android.os.SystemClock.elapsedRealtime()
+        awaitingFirstDraw = true
+        docState = "html"
+        Timber.tag("RYPool")
+            .d("load id=%08x chars=%d paused=%b", System.identityHashCode(this), data.length, mediaPaused)
+        // WebView.onPause() stops the renderer from presenting frames, so a
+        // document loaded into an off-screen slot would keep showing the article
+        // it held before the swipe until the slot becomes current again - which
+        // is exactly when the user is already dragging the pane in. Resume just
+        // long enough for the new page to present its first frame; the commit
+        // callback re-applies the pause (see onPageCommittedVisible).
+        if (mediaPaused) {
+            resumedForLoad = true
+            Timber.tag("RYPool").d("resumeForLoad id=%08x", System.identityHashCode(this))
+            runCatching { onResume() }
+            // Safety net: if neither the commit nor a later load ever lands,
+            // still stop rendering - and media - again.
+            armRePause(RE_PAUSE_MAX_DELAY_MS)
+        }
         super.loadDataWithBaseURL(baseUrl, data, mimeType, encoding, historyUrl)
     }
 
     override fun loadUrl(url: String) {
         settleCheckToken++
         headlineMeasured = false
+        loadStartedAtMs = android.os.SystemClock.elapsedRealtime()
+        awaitingFirstDraw = false
+        clearArmedRePause()
+        docState = url ?: "-"
+        Timber.tag("RYPool").d("loadUrl id=%08x url=%s", System.identityHashCode(this), url)
         super.loadUrl(url)
     }
+
+    override fun onAttachedToWindow() {
+        super.onAttachedToWindow()
+        Timber.tag("RYPool").d("attach id=%08x", System.identityHashCode(this))
+    }
+
+    override fun onDetachedFromWindow() {
+        Timber.tag("RYPool").d("detach id=%08x", System.identityHashCode(this))
+        super.onDetachedFromWindow()
+    }
+
+    override fun onDraw(canvas: android.graphics.Canvas) {
+        super.onDraw(canvas)
+        if (awaitingFirstDraw) {
+            awaitingFirstDraw = false
+            Timber.tag("RYPool").d(
+                "firstDraw id=%08x msAfterLoad=%d paused=%b",
+                System.identityHashCode(this),
+                android.os.SystemClock.elapsedRealtime() - loadStartedAtMs,
+                mediaPaused,
+            )
+        }
+    }
+
+    private var loadStartedAtMs = 0L
+    fun msSinceLoad(): Long = android.os.SystemClock.elapsedRealtime() - loadStartedAtMs
+    var awaitingFirstDraw = false
+        private set
+    var docState = "none"
+        private set
 
     fun cancelPendingSettleCheck() {
         settleCheckToken++
@@ -191,6 +251,14 @@ class HorizontalScrollAwareWebView(context: Context) : WebView(context) {
      * Must be called on the UI thread.
      */
     fun pauseMediaPlayback() {
+        mediaPaused = true
+        clearArmedRePause()
+        Timber.tag("RYPool")
+            .d(
+                "pause id=%08x awaitingDraw=%b",
+                System.identityHashCode(this),
+                awaitingFirstDraw,
+            )
         runCatching { evaluateJavascript(PAUSE_ALL_MEDIA_JS, null) }
         runCatching { onPause() }
     }
@@ -200,8 +268,61 @@ class HorizontalScrollAwareWebView(context: Context) : WebView(context) {
      * Must be called on the UI thread.
      */
     fun resumeMediaPlayback() {
+        mediaPaused = false
+        clearArmedRePause()
+        Timber.tag("RYPool")
+            .d(
+                "resume id=%08x awaitingDraw=%b",
+                System.identityHashCode(this),
+                awaitingFirstDraw,
+            )
         runCatching { onResume() }
     }
+
+    /**
+     * Called once the WebView has presented the first frame of a page that was
+     * loaded while it was paused (see [loadDataWithBaseURL]). Re-applies the
+     * pause so an off-screen slot freezes on its freshly primed article instead
+     * of staying resumed - and able to start media - indefinitely.
+     *
+     * The pause is deferred rather than immediate: this callback can belong to a
+     * navigation that has already been superseded by a newer load (or to an
+     * about:blank issued while recycling), and pausing right here would freeze
+     * the slot before the document that is actually meant for it ever reaches the
+     * surface - leaving a blank pane when the user swipes it in.
+     */
+    fun onPageCommittedVisible() {
+        if (!resumedForLoad || !mediaPaused) return
+        // The document is on screen now, but the pane is still off-screen: stop
+        // any media it started immediately instead of waiting for the deferred
+        // pause below, which lands ~300ms later.
+        runCatching { evaluateJavascript(PAUSE_ALL_MEDIA_JS, null) }
+        Timber.tag("RYPool").d("rePauseScheduled id=%08x", System.identityHashCode(this))
+        armRePause(RE_PAUSE_DELAY_MS)
+    }
+
+    private val rePauseAction = Runnable {
+        if (!resumedForLoad || !mediaPaused) return@Runnable
+        Timber.tag("RYPool").d("rePause id=%08x", System.identityHashCode(this))
+        resumedForLoad = false
+        clearArmedRePause()
+        runCatching { evaluateJavascript(PAUSE_ALL_MEDIA_JS, null) }
+        runCatching { onPause() }
+    }
+
+    private fun armRePause(delayMs: Long) {
+        removeCallbacks(rePauseAction)
+        postDelayed(rePauseAction, delayMs)
+    }
+
+    private fun clearArmedRePause() {
+        resumedForLoad = false
+        removeCallbacks(rePauseAction)
+    }
+
+    var mediaPaused = false
+        private set
+    private var resumedForLoad = false
 
     /**
      * Called on page finish; the headline is text-only so its height is stable
@@ -268,6 +389,16 @@ class HorizontalScrollAwareWebView(context: Context) : WebView(context) {
 }
 
 data class WebViewContentKey(val baseUrl: String, val html: String, val fontSize: Int)
+
+/**
+ * A rendered article document plus the exact inputs it was built from.
+ *
+ * [produceState] restarts after composition, so for the first frame after an
+ * article change the produced value still holds the *previous* document while
+ * the new inputs are already in scope. Pairing them lets the loader wait for
+ * the rebuild instead of pushing the old article into a freshly primed pane.
+ */
+private data class HtmlDocument(val inputs: List<Any?>, val html: String)
 
 @Composable
 fun RYWebView(
@@ -410,11 +541,43 @@ fun RYWebView(
                 upperCaseTitle = titleUpperCase.value,
             )
         }
+    val htmlInputs =
+        listOf(
+            content,
+            headlineHtml,
+            htmlBaseUrl,
+            fontSize,
+            fontPath,
+            lineHeight,
+            letterSpacing,
+            textMargin,
+            textColor,
+            textBold,
+            textAlign,
+            boldTextColor,
+            subheadBold,
+            subheadUpperCase,
+            imgMargin,
+            imgBorderRadius,
+            linkTextColor,
+            codeTextColor,
+            codeBgColor,
+            selectionTextColor,
+            selectionBgColor,
+            headlineTitleColor,
+            headlineLabelColor,
+            titleBold.value,
+            titleUpperCase.value,
+            titleAlignCss,
+            contentMaxWidthPx,
+            boldCharacters.value,
+        )
     val articleHtml by
-        produceState<String?>(initialValue = null, content, headlineHtml, htmlBaseUrl, fontSize, fontPath, lineHeight, letterSpacing, textMargin, textColor, textBold, textAlign, boldTextColor, subheadBold, subheadUpperCase, imgMargin, imgBorderRadius, linkTextColor, codeTextColor, codeBgColor, selectionTextColor, selectionBgColor, headlineTitleColor, headlineLabelColor, titleBold.value, titleUpperCase.value, titleAlignCss, contentMaxWidthPx, boldCharacters.value) {
+        produceState<HtmlDocument?>(initialValue = null, htmlInputs) {
+            val inputs = htmlInputs
             val buildStartedAtMs = SystemClock.elapsedRealtime()
             value = null
-            value =
+            val html =
                 withContext(Dispatchers.Default) {
                     WebViewHtml.HTML.format(
                         WebViewStyle.get(
@@ -450,10 +613,11 @@ fun RYWebView(
                         WebViewScript.get(boldCharacters.value),
                     )
                 }
+            value = HtmlDocument(inputs, html)
             Timber.tag("RYWebViewPerf").d(
                 "html build in %d ms (%d chars)",
                 SystemClock.elapsedRealtime() - buildStartedAtMs,
-                value?.length ?: 0,
+                html.length,
             )
         }
 
@@ -486,7 +650,12 @@ fun RYWebView(
                     ReadingFontsPreference.Serif -> "serif"
                     else -> "sans-serif"
                 }
-            val html = articleHtml ?: return@AndroidView
+            val document = articleHtml ?: return@AndroidView
+            // The html still belongs to the previous article / style; the rebuild
+            // is on its way. Loading it now would prime this pane with the wrong
+            // document and the real one would have to fight it for the surface.
+            if (document.inputs != htmlInputs) return@AndroidView
+            val html = document.html
             val contentKey = WebViewContentKey(htmlBaseUrl, html, fontSize)
             if (wv.loadedContentKey != contentKey) {
                 wv.loadedContentKey = contentKey
