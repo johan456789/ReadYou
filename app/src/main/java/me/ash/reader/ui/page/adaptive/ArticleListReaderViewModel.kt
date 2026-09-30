@@ -430,6 +430,26 @@ constructor(
                 .copy(content = articleWithFeed.previewContent())
         }
 
+    /**
+     * Neighbor target used by the swipe pager to prime the pane that the NEXT
+     * swipe will reveal. It reads the list snapshot synchronously, so it works
+     * while the incoming article's preview is still in flight - the preview-based
+     * `ReaderState.nextArticle` is null in that window, which used to leave the
+     * far pane showing the article it held three swipes ago.
+     */
+    fun swipeNeighborTarget(
+        articleId: String,
+        isNext: Boolean,
+    ): ReaderState.PrefetchResult? {
+        val ids =
+            adjacentArticleIds(
+                items = articleListUseCase.itemSnapshotList.items,
+                articleId = articleId,
+            )
+        val neighborId = if (isNext) ids.nextId else ids.previousId
+        return neighborId?.let { ReaderState.PrefetchResult(articleId = it) }
+    }
+
     private suspend fun ArticleWithFeed.previewContent(): ReaderState.ContentState {
         // Neighbor prefetch for the 3-slot ArticleSwipePager: reuse the FullContent page
         // when the article is still loaded (manual toggle or disk cache), so swiping back
