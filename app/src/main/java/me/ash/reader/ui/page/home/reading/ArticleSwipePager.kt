@@ -38,6 +38,7 @@ import androidx.compose.ui.platform.LocalLayoutDirection
 import androidx.compose.ui.unit.IntOffset
 import androidx.compose.ui.unit.LayoutDirection
 import androidx.compose.ui.unit.dp
+import kotlinx.coroutines.Job
 import kotlinx.coroutines.launch
 import me.ash.reader.ui.component.webview.HorizontalScrollAwareWebView
 import me.ash.reader.ui.component.webview.WebViewScrollSnapshot
@@ -144,6 +145,7 @@ private class ArticleSwipeSlot(
     var articleId by mutableStateOf<String?>(null)
     var readerState by mutableStateOf<ReaderState?>(null)
     var target by mutableStateOf<ReaderState.PrefetchResult?>(null)
+    var previewJob: Job? = null
     var headlineHeightPx by mutableStateOf(0)
     var scrollSnapshot by mutableStateOf(WebViewScrollSnapshot(0, 0, 0, true, true))
     var webView by mutableStateOf<HorizontalScrollAwareWebView?>(null)
@@ -156,6 +158,8 @@ fun ArticleSwipePager(
     enabled: Boolean,
     onLoadArticle: (String) -> Unit,
     loadPreview: suspend (String) -> ReaderState,
+    swipeNeighborTarget:
+        (articleId: String, isNext: Boolean) -> ReaderState.PrefetchResult?,
     onBringToTopHandled: () -> Unit,
     bringToTopRequest: Int,
     onCurrentHeadlineMeasured: (Int) -> Unit,
@@ -190,6 +194,20 @@ fun ArticleSwipePager(
             }
         }
         slots.firstOrNull { it.index == slotIndex }?.webView = webView
+        if (webView == null) return
+        // A pooled WebView still carries the pause state of the slot it served
+        // last, and the pool resumes it on obtain without touching that flag -
+        // so it can reach this pane as "paused" while actually running. Assert
+        // the role before the pane loads: the current pane must be free to
+        // render (a stale flag would arm the deferred re-pause against it and
+        // freeze the article as soon as it opens), and every off-screen pane
+        // must start paused so its primed document is resumed only long enough
+        // to present its first frame.
+        if (slotIndex == currentSlotIndex) {
+            webView.resumeMediaPlayback()
+        } else {
+            webView.pauseMediaPlayback()
+        }
     }
 
     fun applyArticleSwipeMediaUpdate(update: ArticleSwipeMediaUpdate) {
@@ -199,11 +217,117 @@ fun ArticleSwipePager(
         slots.firstOrNull { it.index == update.resumeSlotIndex }?.webView?.resumeMediaPlayback()
     }
 
+    // Neighbor prefetch pipeline. [loadInto] assigns an article to a slot and
+    // fetches its preview; both it and [kickSlotPreview] are idempotent so the
+    // settle-time kick, the post-settle rotation, and the swipe-start retry can
+    // all call them safely. The preview job is tracked per slot so a retry can
+    // tell "still fetching" apart from "fetch died".
+    fun fetchPreview(slotIndex: Int, target: ReaderState.PrefetchResult) {
+        val slot = slots.firstOrNull { it.index == slotIndex } ?: return
+        slot.previewJob?.cancel()
+        slot.previewJob = scope.launch {
+            val preview = loadPreview(target.articleId)
+            if (slot.articleId == target.articleId) slot.readerState = preview
+        }
+    }
+
+    fun loadInto(slotIndex: Int, target: ReaderState.PrefetchResult?) {
+        val slot = slots.firstOrNull { it.index == slotIndex } ?: return
+        if (target == null) {
+            slot.previewJob?.cancel()
+            slot.previewJob = null
+            slot.articleId = null
+            slot.readerState = null
+            slot.target = null
+            slot.headlineHeightPx = 0
+            return
+        }
+        slot.target = target
+        if (slot.articleId == target.articleId && slot.readerState != null) return
+        slot.articleId = target.articleId
+        slot.readerState = ReaderState(articleId = target.articleId)
+        slot.headlineHeightPx = 0
+        fetchPreview(slotIndex, target)
+    }
+
+    fun kickSlotPreview(slotIndex: Int) {
+        val slot = slots.firstOrNull { it.index == slotIndex } ?: return
+        val target = slot.target ?: return
+        if (slot.articleId != target.articleId) {
+            loadInto(slotIndex, target)
+            return
+        }
+        if (slot.previewJob?.isActive == true) return
+        if (slot.readerState == null || slot.readerState?.content is ReaderState.Loading) {
+            fetchPreview(slotIndex, target)
+        }
+    }
+
+    // The pane that gets revealed by the NEXT swipe is primed at settle time by
+    // loading one article past the incoming one. That normally comes from the
+    // incoming slot's ReaderState - but when its preview is still in flight the
+    // state carries no neighbors, so the priming silently no-ops and the pane
+    // keeps showing the article it held three swipes ago (the stale WebView the
+    // next drag then reveals). Fall back to the article-list snapshot so the far
+    // pane is always assigned inside the settle animation instead of waiting for
+    // the post-settle commit, which lands a few frames before the next swipe.
+    fun resolveFarTarget(
+        incomingSlotIndex: Int,
+        direction: ArticleSwipeDirection,
+    ): ReaderState.PrefetchResult? {
+        val incoming = slots.firstOrNull { it.index == incomingSlotIndex } ?: return null
+        incoming.readerState?.let { state ->
+            val neighbor =
+                when (direction) {
+                    ArticleSwipeDirection.Next -> state.nextArticle
+                    ArticleSwipeDirection.Previous -> state.previousArticle
+                }
+            if (neighbor != null) return neighbor
+        }
+        val incomingId = incoming.articleId ?: return null
+        return swipeNeighborTarget(incomingId, direction == ArticleSwipeDirection.Next)
+    }
+
+    // Diagnostic: dump pager state on every slot/current change so blank panes
+    // can be attributed to WebView pool timing from logcat alone.
+    val slotStateKey =
+        buildString {
+            append("cur=").append(currentSlotIndex)
+            append(" prev=").append(previousSlotIndex)
+            append(" next=").append(nextSlotIndex)
+            append(" pending=").append(pendingSwipeCommitArticleId)
+            slots.forEach { slot ->
+                val wv = slot.webView
+                append(" |s").append(slot.index)
+                append(" id=").append(slot.articleId ?: "-")
+                append(" wv=").append(Integer.toHexString(System.identityHashCode(wv)))
+                append(" doc=").append(wv?.docState)
+                append(" drawn=").append(wv != null && !wv.awaitingFirstDraw)
+                append(" content=").append(slot.readerState?.content?.let { it::class.simpleName })
+            }
+        }
+    LaunchedEffect(slotStateKey) {
+        timber.log.Timber.tag("RYSwiper").d("%s", slotStateKey)
+    }
+
+    // Diagnostic: while a finger is held mid-swipe, sample slot state so we can
+    // see whether the incoming pane's WebView keeps loading/drawing during the hold.
+    val isDraggingMidSwipe = dragOffsetPx != 0f
+    LaunchedEffect(isDraggingMidSwipe) {
+        if (!isDraggingMidSwipe) return@LaunchedEffect
+        while (true) {
+            timber.log.Timber.tag("RYSwiper").d("dragTick off=%.0f %s", dragOffsetPx, slotStateKey)
+            kotlinx.coroutines.delay(250)
+        }
+    }
+
     LaunchedEffect(currentReaderState.articleId, currentReaderState.content) {
         val articleId = currentReaderState.articleId ?: return@LaunchedEffect
         val existingSlotIndex = slots.indexOfFirst { it.articleId == articleId }
         if (pendingSwipeCommitArticleId == articleId && existingSlotIndex != -1) {
             currentSlotIndex = existingSlotIndex
+            slots[existingSlotIndex].previewJob?.cancel()
+            slots[existingSlotIndex].previewJob = null
             slots[existingSlotIndex].readerState = currentReaderState
             slots[existingSlotIndex].target = null
             pendingSwipeCommitArticleId = null
@@ -212,6 +336,8 @@ fun ArticleSwipePager(
 
         val currentSlot = slots[currentSlotIndex]
         if (currentSlot.articleId == articleId) {
+            currentSlot.previewJob?.cancel()
+            currentSlot.previewJob = null
             currentSlot.readerState = currentReaderState
             currentSlot.target = null
         } else if (pendingSwipeCommitArticleId == null) {
@@ -219,6 +345,8 @@ fun ArticleSwipePager(
             currentSlotIndex = 0
             nextSlotIndex = 2
             slots.forEach { slot ->
+                slot.previewJob?.cancel()
+                slot.previewJob = null
                 if (slot.index == currentSlotIndex) {
                     slot.articleId = articleId
                     slot.readerState = currentReaderState
@@ -241,7 +369,7 @@ fun ArticleSwipePager(
         visibleCurrentState.nextArticle,
         currentSlotIndex,
     ) {
-        val currentId = visibleCurrentState.articleId ?: return@LaunchedEffect
+        if (visibleCurrentState.articleId == null) return@LaunchedEffect
         val previous = visibleCurrentState.previousArticle
         val next = visibleCurrentState.nextArticle
         val availableSlots = slots.filter { it.index != currentSlotIndex }.map { it.index }
@@ -264,28 +392,8 @@ fun ArticleSwipePager(
                 ?: remaining.firstOrNull { it != previousSlotIndex }
                 ?: nextSlotIndex
 
-        suspend fun loadInto(slotIndex: Int, target: ReaderState.PrefetchResult?) {
-            val slot = slots[slotIndex]
-            if (target == null) {
-                slot.articleId = null
-                slot.readerState = null
-                slot.target = null
-                slot.headlineHeightPx = 0
-                return
-            }
-            slot.target = target
-            if (slot.articleId == target.articleId && slot.readerState != null) return
-            slot.articleId = target.articleId
-            slot.readerState = ReaderState(articleId = target.articleId)
-            slot.headlineHeightPx = 0
-            val preview = loadPreview(target.articleId)
-            if (slot.articleId == target.articleId && currentId == visibleCurrentState.articleId) {
-                slot.readerState = preview
-            }
-        }
-
-        launch { loadInto(previousSlotIndex, previous) }
-        launch { loadInto(nextSlotIndex, next) }
+        loadInto(previousSlotIndex, previous)
+        loadInto(nextSlotIndex, next)
     }
 
     // The headline measurement is per-slot state so that a prefetched neighbor
@@ -393,10 +501,25 @@ fun ArticleSwipePager(
                                 getCurrentState = { slots[currentSlotIndex].readerState },
                                 getPreviousTarget = { slots[previousSlotIndex].target },
                                 getNextTarget = { slots[nextSlotIndex].target },
+                                onKickNeighbors = {
+                                    kickSlotPreview(previousSlotIndex)
+                                    kickSlotPreview(nextSlotIndex)
+                                },
                                 onSettlePrevious = {
                                     scope.launch {
                                         val target =
                                             slots[previousSlotIndex].target ?: return@launch
+                                        timber.log.Timber.tag("RYSwiper")
+                                            .d("settle PREV -> %s", target.articleId)
+                                        // Mirror of the settle-NEXT kick: the pane that becomes
+                                        // "previous" after this swipe needs the article before the
+                                        // incoming one, and its rebuild should overlap the settle
+                                        // animation rather than wait for it.
+                                        resolveFarTarget(
+                                                incomingSlotIndex = previousSlotIndex,
+                                                direction = ArticleSwipeDirection.Previous,
+                                            )
+                                            ?.let { far -> loadInto(nextSlotIndex, far) }
                                         // Silence the outgoing article up front so its
                                         // audio/video cannot play under the incoming page.
                                         applyArticleSwipeMediaUpdate(
@@ -446,6 +569,19 @@ fun ArticleSwipePager(
                                 onSettleNext = {
                                     scope.launch {
                                         val target = slots[nextSlotIndex].target ?: return@launch
+                                        timber.log.Timber.tag("RYSwiper")
+                                            .d("settle NEXT -> %s", target.articleId)
+                                        // The pane that becomes "next" after this swipe has to
+                                        // show a different article. Kick its rebuild NOW so the
+                                        // preview fetch + html build + paint overlap the ~0.9s
+                                        // settle animation instead of running after it; otherwise
+                                        // this pane still holds the article from three swipes ago
+                                        // when the user swipes again as soon as gestures re-enable.
+                                        resolveFarTarget(
+                                                incomingSlotIndex = nextSlotIndex,
+                                                direction = ArticleSwipeDirection.Next,
+                                            )
+                                            ?.let { far -> loadInto(previousSlotIndex, far) }
                                         // Silence the outgoing article up front so its
                                         // audio/video cannot play under the incoming page.
                                         applyArticleSwipeMediaUpdate(
@@ -593,12 +729,18 @@ private fun Modifier.articleSwipePointerInput(
     onSettleNext: () -> Unit,
     onCancel: () -> Unit,
     onDragOffsetChange: (Float) -> Unit,
+    onKickNeighbors: () -> Unit,
 ): Modifier =
     pointerInput(layoutDirection, gesturesEnabled) {
         if (!gesturesEnabled) return@pointerInput
         val thresholdPx = 96.dp.toPx()
         awaitEachGesture {
             val down = awaitFirstDown(requireUnconsumed = false)
+            timber.log.Timber.tag("RYSwiper").d("down")
+            // Safety net: if a neighbor's preview fetch never completed (failed,
+            // cancelled), restart it the moment the user reaches to swipe so the
+            // pane they are about to reveal is not stuck empty. No-op otherwise.
+            onKickNeighbors()
             var dragOffset = 0f
             var totalDragOffset = 0f
             var totalOffset = Offset.Zero
@@ -645,6 +787,7 @@ private fun Modifier.articleSwipePointerInput(
                 onDragOffsetChange(dragOffset)
                 change.consume()
             }
+            timber.log.Timber.tag("RYSwiper").d("up offset=%d", dragOffset.roundToInt())
 
             val hasCurrent = getCurrentState()?.articleId != null
             if (!hasCurrent || abs(dragOffset) < thresholdPx) {

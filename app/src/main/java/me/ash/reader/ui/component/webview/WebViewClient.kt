@@ -67,8 +67,24 @@ class WebViewClient(
         return super.shouldInterceptRequest(view, request)
     }
 
+    override fun onPageCommitVisible(view: WebView?, url: String?) {
+        super.onPageCommitVisible(view, url)
+        val wv = view as? HorizontalScrollAwareWebView
+        Timber.tag("RYPool")
+            .d(
+                "commitVisible id=%08x msAfterLoad=%d",
+                System.identityHashCode(view),
+                wv?.msSinceLoad() ?: -1L,
+            )
+        // The page has presented its first frame, so a slot that was resumed
+        // only to render can go back to being paused off-screen.
+        wv?.onPageCommittedVisible()
+    }
+
     override fun onPageFinished(view: WebView?, url: String?) {
         super.onPageFinished(view, url)
+        Timber.tag("RYPool")
+            .d("pageFinished id=%08x url=%s", System.identityHashCode(view), url)
         view!!.evaluateJavascript(OnImgClickScript, null)
         view.evaluateJavascript(OnLinkLongPressScript, null)
         view.evaluateJavascript(OnAnchorClickScript, null)

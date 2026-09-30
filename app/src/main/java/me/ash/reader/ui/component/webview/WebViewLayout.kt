@@ -43,8 +43,9 @@ object WebViewLayout {
         onLinkLongPress: ((url: String, text: String) -> Unit)? = null,
         onAnchorScroll: ((cssTop: Double) -> Unit)? = null,
     ): HorizontalScrollAwareWebView {
+        val retained = retainedWebView
         val webView =
-            retainedWebView?.also {
+            retained?.also {
                 retainedWebView = null
                 (it.context as? MutableContextWrapper)?.baseContext = context
             } ?: createWebView(
@@ -56,6 +57,8 @@ object WebViewLayout {
                     onLinkLongPress = onLinkLongPress,
                     onAnchorScroll = onAnchorScroll,
                 )
+        timber.log.Timber.tag("RYPool")
+            .d("obtain %s id=%08x", if (retained != null) "HIT" else "MISS", System.identityHashCode(webView))
         configureWebView(
             webView = webView,
             readingFontsPreference = readingFontsPreference,
@@ -69,6 +72,11 @@ object WebViewLayout {
     }
 
     fun recycle(webView: HorizontalScrollAwareWebView) {
+        timber.log.Timber.tag("RYPool").d(
+            "recycle id=%08x replacesRetained=%s",
+            System.identityHashCode(webView),
+            retainedWebView != null && retainedWebView !== webView,
+        )
         (webView.webChromeClient as? RYWebChromeClient)?.releaseCustomView()
         (webView.parent as? android.view.ViewGroup)?.removeView(webView)
         webView.cancelPendingSettleCheck()
