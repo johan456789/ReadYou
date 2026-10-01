@@ -145,12 +145,6 @@ class HorizontalScrollAwareWebView(context: Context) : WebView(context) {
     private var headlineMeasured = false
 
     companion object {
-        /** How long a load that never commits may keep rendering before it is paused again. */
-        private const val RE_PAUSE_MAX_DELAY_MS = 1500L
-
-        /** Grace period after a commit so the renderer can present the frame first. */
-        private const val RE_PAUSE_DELAY_MS = 300L
-
         private const val MEASURE_HEADLINE_JS =
             "(function(){var h=document.getElementById('ry-headline');" +
                 "if(!h) return -1;" +
@@ -158,14 +152,33 @@ class HorizontalScrollAwareWebView(context: Context) : WebView(context) {
                 " * window.devicePixelRatio);})()"
 
         /**
-         * Pauses every inline `<audio>`/`<video>` element in the page.
-         * Evaluated when an article scrolls off-screen so its media cannot
-         * keep playing while another article is visible.
+         * Silences every audible source in the page: pauses inline
+         * `<audio>`/`<video>` and parks `<iframe>` embeds (YouTube etc.) by
+         * pointing them at about:blank. Evaluating just `pause()` on media
+         * elements is not enough - cross-origin embeds are separate documents
+         * and keep playing. Parked frames are restored by [RESUME_EMBEDS_JS].
          */
         internal const val PAUSE_ALL_MEDIA_JS =
-            "(function(){try{var els=document.querySelectorAll('audio,video');" +
-                "for(var i=0;i<els.length;i++){try{els[i].pause();}catch(e){}}}" +
-                "catch(e){}})()"
+            "(function(){try{" +
+                "var els=document.querySelectorAll('audio,video');" +
+                "for(var i=0;i<els.length;i++){try{els[i].pause();}catch(e){}}" +
+                "var ifs=document.querySelectorAll('iframe');" +
+                "for(var j=0;j<ifs.length;j++){try{" +
+                "var f=ifs[j];" +
+                "if(f.dataset.ryParked!=='1'&&f.src&&f.src!=='about:blank'){" +
+                "f.dataset.rySrc=f.src;f.dataset.ryParked='1';f.src='about:blank';}" +
+                "}catch(e){}}" +
+                "}catch(e){}})()"
+
+        /** Reverses the iframe parking done by [PAUSE_ALL_MEDIA_JS]. */
+        internal const val RESUME_EMBEDS_JS =
+            "(function(){try{" +
+                "var ifs=document.querySelectorAll('iframe');" +
+                "for(var j=0;j<ifs.length;j++){try{" +
+                "var f=ifs[j];" +
+                "if(f.dataset.ryParked==='1'){f.src=f.dataset.rySrc||f.src;f.dataset.ryParked='0';}" +
+                "}catch(e){}}" +
+                "}catch(e){}})()"
     }
 
     override fun loadDataWithBaseURL(
@@ -183,20 +196,6 @@ class HorizontalScrollAwareWebView(context: Context) : WebView(context) {
         docState = "html"
         Timber.tag("RYPool")
             .d("load id=%08x chars=%d paused=%b", System.identityHashCode(this), data.length, mediaPaused)
-        // WebView.onPause() stops the renderer from presenting frames, so a
-        // document loaded into an off-screen slot would keep showing the article
-        // it held before the swipe until the slot becomes current again - which
-        // is exactly when the user is already dragging the pane in. Resume just
-        // long enough for the new page to present its first frame; the commit
-        // callback re-applies the pause (see onPageCommittedVisible).
-        if (mediaPaused) {
-            resumedForLoad = true
-            Timber.tag("RYPool").d("resumeForLoad id=%08x", System.identityHashCode(this))
-            runCatching { onResume() }
-            // Safety net: if neither the commit nor a later load ever lands,
-            // still stop rendering - and media - again.
-            armRePause(RE_PAUSE_MAX_DELAY_MS)
-        }
         super.loadDataWithBaseURL(baseUrl, data, mimeType, encoding, historyUrl)
     }
 
@@ -205,7 +204,6 @@ class HorizontalScrollAwareWebView(context: Context) : WebView(context) {
         headlineMeasured = false
         loadStartedAtMs = android.os.SystemClock.elapsedRealtime()
         awaitingFirstDraw = false
-        clearArmedRePause()
         docState = url ?: "-"
         Timber.tag("RYPool").d("loadUrl id=%08x url=%s", System.identityHashCode(this), url)
         super.loadUrl(url)
@@ -249,10 +247,16 @@ class HorizontalScrollAwareWebView(context: Context) : WebView(context) {
      * Stops audible media without destroying page state (scroll position and
      * DOM are preserved, unlike [WebViewLayout.recycle][me.ash.reader.ui.component.webview.WebViewLayout.recycle]).
      * Must be called on the UI thread.
+     *
+     * Deliberately does NOT call [android.webkit.WebView.onPause]: that stops the
+     * renderer from presenting frames, so a page whose raster is still in flight
+     * (large documents, images decoding) freezes half-painted - the pane shows
+     * the top of the article and a blank bottom half until it is resumed. Media
+     * silencing is done in-page instead, which leaves the renderer free to finish
+     * painting.
      */
     fun pauseMediaPlayback() {
         mediaPaused = true
-        clearArmedRePause()
         Timber.tag("RYPool")
             .d(
                 "pause id=%08x awaitingDraw=%b",
@@ -260,69 +264,39 @@ class HorizontalScrollAwareWebView(context: Context) : WebView(context) {
                 awaitingFirstDraw,
             )
         runCatching { evaluateJavascript(PAUSE_ALL_MEDIA_JS, null) }
-        runCatching { onPause() }
     }
 
     /**
-     * Counterpart to [pauseMediaPlayback]: lets a visible page play media again.
-     * Must be called on the UI thread.
+     * Counterpart to [pauseMediaPlayback]: lets a visible page play media again
+     * and restores embeds parked by [PAUSE_ALL_MEDIA_JS]. Must be called on the
+     * UI thread.
      */
     fun resumeMediaPlayback() {
         mediaPaused = false
-        clearArmedRePause()
         Timber.tag("RYPool")
             .d(
                 "resume id=%08x awaitingDraw=%b",
                 System.identityHashCode(this),
                 awaitingFirstDraw,
             )
+        runCatching { evaluateJavascript(RESUME_EMBEDS_JS, null) }
         runCatching { onResume() }
     }
 
     /**
-     * Called once the WebView has presented the first frame of a page that was
-     * loaded while it was paused (see [loadDataWithBaseURL]). Re-applies the
-     * pause so an off-screen slot freezes on its freshly primed article instead
-     * of staying resumed - and able to start media - indefinitely.
-     *
-     * The pause is deferred rather than immediate: this callback can belong to a
-     * navigation that has already been superseded by a newer load (or to an
-     * about:blank issued while recycling), and pausing right here would freeze
-     * the slot before the document that is actually meant for it ever reaches the
-     * surface - leaving a blank pane when the user swipes it in.
+     * Called once the WebView has presented the first frame of a freshly loaded
+     * page. Media is silenced here too: a page that started playing audio or
+     * video on its own before the slot was marked paused must not keep playing
+     * under the visible article. The renderer is left running so the rest of the
+     * document - images, lower tiles - can finish painting.
      */
     fun onPageCommittedVisible() {
-        if (!resumedForLoad || !mediaPaused) return
-        // The document is on screen now, but the pane is still off-screen: stop
-        // any media it started immediately instead of waiting for the deferred
-        // pause below, which lands ~300ms later.
+        if (!mediaPaused) return
         runCatching { evaluateJavascript(PAUSE_ALL_MEDIA_JS, null) }
-        Timber.tag("RYPool").d("rePauseScheduled id=%08x", System.identityHashCode(this))
-        armRePause(RE_PAUSE_DELAY_MS)
-    }
-
-    private val rePauseAction = Runnable {
-        if (!resumedForLoad || !mediaPaused) return@Runnable
-        Timber.tag("RYPool").d("rePause id=%08x", System.identityHashCode(this))
-        resumedForLoad = false
-        clearArmedRePause()
-        runCatching { evaluateJavascript(PAUSE_ALL_MEDIA_JS, null) }
-        runCatching { onPause() }
-    }
-
-    private fun armRePause(delayMs: Long) {
-        removeCallbacks(rePauseAction)
-        postDelayed(rePauseAction, delayMs)
-    }
-
-    private fun clearArmedRePause() {
-        resumedForLoad = false
-        removeCallbacks(rePauseAction)
     }
 
     var mediaPaused = false
         private set
-    private var resumedForLoad = false
 
     /**
      * Called on page finish; the headline is text-only so its height is stable

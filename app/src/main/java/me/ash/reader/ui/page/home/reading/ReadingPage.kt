@@ -303,6 +303,7 @@ fun ReadingPage(
                                         !isVideoFullscreen,
                                 onLoadArticle = onLoadArticle,
                                 loadPreview = viewModel::previewReaderState,
+                                loadFullPreview = viewModel::neighborFullReaderState,
                                 swipeNeighborTarget = viewModel::swipeNeighborTarget,
                                 bringToTopRequest = scrollToTopRequest,
                                 onBringToTopHandled = { bringToTop = false },
