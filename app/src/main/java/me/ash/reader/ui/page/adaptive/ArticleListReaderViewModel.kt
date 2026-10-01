@@ -450,6 +450,47 @@ constructor(
         return neighborId?.let { ReaderState.PrefetchResult(articleId = it) }
     }
 
+    /**
+     * Full-content upgrade for a primed swipe pane. [previewContent] deliberately
+     * never triggers a network fetch, so a pane primed before its article is opened
+     * renders the feed body - which is only a summary on feeds that hide the article
+     * behind a "Read full article" link. Opening the same article shows the fetched
+     * full content instead (see [ReaderState.renderContent]), so the swipe would
+     * reveal a half-empty page that silently grows once the article settles.
+     *
+     * Mirrors [ReaderState.renderContent]'s content decision - including
+     * [ReaderCacheHelper.readOrFetchFullContent] - but without touching the current
+     * article's state. Returns null when the preview already holds the content the
+     * article would show when opened.
+     */
+    suspend fun neighborFullReaderState(articleId: String): ReaderState? =
+        withContext(ioDispatcher) {
+            val articleWithFeed =
+                selectReadingListItem(
+                    items = articleListUseCase.itemSnapshotList.items,
+                    articleId = articleId,
+                )
+                    ?: rssService.get().findArticleById(articleId)
+                    ?: return@withContext null
+            val article = articleWithFeed.article
+            val wantsFullContent =
+                articleWithFeed.feed.isFullContent || fullContentManualOverride[article.id] == true
+            if (!wantsFullContent) return@withContext null
+            val fullContent =
+                readerCacheHelper.readOrFetchFullContent(article).getOrNull()
+                    ?: return@withContext null
+            ReaderState(
+                    articleId = article.id,
+                    feedName = articleWithFeed.feed.name,
+                    title = article.title,
+                    author = article.author,
+                    link = article.link,
+                    publishedDate = article.date,
+                )
+                .prefetchArticleId(article.id)
+                .copy(content = ReaderState.FullContent(fullContent))
+        }
+
     private suspend fun ArticleWithFeed.previewContent(): ReaderState.ContentState {
         // Neighbor prefetch for the 3-slot ArticleSwipePager: reuse the FullContent page
         // when the article is still loaded (manual toggle or disk cache), so swiping back

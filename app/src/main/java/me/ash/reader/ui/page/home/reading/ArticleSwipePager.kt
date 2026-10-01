@@ -146,6 +146,7 @@ private class ArticleSwipeSlot(
     var readerState by mutableStateOf<ReaderState?>(null)
     var target by mutableStateOf<ReaderState.PrefetchResult?>(null)
     var previewJob: Job? = null
+    var fullJob: Job? = null
     var headlineHeightPx by mutableStateOf(0)
     var scrollSnapshot by mutableStateOf(WebViewScrollSnapshot(0, 0, 0, true, true))
     var webView by mutableStateOf<HorizontalScrollAwareWebView?>(null)
@@ -158,6 +159,7 @@ fun ArticleSwipePager(
     enabled: Boolean,
     onLoadArticle: (String) -> Unit,
     loadPreview: suspend (String) -> ReaderState,
+    loadFullPreview: suspend (String) -> ReaderState?,
     swipeNeighborTarget:
         (articleId: String, isNext: Boolean) -> ReaderState.PrefetchResult?,
     onBringToTopHandled: () -> Unit,
@@ -227,7 +229,17 @@ fun ArticleSwipePager(
         slot.previewJob?.cancel()
         slot.previewJob = scope.launch {
             val preview = loadPreview(target.articleId)
-            if (slot.articleId == target.articleId) slot.readerState = preview
+            if (slot.articleId != target.articleId) return@launch
+            slot.readerState = preview
+            // The preview falls back to the feed body, which on full-content
+            // feeds is only a summary; upgrade the pane to the fetched article
+            // so a swipe never reveals a half-empty page. Cancelable per slot
+            // so re-priming (or a settle that assigns the current state) wins.
+            slot.fullJob?.cancel()
+            slot.fullJob = scope.launch {
+                val full = loadFullPreview(target.articleId) ?: return@launch
+                if (slot.articleId == target.articleId) slot.readerState = full
+            }
         }
     }
 
@@ -236,6 +248,8 @@ fun ArticleSwipePager(
         if (target == null) {
             slot.previewJob?.cancel()
             slot.previewJob = null
+            slot.fullJob?.cancel()
+            slot.fullJob = null
             slot.articleId = null
             slot.readerState = null
             slot.target = null
@@ -260,6 +274,18 @@ fun ArticleSwipePager(
         if (slot.previewJob?.isActive == true) return
         if (slot.readerState == null || slot.readerState?.content is ReaderState.Loading) {
             fetchPreview(slotIndex, target)
+            return
+        }
+        // Preview already landed on the feed body; retry the full-content
+        // upgrade if the first attempt was cancelled or failed (swipe start is
+        // the last chance to fetch before the pane is revealed).
+        if (
+            slot.fullJob?.isActive != true && slot.readerState?.content is ReaderState.Description
+        ) {
+            slot.fullJob = scope.launch {
+                val full = loadFullPreview(target.articleId) ?: return@launch
+                if (slot.articleId == target.articleId) slot.readerState = full
+            }
         }
     }
 
@@ -303,6 +329,8 @@ fun ArticleSwipePager(
                 append(" wv=").append(Integer.toHexString(System.identityHashCode(wv)))
                 append(" doc=").append(wv?.docState)
                 append(" drawn=").append(wv != null && !wv.awaitingFirstDraw)
+                append(" maxScroll=").append(slot.scrollSnapshot.maxScrollY)
+                append(" vp=").append(slot.scrollSnapshot.viewportHeight)
                 append(" content=").append(slot.readerState?.content?.let { it::class.simpleName })
             }
         }
@@ -328,6 +356,8 @@ fun ArticleSwipePager(
             currentSlotIndex = existingSlotIndex
             slots[existingSlotIndex].previewJob?.cancel()
             slots[existingSlotIndex].previewJob = null
+            slots[existingSlotIndex].fullJob?.cancel()
+            slots[existingSlotIndex].fullJob = null
             slots[existingSlotIndex].readerState = currentReaderState
             slots[existingSlotIndex].target = null
             pendingSwipeCommitArticleId = null
@@ -338,6 +368,8 @@ fun ArticleSwipePager(
         if (currentSlot.articleId == articleId) {
             currentSlot.previewJob?.cancel()
             currentSlot.previewJob = null
+            currentSlot.fullJob?.cancel()
+            currentSlot.fullJob = null
             currentSlot.readerState = currentReaderState
             currentSlot.target = null
         } else if (pendingSwipeCommitArticleId == null) {
@@ -347,6 +379,8 @@ fun ArticleSwipePager(
             slots.forEach { slot ->
                 slot.previewJob?.cancel()
                 slot.previewJob = null
+                slot.fullJob?.cancel()
+                slot.fullJob = null
                 if (slot.index == currentSlotIndex) {
                     slot.articleId = articleId
                     slot.readerState = currentReaderState
