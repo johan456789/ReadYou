@@ -7,6 +7,7 @@ import android.webkit.WebChromeClient
 import android.webkit.WebResourceRequest
 import android.webkit.WebView
 import android.webkit.WebViewClient
+import androidx.annotation.VisibleForTesting
 import timber.log.Timber
 
 class RYWebChromeClient(
@@ -25,7 +26,7 @@ class RYWebChromeClient(
      * its first real URL is captured, and the URL is handed to [onOpenLink]
      * instead of ever being rendered.
      */
-    private var popupWebView: WebView? = null
+    @VisibleForTesting internal var popupWebView: WebView? = null
 
     override fun onShowCustomView(view: View?, callback: CustomViewCallback?) {
         Timber.tag("RYWebChromeClient").i("onShowCustomView called, view=$view, callback=$callback")
@@ -98,6 +99,10 @@ class RYWebChromeClient(
         // openURL handles arbitrary schemes (mailto:, intent:, tel:, ...) the
         // same way the main WebViewClient does, so forward everything except
         // WebView-internal about: URLs.
+        // Decision: media URLs (.mp4, .m3u8, ...) opened from a new window go
+        // external too — the popup never renders, so in-app playback here is
+        // impossible; same-tab media links still play in-app via WebViewClient.
+        // Do not "fix" this by porting the host-navigation check.
         var openedExternally = false
         fun openExternally(url: String?): Boolean {
             if (url.isNullOrBlank() || url.startsWith("about:")) return false
@@ -109,7 +114,12 @@ class RYWebChromeClient(
         }
 
         val popup =
-            WebView(host.context).apply {
+            // Application context: the popup is never attached to a window and
+            // shows no UI, so there is no reason to pin the Activity. JS stays
+            // off on purpose — the popup only captures the first URL; the
+            // script-initiated open() case never gets this far (gesture gate).
+            WebView(host.context.applicationContext).apply {
+                settings.javaScriptEnabled = false
                 webViewClient =
                     object : WebViewClient() {
                         override fun shouldOverrideUrlLoading(

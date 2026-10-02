@@ -12,6 +12,7 @@ import org.junit.After
 import org.junit.Assert.assertEquals
 import org.junit.Assert.assertFalse
 import org.junit.Assert.assertNotNull
+import org.junit.Assert.assertNull
 import org.junit.Assert.assertTrue
 import org.junit.Test
 import org.junit.runner.RunWith
@@ -60,6 +61,32 @@ class RYWebChromeClientWindowTest {
             created = client!!.onCreateWindow(webView, false, true, msg)
         }
         assertFalse(created)
+    }
+
+    @Test
+    fun onCreateWindow_nonGestureRequestDropped() {
+        val webView = launchHost()
+        var created = true
+        scenario!!.onActivity {
+            val msg = Message.obtain(Handler(Looper.getMainLooper()))
+            msg.obj = webView.WebViewTransport()
+            created = client!!.onCreateWindow(webView, false, false, msg)
+        }
+        assertFalse(created)
+        assertNull(client!!.popupWebView)
+    }
+
+    @Test
+    fun releaseClearsPopupWebView() {
+        val webView = launchHost()
+        scenario!!.onActivity {
+            val msg = Message.obtain(Handler(Looper.getMainLooper()))
+            msg.obj = webView.WebViewTransport()
+            assertTrue(client!!.onCreateWindow(webView, false, true, msg))
+            assertNotNull(client!!.popupWebView)
+            client!!.release()
+            assertNull(client!!.popupWebView)
+        }
     }
 
     @Test

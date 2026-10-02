@@ -593,7 +593,7 @@ fun RYWebView(
                         ),
                         htmlBaseUrl,
                         headlineHtml,
-                        content,
+                        WebViewHtml.allowIframePopups(content),
                         WebViewScript.get(boldCharacters.value),
                     )
                 }
