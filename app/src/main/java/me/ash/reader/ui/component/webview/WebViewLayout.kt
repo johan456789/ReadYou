@@ -77,7 +77,7 @@ object WebViewLayout {
             System.identityHashCode(webView),
             retainedWebView != null && retainedWebView !== webView,
         )
-        (webView.webChromeClient as? RYWebChromeClient)?.releaseCustomView()
+        (webView.webChromeClient as? RYWebChromeClient)?.release()
         (webView.parent as? android.view.ViewGroup)?.removeView(webView)
         webView.cancelPendingSettleCheck()
         webView.loadedContentKey = null
@@ -234,6 +234,10 @@ object WebViewLayout {
             allowFileAccessFromFileURLs = allowFileAccess
             domStorageEnabled = true
             javaScriptEnabled = true
+            // Off by default: without it, target="_blank" / window.open()
+            // requests are dropped silently instead of reaching
+            // WebChromeClient.onCreateWindow.
+            setSupportMultipleWindows(true)
             mixedContentMode = android.webkit.WebSettings.MIXED_CONTENT_COMPATIBILITY_MODE
             mediaPlaybackRequiresUserGesture = false
             setSupportZoom(false)

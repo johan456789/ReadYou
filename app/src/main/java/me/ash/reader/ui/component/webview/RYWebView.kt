@@ -461,16 +461,26 @@ fun RYWebView(
 
     val onShowCustomViewState by rememberUpdatedState(onShowCustomView)
     val onHideCustomViewState by rememberUpdatedState(onHideCustomView)
-    val webChromeClient = remember {
-        RYWebChromeClient(
-            onShowCustomViewCallback = { view, callback ->
-                onShowCustomViewState?.invoke(view, callback)
-            },
-            onHideCustomViewCallback = {
-                onHideCustomViewState?.invoke()
-            },
-        )
-    }
+    // New-window requests (`target="_blank"` in embeds, `window.open`) only
+    // arrive through the chrome client, so it must be installed even on
+    // screens that do not wire fullscreen video handling.
+    val webChromeClient =
+        remember(onShowCustomView != null, onHideCustomView != null) {
+            RYWebChromeClient(
+                onShowCustomViewCallback =
+                    if (onShowCustomView == null) null
+                    else {
+                        { view, callback -> onShowCustomViewState?.invoke(view, callback) }
+                    },
+                onHideCustomViewCallback =
+                    if (onHideCustomView == null) null else {
+                        { onHideCustomViewState?.invoke() }
+                    },
+                onOpenLink = { url ->
+                    context.openURL(url, currentOpenLink, currentOpenLinkSpecificBrowser)
+                },
+            )
+        }
 
     val webView by
         remember {
@@ -613,8 +623,7 @@ fun RYWebView(
             if (wv.webViewClient !== dynamicWebViewClient) {
                 wv.webViewClient = dynamicWebViewClient
             }
-            wv.webChromeClient =
-                if (onShowCustomView != null && onHideCustomView != null) webChromeClient else null
+            wv.webChromeClient = webChromeClient
             wv.settings.defaultFontSize = fontSize
             wv.settings.standardFontFamily =
                 when (readingFonts) {
