@@ -168,6 +168,7 @@ class RYWebViewTableTest {
                 selectionBgColor = 0xFF000000.toInt(),
             ),
             "https://example.com/",
+            "",
             content,
             WebViewScript.get(boldCharacters = false),
         )
