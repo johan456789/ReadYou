@@ -2,9 +2,7 @@ package me.ash.reader.ui.page.settings.tips
 
 import android.view.HapticFeedbackConstants
 import android.view.SoundEffectConstants
-import androidx.compose.animation.animateContentSize
 import androidx.compose.animation.core.Animatable
-import androidx.compose.animation.core.tween
 import androidx.compose.foundation.Image
 import androidx.compose.foundation.background
 import androidx.compose.foundation.gestures.detectTapGestures
@@ -26,8 +24,6 @@ import androidx.compose.material.icons.automirrored.rounded.ArrowBack
 import androidx.compose.material.icons.rounded.Balance
 import androidx.compose.material.icons.rounded.TipsAndUpdates
 import androidx.compose.material.icons.rounded.VolunteerActivism
-import androidx.compose.material3.Badge
-import androidx.compose.material3.BadgedBox
 import androidx.compose.material3.ExperimentalMaterial3Api
 import androidx.compose.material3.ExperimentalMaterial3ExpressiveApi
 import androidx.compose.material3.Icon
@@ -103,10 +99,11 @@ fun TipsAndSupportPage(
     val scope = rememberCoroutineScope()
     val currentVersion = remember(context) {
         val version = context.getCurrentVersion().toString()
+        val build = BuildConfig.VERSION_CODE
         if (BuildConfig.GIT_COMMIT_HASH == UNKNOWN_GIT_COMMIT_HASH) {
-            version
+            "$version-$build"
         } else {
-            "$version (${BuildConfig.GIT_COMMIT_HASH})"
+            "$version-$build (${BuildConfig.GIT_COMMIT_HASH})"
         }
     }
     var showSponsorDialog by remember { mutableStateOf(false) }
@@ -226,20 +223,17 @@ fun TipsAndSupportPage(
                             )
                         }
                         Spacer(modifier = Modifier.height(48.dp))
-                        BadgedBox(
-                            badge = {
-                                Badge(
-                                    modifier = Modifier.animateContentSize(tween(800)),
-                                    containerColor = MaterialTheme.colorScheme.tertiaryContainer,
-                                    contentColor = MaterialTheme.colorScheme.tertiary,
-                                ) {
-                                    Text(text = currentVersion)
-                                }
-                            }
+                        Column(
+                            horizontalAlignment = Alignment.CenterHorizontally,
                         ) {
                             Text(
                                 text = stringResource(R.string.read_you),
                                 style = MaterialTheme.typography.displaySmall
+                            )
+                            Text(
+                                text = currentVersion,
+                                style = MaterialTheme.typography.labelLarge,
+                                color = MaterialTheme.colorScheme.onSurfaceVariant,
                             )
                         }
                     }
