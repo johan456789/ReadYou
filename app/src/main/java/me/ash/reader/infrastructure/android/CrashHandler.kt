@@ -35,10 +35,14 @@ class CrashHandler(private val context: Context) : UncaughtExceptionHandler {
             return
         }
 
-        context.startActivity(Intent(context, CrashReportActivity::class.java).apply {
-            flags = Intent.FLAG_ACTIVITY_NEW_TASK
-            putExtra(CrashReportActivity.ERROR_REPORT_KEY, p1.stackTraceToString())
-        })
+        try {
+            context.startActivity(Intent(context, CrashReportActivity::class.java).apply {
+                flags = Intent.FLAG_ACTIVITY_NEW_TASK
+                putExtra(CrashReportActivity.ERROR_REPORT_KEY, p1.stackTraceToString())
+            })
+        } catch (e: Exception) {
+            Log.e("RLog", "unable to open the crash report screen", e)
+        }
     }
 
     private fun isNetworkException(throwable: Throwable): Boolean {
