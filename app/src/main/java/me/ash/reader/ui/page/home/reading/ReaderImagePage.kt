@@ -5,6 +5,7 @@ import android.content.pm.PackageManager
 import android.os.Build
 import androidx.activity.compose.rememberLauncherForActivityResult
 import androidx.activity.result.contract.ActivityResultContracts
+import androidx.compose.animation.core.animateFloatAsState
 import androidx.compose.foundation.Image
 import androidx.compose.foundation.background
 import androidx.compose.foundation.layout.Box
@@ -111,6 +112,15 @@ fun ReaderImageViewer(
 
         var expanded by remember { mutableStateOf(false) }
 
+        // Tapping the photo hides the top bar and caption instead of dismissing
+        // the viewer; tapping again brings them back.
+        var chromeVisible by remember { mutableStateOf(true) }
+        val chromeAlpha by
+            animateFloatAsState(
+                targetValue = if (chromeVisible) 1f else 0f,
+                label = "chromeAlpha",
+            )
+
         Box(
             modifier =
                 Modifier.fillMaxSize().background(Color.Black.copy(alpha = backgroundAlpha))
@@ -142,8 +152,14 @@ fun ReaderImageViewer(
                         Modifier.zoomable(
                                 state = zoomableState,
                                 clipToBounds = true,
-                                onClick = { onDismissRequest() },
-                                onLongClick = { expanded = true },
+                                onClick = {
+                                    chromeVisible = !chromeVisible
+                                    if (!chromeVisible) expanded = false
+                                },
+                                onLongClick = {
+                                    chromeVisible = true
+                                    expanded = true
+                                },
                             )
                             .fillMaxSize(),
                     alignment = Alignment.Center,
@@ -168,7 +184,7 @@ fun ReaderImageViewer(
                     Modifier.fillMaxWidth()
                         .safeDrawingPadding()
                         .align(Alignment.TopCenter)
-                        .graphicsLayer { alpha = backgroundAlpha },
+                        .graphicsLayer { alpha = backgroundAlpha * chromeAlpha },
                 verticalAlignment = Alignment.CenterVertically,
             ) {
                 IconButton(
@@ -176,6 +192,7 @@ fun ReaderImageViewer(
                         view.performHapticFeedback(HapticFeedbackConstantsCompat.KEYBOARD_TAP)
                         onDismissRequest()
                     },
+                    enabled = chromeVisible,
                     colors =
                         IconButtonDefaults.iconButtonColors(
                             containerColor = Color.Black.copy(alpha = 0.5f),
@@ -213,6 +230,7 @@ fun ReaderImageViewer(
                     }
                     IconButton(
                         onClick = { expanded = true },
+                        enabled = chromeVisible,
                         colors =
                             IconButtonDefaults.iconButtonColors(
                                 containerColor = Color.Black.copy(alpha = 0.5f),
@@ -234,7 +252,7 @@ fun ReaderImageViewer(
                     modifier =
                         Modifier.align(Alignment.BottomCenter)
                             .fillMaxWidth()
-                            .graphicsLayer { alpha = backgroundAlpha }
+                            .graphicsLayer { alpha = backgroundAlpha * chromeAlpha }
                             .navigationBarsPadding()
                             .padding(horizontal = 24.dp, vertical = 16.dp),
                     color = Color.White,
