@@ -11,6 +11,7 @@ import androidx.test.rule.GrantPermissionRule
 import androidx.test.uiautomator.By
 import androidx.test.uiautomator.UiDevice
 import androidx.test.uiautomator.Until
+import dagger.hilt.android.EntryPointAccessors
 import java.util.Date
 import java.util.concurrent.TimeUnit
 import kotlinx.coroutines.runBlocking
@@ -20,8 +21,10 @@ import me.ash.reader.domain.model.account.security.GoogleReaderSecurityKey
 import me.ash.reader.domain.model.article.Article
 import me.ash.reader.domain.model.feed.Feed
 import me.ash.reader.domain.model.group.Group
+import me.ash.reader.domain.service.RssService
 import me.ash.reader.infrastructure.android.MainActivity
 import me.ash.reader.infrastructure.db.AndroidDatabase
+import me.ash.reader.infrastructure.di.RssServiceEntryPoint
 import me.ash.reader.infrastructure.preference.InitialFilterPreference
 import me.ash.reader.infrastructure.preference.InitialPagePreference
 import me.ash.reader.infrastructure.rss.provider.greader.GoogleReaderAPI
@@ -54,6 +57,11 @@ class FreshRssSyncE2eTest {
     private val targetContext = instrumentation.targetContext
     private val device = UiDevice.getInstance(instrumentation)
     private val database by lazy { AndroidDatabase.getInstance(targetContext) }
+
+    private val rssService: RssService
+        get() =
+            EntryPointAccessors.fromApplication(targetContext, RssServiceEntryPoint::class.java)
+                .rssService()
 
     private lateinit var server: MockWebServer
     private lateinit var dispatcher: FakeFreshRssDispatcher
@@ -164,8 +172,20 @@ class FreshRssSyncE2eTest {
         )
     }
 
+    /**
+     * The startup repair pass itself (`repairAccountData`) against a real Room DB and the real
+     * service: a feed row stored with a stale proxied favicon host must be rewritten onto the
+     * account's configured server URL.
+     *
+     * The process-start trigger is intentionally not covered here. `AndroidApp.onCreate` runs the
+     * repair exactly once, and the instrumentation runner lives inside the target app process, so
+     * `Application.onCreate` always completes *before* any test code can seed a stale row —
+     * restarting the process to fire it again would kill the instrumentation itself. The same
+     * normalization on a live code path is covered end-to-end by
+     * [sync_rewrites_proxied_icon_urls_to_the_configured_freshrss_host].
+     */
     @Test
-    fun app_start_repairs_stored_proxied_icon_urls_to_the_configured_freshrss_host() {
+    fun repairAccountData_rewrites_stored_proxied_icon_urls_to_the_configured_host() {
         val accountId = seedFreshRssAccount()
         val feedId = accountId.spacerDollar(FEED_ID)
         val oldIconUrl = "http://192.168.107.2/f.php?h=stored-icon"
@@ -191,13 +211,11 @@ class FreshRssSyncE2eTest {
             )
         }
 
-        launchApp()
+        runBlocking { rssService.get(AccountType.FreshRSS.id).repairAccountData(accountId) }
 
-        assertTrue(
-            "Expected startup repair to rewrite $oldIconUrl to $expectedIconUrl",
-            waitForCondition(15_000) {
-                runBlocking { database.feedDao().queryById(feedId)?.icon == expectedIconUrl }
-            },
+        assertEquals(
+            expectedIconUrl,
+            runBlocking { database.feedDao().queryById(feedId)?.icon },
         )
     }
 
