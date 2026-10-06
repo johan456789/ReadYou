@@ -42,7 +42,6 @@ import org.junit.After
 import org.junit.Assert.assertEquals
 import org.junit.Assert.assertTrue
 import org.junit.Before
-import org.junit.Ignore
 import org.junit.Rule
 import org.junit.Test
 import org.junit.runner.RunWith
@@ -219,134 +218,6 @@ class FreshRssSyncE2eTest {
         )
     }
 
-    @Test
-    @Ignore("Instrumentation runs inside the target app process; process-death replay is covered by DiffMapHolderPendingReadStateTest.")
-    fun local_deferred_reads_commit_after_app_restart() {
-        val article =
-            seedLocalUnreadArticle(
-                title = "Local deferred read after restart",
-                articleId = "local-deferred-read-restart",
-                publishedAt = Date(System.currentTimeMillis() - TimeUnit.DAYS.toMillis(2)),
-            )
-
-        launchApp()
-        waitForText(article.title)
-
-        longClickText(article.title)
-        clickText(markAsReadText)
-
-        awaitArticleUnreadState(article.localArticleId, expectedUnread = true)
-        waitForText(article.title)
-        awaitPendingReadStateOpCount(article.accountId, expectedCount = 1)
-
-        killTargetAppProcess()
-
-        launchApp()
-        awaitArticleUnreadState(article.localArticleId, expectedUnread = false)
-        awaitPendingReadStateOpCount(article.accountId, expectedCount = 0)
-        assertTrue(
-            "Expected locally deferred read article to disappear after app restart",
-            device.wait(Until.gone(By.text(article.title)), UI_TIMEOUT_MS),
-        )
-    }
-
-    @Test
-    @Ignore("Instrumentation runs inside the target app process; process-death replay is covered by DiffMapHolderPendingReadStateTest.")
-    fun remote_deferred_reads_commit_locally_after_app_restart_and_remain_pending_for_sync() {
-        val article =
-            seedUnreadArticle(
-                title = "Remote deferred read after restart",
-                remoteArticleId = "remote-deferred-read-restart",
-                publishedAt = Date(System.currentTimeMillis() - TimeUnit.DAYS.toMillis(2)),
-                remoteUnreadIds = setOf("remote-deferred-read-restart"),
-                remoteReadIds = emptySet(),
-            )
-
-        dispatcher.networkAvailable = false
-        launchApp()
-        waitForText(article.title)
-
-        longClickText(article.title)
-        clickText(markAsReadText)
-
-        awaitArticleUnreadState(article.localArticleId, expectedUnread = true)
-        waitForText(article.title)
-        awaitPendingReadStateOpCount(article.accountId, expectedCount = 1)
-
-        SystemClock.sleep(2_500)
-        killTargetAppProcess()
-
-        dispatcher.networkAvailable = true
-        launchApp()
-        awaitArticleUnreadState(article.localArticleId, expectedUnread = false)
-        awaitPendingReadStateOpCount(article.accountId, expectedCount = 1)
-        assertTrue(
-            "Expected remotely deferred read article to disappear after app restart",
-            device.wait(Until.gone(By.text(article.title)), UI_TIMEOUT_MS),
-        )
-
-        pullToSyncFromFlow()
-        awaitArticleUnreadState(article.localArticleId, expectedUnread = false)
-        awaitPendingReadStateOpCount(article.accountId, expectedCount = 1)
-    }
-
-    private fun seedLocalUnreadArticle(
-        title: String,
-        articleId: String,
-        publishedAt: Date,
-    ): SeededArticle {
-        val accountId =
-            runBlocking {
-                database.accountDao()
-                    .insert(
-                        Account(
-                            name = "Local E2E",
-                            type = AccountType.Local,
-                        )
-                    )
-                    .toInt()
-            }
-
-        val group = Group(id = accountId.getDefaultGroupId(), name = "Defaults", accountId = accountId)
-        val feed = Feed(
-            id = accountId.spacerDollar(FEED_ID),
-            name = "Local E2E Feed",
-            url = "https://example.com/feed",
-            groupId = group.id,
-            accountId = accountId,
-        )
-        val article = Article(
-            id = accountId.spacerDollar(articleId),
-            date = publishedAt,
-            title = title,
-            rawDescription = "<p>$title</p>",
-            shortDescription = title,
-            link = "https://example.com/articles/$articleId",
-            feedId = feed.id,
-            accountId = accountId,
-            isUnread = true,
-        )
-
-        runBlocking {
-            database.groupDao().insert(group)
-            database.feedDao().insert(feed)
-            database.articleDao().insert(article)
-            targetContext.dataStore.put(PreferencesKey.isFirstLaunch, false)
-            targetContext.dataStore.put(PreferencesKey.currentAccountId, accountId)
-            targetContext.dataStore.put(PreferencesKey.currentAccountType, AccountType.Local.id)
-            targetContext.dataStore.put(
-                PreferencesKey.initialPage,
-                InitialPagePreference.FlowPage.value,
-            )
-            targetContext.dataStore.put(
-                PreferencesKey.initialFilter,
-                InitialFilterPreference.Unread.value,
-            )
-        }
-
-        return SeededArticle(title = title, localArticleId = article.id, accountId = accountId)
-    }
-
     private fun seedUnreadArticle(
         title: String,
         remoteArticleId: String,
@@ -461,15 +332,6 @@ class FreshRssSyncE2eTest {
                 addFlags(Intent.FLAG_ACTIVITY_NEW_TASK)
             }
         scenario = ActivityScenario.launch(intent)
-    }
-
-    private fun killTargetAppProcess() {
-        scenario?.close()
-        scenario = null
-        GoogleReaderAPI.clearInstance()
-        device.pressHome()
-        device.executeShellCommand("am kill ${targetContext.packageName}")
-        SystemClock.sleep(1_000)
     }
 
     private fun pullToSyncFromFlow() {
