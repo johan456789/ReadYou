@@ -125,10 +125,11 @@ class FreshRssSyncE2eTest {
 
         longClickText(article.title)
         clickText(markAsReadText)
-        awaitArticleUnreadState(article.localArticleId, expectedUnread = false)
+
+        awaitPendingReadStateOpCount(article.accountId, expectedCount = 1)
         assertTrue(
-            "Expected offline read article to disappear from unread list immediately",
-            device.wait(Until.gone(By.text(article.title)), UI_TIMEOUT_MS),
+            "Expected article to stay listed while DB commit is deferred",
+            device.wait(Until.hasObject(By.text(article.title)), UI_TIMEOUT_MS),
         )
 
         SystemClock.sleep(2_500)
@@ -140,6 +141,7 @@ class FreshRssSyncE2eTest {
             "Expected offline read article to disappear from unread list after sync",
             device.wait(Until.gone(By.text(article.title)), UI_TIMEOUT_MS),
         )
+        assertEquals(setOf("offline-local-read"), dispatcher.remoteUnreadIds)
     }
 
     @Test
