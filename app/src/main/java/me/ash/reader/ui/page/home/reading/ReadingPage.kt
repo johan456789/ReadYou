@@ -3,19 +3,6 @@ package me.ash.reader.ui.page.home.reading
 import android.view.View
 import android.webkit.WebChromeClient
 import androidx.activity.compose.BackHandler
-import androidx.compose.animation.AnimatedContent
-import androidx.compose.animation.core.FastOutLinearInEasing
-import androidx.compose.animation.core.LinearOutSlowInEasing
-import androidx.compose.animation.core.Spring
-import androidx.compose.animation.core.VisibilityThreshold
-import androidx.compose.animation.core.animateFloatAsState
-import androidx.compose.animation.core.spring
-import androidx.compose.animation.core.tween
-import androidx.compose.animation.fadeIn
-import androidx.compose.animation.fadeOut
-import androidx.compose.animation.slideInVertically
-import androidx.compose.animation.slideOutVertically
-import androidx.compose.animation.togetherWith
 import androidx.compose.foundation.background
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Row
@@ -45,7 +32,6 @@ import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.platform.LocalView
 import androidx.compose.ui.res.stringResource
-import androidx.compose.ui.unit.IntOffset
 import androidx.compose.ui.unit.TextUnit
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.isSpecified
@@ -59,8 +45,6 @@ import me.ash.reader.ui.component.webview.LinkActionDialog
 import me.ash.reader.ui.component.webview.LinkActionData
 import me.ash.reader.ui.component.webview.WebViewScrollSnapshot
 import me.ash.reader.infrastructure.android.TextToSpeechManager
-import me.ash.reader.infrastructure.preference.ArticleSwitchGesturePreference
-import me.ash.reader.infrastructure.preference.LocalArticleSwitchGesture
 import me.ash.reader.infrastructure.preference.LocalReadingTextLineHeight
 import me.ash.reader.infrastructure.preference.LocalSharedContent
 import me.ash.reader.ui.ext.collectAsStateValue
@@ -69,9 +53,6 @@ import me.ash.reader.ui.page.adaptive.ArticleListReaderViewModel
 import me.ash.reader.ui.page.adaptive.NavigationAction
 import me.ash.reader.ui.page.adaptive.ReaderState
 import me.ash.reader.ui.page.home.reading.tts.TtsButton
-
-private const val UPWARD = 1
-private const val DOWNWARD = -1
 
 internal fun shouldShowTopDivider(isAtTop: Boolean): Boolean = !isAtTop
 
@@ -88,9 +69,6 @@ fun ReadingPage(
 ) {
     val context = LocalContext.current
     val sharedContent = LocalSharedContent.current
-    val articleSwitchGesture = LocalArticleSwitchGesture.current
-    val isSwipeToSwitchArticleEnabled =
-        articleSwitchGesture is ArticleSwitchGesturePreference.HorizontalSwipe
     val readingUiState = viewModel.readingUiState.collectAsStateValue()
     val readerState = viewModel.readerStateStateFlow.collectAsStateValue()
     val contentStateKey =
@@ -156,16 +134,12 @@ fun ReadingPage(
         )
     }
 
-    var bringToTop by remember { mutableStateOf(false) }
-
-    // The article the user currently sees. In swipe mode the pager reports
-    // the incoming slot from drag start (not only after settle), so taps act
-    // on the article on screen. Keyed by article so reopening the reader can
-    // never serve the previous article's id for a frame.
+    // The article the user currently sees. The pager reports the incoming slot
+    // from drag start (not only after settle), so taps act on the article on
+    // screen. Keyed by article so reopening the reader can never serve the
+    // previous article's id for a frame.
     var visibleArticleId by remember(readerState.articleId) { mutableStateOf<String?>(null) }
-    val actionArticleId =
-        if (isSwipeToSwitchArticleEnabled) visibleArticleId ?: readerState.articleId
-        else readerState.articleId
+    val actionArticleId = visibleArticleId ?: readerState.articleId
     // Read/star toggles derive their direction from the displayed flags, which
     // track the committed article: only offer them once the committed article
     // is the targeted one (or nothing is displayed yet on first open).
@@ -179,29 +153,7 @@ fun ReadingPage(
     }
 
     var swipeTitleLayers by remember { mutableStateOf<List<TopBarTitleLayer>>(emptyList()) }
-    val fallbackTitleAlpha by
-        animateFloatAsState(
-            targetValue = if (showTitleInTopBar) 1f else 0f,
-            animationSpec = tween(durationMillis = 200),
-            label = "fallbackTitleAlpha",
-        )
-    // Keep the outgoing article's title while the fallback bar fades out so a
-    // newly opened article's title cannot flash for the previous scroll position.
-    var fallbackTitle by remember { mutableStateOf(readerState.title) }
-    LaunchedEffect(showTitleInTopBar, readerState.title) {
-        if (showTitleInTopBar) fallbackTitle = readerState.title
-    }
-    val topBarTitleLayers =
-        if (isSwipeToSwitchArticleEnabled) {
-            swipeTitleLayers
-        } else {
-            val text = fallbackTitle
-            if (fallbackTitleAlpha > 0.01f && !text.isNullOrBlank()) {
-                listOf(TopBarTitleLayer(text, fallbackTitleAlpha))
-            } else {
-                emptyList()
-            }
-        }
+    val topBarTitleLayers = swipeTitleLayers
 
     LinkActionDialog(
         visible = showLinkActionDialog,
@@ -220,7 +172,6 @@ fun ReadingPage(
                         articleId = actionArticleId,
                         onClick = {
                             scrollToTopRequest += 1
-                            bringToTop = true
                         },
                         navigationAction = navigationAction,
                         onNavButtonClick = onNavAction,
@@ -281,178 +232,59 @@ fun ReadingPage(
             },
             content = { paddings ->
                 if (readerState.articleId != null) {
-                    // Content
-                    if (isSwipeToSwitchArticleEnabled) {
-                        CompositionLocalProvider(
-                            LocalTextStyle provides
-                                LocalTextStyle.current.run {
-                                    merge(
-                                        lineHeight =
-                                            if (lineHeight.isSpecified)
-                                                (lineHeight.value * LocalReadingTextLineHeight.current).sp
-                                            else TextUnit.Unspecified
-                                    )
-                                }
-                        ) {
-                            ArticleSwipePager(
-                                currentReaderState = readerState,
-                                contentPadding = paddings,
-                                enabled =
-                                    !showFullScreenImageViewer &&
-                                        !showLinkActionDialog &&
-                                        !isVideoFullscreen,
-                                onLoadArticle = onLoadArticle,
-                                loadPreview = viewModel::previewReaderState,
-                                loadFullPreview = viewModel::neighborFullReaderState,
-                                swipeNeighborTarget = viewModel::swipeNeighborTarget,
-                                bringToTopRequest = scrollToTopRequest,
-                                onBringToTopHandled = { bringToTop = false },
-                                onCurrentHeadlineMeasured = { headlineHeightPx = it },
-                                onCurrentScrollSnapshotChange = {
-                                    webViewScrollSnapshot = it
-                                },
-                                onTitleLayersChange = { swipeTitleLayers = it },
-                                onVisibleArticleChange = { visibleArticleId = it },
-                                onImageClick = { imgUrl, altText, caption ->
-                                    currentImageData = ImageData(imgUrl, altText, caption.trim())
-                                    showFullScreenImageViewer = true
-                                },
-                                onLinkLongPress = { url, text ->
-                                    linkActionData =
-                                        LinkActionData(
-                                            url = url,
-                                            linkText = text.ifEmpty { null },
-                                        )
-                                    showLinkActionDialog = true
-                                },
-                                onShowCustomView = { view, callback ->
-                                    Timber.tag("ReadingPage")
-                                        .d("onShowCustomView lambda called with view=$view")
-                                    fullscreenVideoView = view
-                                    fullscreenVideoCallback = callback
-                                },
-                                onHideCustomView = {
-                                    fullscreenVideoView = null
-                                    fullscreenVideoCallback = null
-                                },
-                            )
-                        }
-                    } else {
-                        AnimatedContent(
-                        targetState = readerState,
-                        transitionSpec = {
-                            val direction =
-                                when {
-                                    initialState.nextArticle?.articleId == targetState.articleId ->
-                                        UPWARD
-                                    initialState.previousArticle?.articleId ==
-                                        targetState.articleId -> DOWNWARD
-                                    initialState.articleId == targetState.articleId -> {
-                                        when (targetState.content) {
-                                            is ReaderState.Description -> DOWNWARD
-                                            else -> UPWARD
-                                        }
-                                    }
-
-                                    else -> UPWARD
-                                }
-                            val exit = 100
-                            val enter = exit * 2
-                            (slideInVertically(
-                                initialOffsetY = { (it * 0.2f * direction).toInt() },
-                                animationSpec =
-                                    spring(
-                                        dampingRatio = .9f,
-                                        stiffness = Spring.StiffnessLow,
-                                        visibilityThreshold = IntOffset.VisibilityThreshold,
-                                    ),
-                            ) +
-                                fadeIn(
-                                    tween(
-                                        delayMillis = exit,
-                                        durationMillis = enter,
-                                        easing = LinearOutSlowInEasing,
-                                    )
-                                )) togetherWith
-                                (slideOutVertically(
-                                    targetOffsetY = { (it * -0.2f * direction).toInt() },
-                                    animationSpec =
-                                        spring(
-                                            dampingRatio = Spring.DampingRatioNoBouncy,
-                                            stiffness = Spring.StiffnessLow,
-                                            visibilityThreshold = IntOffset.VisibilityThreshold,
-                                        ),
-                                ) +
-                                    fadeOut(
-                                        tween(durationMillis = exit, easing = FastOutLinearInEasing)
-                                    ))
-                        },
-                        label = "",
-                    ) {
-                        remember { it }
-                            .run {
-                                LaunchedEffect(bringToTop) {
-                                    if (bringToTop) {
-                                        bringToTop = false
-                                    }
-                                }
-
-                                CompositionLocalProvider(
-                                    LocalTextStyle provides
-                                        LocalTextStyle.current.run {
-                                            merge(
-                                                lineHeight =
-                                                    if (lineHeight.isSpecified)
-                                                        (lineHeight.value *
-                                                                LocalReadingTextLineHeight.current)
-                                                            .sp
-                                                    else TextUnit.Unspecified
-                                            )
-                                        }
-                                ) {
-                                    Box(
-                                        modifier = Modifier.fillMaxSize(),
-                                        contentAlignment = Alignment.Center,
-                                    ) {
-                                        Content(
-                                            contentPadding = paddings,
-                                            content = content.text ?: "",
-                                            feedName = feedName,
-                                            title = title.toString(),
-                                            author = author,
-                                            link = link,
-                                            publishedDate = publishedDate,
-                                            isLoading = content is ReaderState.Loading,
-                                            scrollToTopRequest = scrollToTopRequest,
-                                            onHeadlineMeasured = { headlineHeightPx = it },
-                                            onImageClick = { imgUrl, altText, caption ->
-                                                currentImageData = ImageData(imgUrl, altText, caption.trim())
-                                                showFullScreenImageViewer = true
-                                            },
-                                            onScrollSnapshotChange = {
-                                                webViewScrollSnapshot = it
-                                            },
-                                            onLinkLongPress = { url, text ->
-                                                linkActionData = LinkActionData(
-                                                    url = url,
-                                                    linkText = text.ifEmpty { null },
-                                                )
-                                                showLinkActionDialog = true
-                                            },
-                                            onShowCustomView = { view, callback ->
-                                                Timber.tag("ReadingPage").d("onShowCustomView lambda called with view=$view")
-                                                fullscreenVideoView = view
-                                                fullscreenVideoCallback = callback
-                                            },
-                                            onHideCustomView = {
-                                                fullscreenVideoView = null
-                                                fullscreenVideoCallback = null
-                                            },
-                                        )
-                                    }
-                                }
+                    CompositionLocalProvider(
+                        LocalTextStyle provides
+                            LocalTextStyle.current.run {
+                                merge(
+                                    lineHeight =
+                                        if (lineHeight.isSpecified)
+                                            (lineHeight.value * LocalReadingTextLineHeight.current).sp
+                                        else TextUnit.Unspecified
+                                )
                             }
-                    }
+                    ) {
+                        ArticleSwipePager(
+                            currentReaderState = readerState,
+                            contentPadding = paddings,
+                            enabled =
+                                !showFullScreenImageViewer &&
+                                    !showLinkActionDialog &&
+                                    !isVideoFullscreen,
+                            onLoadArticle = onLoadArticle,
+                            loadPreview = viewModel::previewReaderState,
+                            loadFullPreview = viewModel::neighborFullReaderState,
+                            swipeNeighborTarget = viewModel::swipeNeighborTarget,
+                            bringToTopRequest = scrollToTopRequest,
+                            onBringToTopHandled = {},
+                            onCurrentHeadlineMeasured = { headlineHeightPx = it },
+                            onCurrentScrollSnapshotChange = {
+                                webViewScrollSnapshot = it
+                            },
+                            onTitleLayersChange = { swipeTitleLayers = it },
+                            onVisibleArticleChange = { visibleArticleId = it },
+                            onImageClick = { imgUrl, altText, caption ->
+                                currentImageData = ImageData(imgUrl, altText, caption.trim())
+                                showFullScreenImageViewer = true
+                            },
+                            onLinkLongPress = { url, text ->
+                                linkActionData =
+                                    LinkActionData(
+                                        url = url,
+                                        linkText = text.ifEmpty { null },
+                                    )
+                                showLinkActionDialog = true
+                            },
+                            onShowCustomView = { view, callback ->
+                                Timber.tag("ReadingPage")
+                                    .d("onShowCustomView lambda called with view=$view")
+                                fullscreenVideoView = view
+                                fullscreenVideoCallback = callback
+                            },
+                            onHideCustomView = {
+                                fullscreenVideoView = null
+                                fullscreenVideoCallback = null
+                            },
+                        )
                     }
                 }
             },
