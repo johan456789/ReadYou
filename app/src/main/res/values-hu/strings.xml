@@ -292,7 +292,6 @@
     <string name="all_deny_open_in_browser_toast">A(z) „%1$s” csoport összes cikkének megnyitása az alapértelmezett böngészőben megtagadva</string>
     <string name="submit_bug_report">Hibajegy nyitása a GitHubon</string>
     <string name="mark_above_as_read">Fentebbiek megjelölése olvasottként</string>
-    <string name="pull_to_switch_article">Váltás a cikkek között húzással</string>
     <string name="save">Mentés</string>
     <string name="image_saved">Kép elmentve</string>
     <string name="permission_denied">Hozzáférés megtagadva</string>

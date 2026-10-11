@@ -290,7 +290,6 @@
     <string name="exclude">Исключить</string>
     <string name="additional_info_desc">Дополнительная информация включает в себя параметры конфигурации для каждого источника, такие как разрешение уведомлений, разбор полного содержимого и т. д. Если вы собираетесь использовать экспортированный OPML-файл с другими читателями, выберите \"Исключить\".</string>
     <string name="include_additional_info">Включать дополнительную информацию</string>
-    <string name="pull_to_switch_article">Опустить для смены статьи</string>
     <string name="export">Экспортировать</string>
     <string name="mark_above_as_read">Пометить всё выше как прочитанное</string>
     <string name="mark_below_as_read">Пометить всё ниже как прочитанное</string>

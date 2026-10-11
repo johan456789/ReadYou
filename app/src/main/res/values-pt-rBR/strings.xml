@@ -281,7 +281,6 @@
     <string name="toggle_read">Alternar leitura</string>
     <string name="swipe_to_end">Deslizar para a direita</string>
     <string name="toggle_starred">Alternar favorito</string>
-    <string name="pull_to_switch_article">Puxe para mudar de artigo</string>
     <string name="export">Exportar</string>
     <string name="permission_denied">Permissão negada</string>
     <string name="save">Salvar</string>

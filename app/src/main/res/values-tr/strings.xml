@@ -279,7 +279,6 @@
     <string name="toggle_read">Okunduyu değiştir</string>
     <string name="toggle_starred">Yıldızlıyı değiştir</string>
     <string name="export">Dışa aktar</string>
-    <string name="pull_to_switch_article">Makaleyi değiştirmek için çekin</string>
     <string name="save">Kaydet</string>
     <string name="image_saved">Resim kaydedildi</string>
     <string name="permission_denied">İzin reddedildi</string>

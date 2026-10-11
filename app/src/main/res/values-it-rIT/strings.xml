@@ -289,7 +289,6 @@
     <string name="line_height_multiple">Altezza della linea multipla</string>
     <string name="toggle_starred">Alterna preferito</string>
     <string name="export">Esporta</string>
-    <string name="pull_to_switch_article">Tira per cambiare articolo</string>
     <string name="mark_above_as_read">Segna sopra come letto</string>
     <string name="mark_below_as_read">Segna sotto come letto</string>
     <string name="image_saved">Immagine salvata</string>

@@ -302,7 +302,6 @@
     <string name="external_links">வெளிப்புற இணைப்புகள்</string>
     <string name="toggle_starred">விண்மீனிட மாற்று</string>
     <string name="shared_content">பகிரப்பட்ட உள்ளடக்கம்</string>
-    <string name="pull_to_switch_article">கட்டுரைக்கு மாற்ற இழு</string>
     <string name="mark_below_as_read">கீழுள்ளவற்றை வாசித்தவை என குறியிடு</string>
     <string name="only_link">இணைப்பு மட்டும்</string>
     <string name="title_and_link">தலைப்பு மற்றும் இணைப்பு</string>

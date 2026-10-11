@@ -249,7 +249,6 @@
     <string name="line_height_multiple">Разстояние между линиите</string>
     <string name="export">Изнаси</string>
     <string name="mark_above_as_read">Маркирай по-горе като прочетено</string>
-    <string name="pull_to_switch_article">Издърпай за превключване към статия</string>
     <string name="mark_below_as_read">Маркирай по-долу като прочетено</string>
     <string name="image_saved">Изображението е запазено</string>
     <string name="permission_denied">Разрешението е отказано</string>

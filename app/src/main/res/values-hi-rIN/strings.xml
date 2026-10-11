@@ -279,7 +279,6 @@
     <string name="unexpected_error_msg">ऐप में एक अप्रत्याशित त्रुटि आई और उसे बंद करना पड़ा। \n \nइस समस्या को शीघ्रता से पहचानने और ठीक करने में हमारी सहायता के लिए, आप नीचे दिए गए त्रुटि स्टैक ट्रेस के साथ %1$s कर सकते हैं।</string>
     <string name="swipe_to_end">दाएं स्वाइप करें</string>
     <string name="export">निर्यात</string>
-    <string name="pull_to_switch_article">लेख बदलने के लिए खींचें</string>
     <string name="save">सहेजें</string>
     <string name="image_saved">छवि सहेजी गई</string>
     <string name="permission_denied">अनुमति नहीं मिली</string>

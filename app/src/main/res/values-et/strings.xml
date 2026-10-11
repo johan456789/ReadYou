@@ -289,7 +289,6 @@
     <string name="none">Määramata</string>
     <string name="toggle_read">Lülita loetuks märkimine sisse/välja</string>
     <string name="line_height_multiple">Rea kõrguse kordaja</string>
-    <string name="pull_to_switch_article">Artikli vahetamiseks viipa alla</string>
     <string name="mark_above_as_read">Märgi eelnev loetuks</string>
     <string name="permission_denied">Õigused puuduvad</string>
     <string name="toolbars">Tööriistaribad</string>

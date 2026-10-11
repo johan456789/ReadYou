@@ -277,7 +277,6 @@
     <string name="next_article">Article suivant</string>
     <string name="include_additional_info">Ajouter des informations complémentaires</string>
     <string name="export">Exporter</string>
-    <string name="pull_to_switch_article">Tirer pour passer à un autre article</string>
     <string name="swipe_to_start">Glisser à gauche</string>
     <string name="swipe_to_end">Glisser à droite</string>
     <string name="none">Aucun</string>

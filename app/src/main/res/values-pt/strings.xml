@@ -271,7 +271,6 @@
     <string name="toggle_starred">Alternar preferidos</string>
     <string name="export">Exportar</string>
     <string name="line_height_multiple">Altura múltipla da linha</string>
-    <string name="pull_to_switch_article">Puxar para mudar de artigo</string>
     <string name="exclude">Excluir</string>
     <string name="external_links">Links externos</string>
     <string name="unexpected_error_title">Ops! Algo deu errado…</string>

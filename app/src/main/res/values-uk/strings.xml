@@ -288,7 +288,6 @@
     <string name="image_saved">Зображення збережено</string>
     <string name="permission_denied">У дозволі відмовлено</string>
     <string name="export">Еспорт</string>
-    <string name="pull_to_switch_article">Потягніть, щоби перемкнути статтю</string>
     <string name="line_height_multiple">Висота рядка кратна</string>
     <string name="mark_above_as_read">Позначити все вище як прочитане</string>
     <string name="mark_below_as_read">Позначити вже нижче як прочитане</string>

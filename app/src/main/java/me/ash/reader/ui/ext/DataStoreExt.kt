@@ -198,9 +198,6 @@ sealed interface PreferencesKey {
         const val markAsReadOnScroll = "markAsReadOnScroll"
         const val hideEmptyGroups = "hideEmptyGroups"
         const val pullToLoadNextFeed = "pullToLoadNextFeed"
-        const val articleSwitchGesture = "articleSwitchGesture"
-        const val pullToSwitchArticle = "pullToSwitchArticle"
-        const val swipeToSwitchArticle = "swipeToSwitchArticle"
         const val openLink = "openLink"
         const val openLinkAppSpecificBrowser = "openLinkAppSpecificBrowser"
         const val sharedContent = "sharedContent"
@@ -281,9 +278,6 @@ sealed interface PreferencesKey {
                 BooleanKey(markAsReadOnScroll),
                 BooleanKey(hideEmptyGroups),
                 IntKey(pullToLoadNextFeed),
-                IntKey(articleSwitchGesture),
-                BooleanKey(pullToSwitchArticle),
-                BooleanKey(swipeToSwitchArticle),
                 IntKey(openLink),
                 StringKey(openLinkAppSpecificBrowser),
                 IntKey(sharedContent),

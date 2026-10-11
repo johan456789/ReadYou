@@ -288,7 +288,6 @@
     <string name="invalid_protobuf_file_warning">Có vẻ đây không phải là file protobuf hợp lệ. Nhập nó vào có thể làm hỏng ứng dụng và mất dữ liệu người dùng. Bạn có muốn tiếp tục?</string>
     <string name="line_height_multiple">Khoảng cách dòng</string>
     <string name="export">Xuất</string>
-    <string name="pull_to_switch_article">Vuốt lên/xuống để chuyển bài</string>
     <string name="mark_above_as_read">Đánh dấu đã đọc những bài sau</string>
     <string name="mark_below_as_read">Đánh dấu đã đọc những bài trước</string>
     <string name="save">Lưu</string>

@@ -273,7 +273,6 @@
     <string name="submit_bug_report">Einen Fehlerbericht auf GitHub einreichen</string>
     <string name="next_article">Nächster Artikel</string>
     <string name="unexpected_error_msg">Die Anwendung ist auf einen unerwarteten Fehler gestoßen und wurde geschlossen. \n \nDamit wir dieses Problem schnell identifizieren und beheben können, können Sie %1$s mit dem unten stehenden Stack-Trace.</string>
-    <string name="pull_to_switch_article">Zum Artikelwechsel ziehen</string>
     <string name="export">Exportieren</string>
     <string name="swipe_to_start">Wische links</string>
     <string name="swipe_to_end">Wische rechts</string>

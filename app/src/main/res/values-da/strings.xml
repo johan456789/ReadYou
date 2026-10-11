@@ -292,7 +292,6 @@
     <string name="invalid_protobuf_file_warning">Denne fil er muligvis ikke en gyldig protobuf-fil. Hvis den importeres kan det muligvis korrupte appen og resultere i tab af nuværende præferencer. Er du sikker på, at du vil fortsætte?</string>
     <string name="line_height_multiple">Linjehøjde multiple</string>
     <string name="export">Eksporter</string>
-    <string name="pull_to_switch_article">Træk for at skifte artikel</string>
     <string name="mark_above_as_read">Marker ovenfor som læst</string>
     <string name="mark_below_as_read">Marker nedenfor som læst</string>
     <string name="save">Gem</string>

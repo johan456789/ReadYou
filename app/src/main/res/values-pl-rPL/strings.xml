@@ -303,7 +303,6 @@
     <string name="additional_info_desc">Dodatkowe informacje obejmują opcje konfiguracji dla każdego kanału, takie jak zezwolenie na powiadomienia, analiza pełnej zawartości itp. Jeśli zamierzasz używać wyeksportowanego pliku OPML z innymi czytnikami, wybierz opcję „Wyklucz”.</string>
     <string name="submit_bug_report">Zgłoś błąd na GitHub</string>
     <string name="unexpected_error_msg">Aplikacja napotkała nieoczekiwany błąd i została zamknięta.\n\nAby pomóc nam szybko zidentyfikować i rozwiązać ten problem, %1$s z poniższym śladem stosu.</string>
-    <string name="pull_to_switch_article">Przeciągnij, aby zmienić artykuł</string>
     <string name="mark_above_as_read">Oznacz powyższe jako przeczytane</string>
     <string name="mark_below_as_read">Oznacz poniższe jako przeczytane</string>
     <string name="toolbars">Paski narzędzi</string>

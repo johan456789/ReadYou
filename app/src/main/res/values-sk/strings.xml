@@ -282,7 +282,6 @@
     <string name="toggle_read">Prepnúť stav prečítania</string>
     <string name="toggle_starred">Prepnúť stav obľúbenosti</string>
     <string name="export">Export</string>
-    <string name="pull_to_switch_article">Potiahnutím prepnúť článok</string>
     <string name="save">Uložiť</string>
     <string name="image_saved">Obrázok uložený</string>
     <string name="permission_denied">Povolenie zamietnuté</string>
