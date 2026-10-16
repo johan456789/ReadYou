@@ -2,14 +2,29 @@ package me.ash.reader.ui.component.webview
 
 object WebViewStyle {
 
+    /**
+     * Code points covered by the bundled Google Sans Flex (Latin, Vietnamese,
+     * common punctuation and symbols - no CJK). Declaring them lets text outside
+     * the range (e.g. Chinese) go straight to the system font instead of waiting
+     * for this font to load.
+     */
+    const val GOOGLE_SANS_UNICODE_RANGE =
+        "U+0000-036F, U+03BC, U+0E3F, U+1E00-1EFF, U+2000-20CF, U+2100-214F, " +
+            "U+2190-22FF, U+25CC, U+FB00-FB06"
+
     private fun argbToCssColor(argb: Int): String = String.format("#%06X", 0xFFFFFF and argb)
 
+    // font-display: swap paints text in the fallback font right away instead of
+    // hiding it (up to 3 s) while the font file is fetched and decoded.
     private fun applyFontFace(
-        fontPath: String? = null
+        fontPath: String? = null,
+        unicodeRange: String? = null,
     ): String = if (fontPath != null) """
         @font-face {
             font-family: external;
-            src: url("file://$fontPath")
+            src: url("file://$fontPath");
+            font-display: swap;
+            ${if (unicodeRange != null) "unicode-range: $unicodeRange;" else ""}
         }
     """.trimIndent() else ""
 
@@ -22,6 +37,7 @@ object WebViewStyle {
     fun get(
         fontSize: Int,
         fontPath: String? = null,
+        fontUnicodeRange: String? = null,
         lineHeight: Float,
         letterSpacing: Float,
         textMargin: Int,
@@ -47,7 +63,7 @@ object WebViewStyle {
         contentMaxWidthPx: Int = 0,
         scrollbarThumbColor: Int = textColor,
     ): String = """
-${applyFontFace(fontPath)}
+${applyFontFace(fontPath, fontUnicodeRange)}
 :root {
     ${applyFontFamily(fontPath)}
     --font-size: ${fontSize}px;
