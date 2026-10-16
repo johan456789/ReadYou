@@ -21,7 +21,6 @@ import me.ash.reader.ui.component.scrollbar.drawWebViewScrollIndicator
 import me.ash.reader.ui.component.webview.RYWebView
 import me.ash.reader.ui.component.webview.HorizontalScrollAwareWebView
 import me.ash.reader.ui.component.webview.WebViewScrollSnapshot
-import me.ash.reader.ui.ext.extractDomain
 
 @OptIn(ExperimentalMaterial3ExpressiveApi::class)
 @Composable
@@ -79,7 +78,6 @@ fun Content(
                 modifier = Modifier.fillMaxSize(),
                 content = content,
                 baseUrl = link,
-                refererDomain = link.extractDomain(),
                 headlineTitle = title,
                 headlineFeedName = feedName,
                 headlineAuthor = author,
