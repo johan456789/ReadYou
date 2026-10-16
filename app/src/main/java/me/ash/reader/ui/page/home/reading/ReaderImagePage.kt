@@ -55,7 +55,7 @@ import coil.compose.rememberAsyncImagePainter
 import coil.request.ImageRequest
 import kotlinx.coroutines.delay
 import me.ash.reader.R
-import me.ash.reader.ui.ext.extractDomain
+import me.ash.reader.ui.ext.originReferer
 import me.ash.reader.ui.ext.showToast
 import me.saket.telephoto.flick.FlickToDismiss
 import me.saket.telephoto.flick.FlickToDismissState
@@ -134,7 +134,9 @@ fun ReaderImageViewer(
                 val painter =
                     rememberAsyncImagePainter(
                         ImageRequest.Builder(LocalContext.current)
-                            .addHeader("Referer", imageData.imageUrl.extractDomain() ?: "")
+                            .apply {
+                                imageData.imageUrl.originReferer()?.let { addHeader("Referer", it) }
+                            }
                             .data(data = imageData.imageUrl)
                             .build()
                     )

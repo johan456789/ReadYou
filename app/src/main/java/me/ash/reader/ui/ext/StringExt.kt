@@ -3,6 +3,7 @@ package me.ash.reader.ui.ext
 import android.text.Html
 import android.util.Base64
 import java.math.BigInteger
+import java.net.URI
 import java.security.MessageDigest
 import java.text.Bidi
 
@@ -50,6 +51,19 @@ fun String?.orNotEmpty(l: (value: String) -> String): String =
 
 
 fun String.requiresBidi(): Boolean = Bidi.requiresBidi(this.toCharArray(), 0, this.length)
+
+/**
+ * `scheme://host[:port]/` of an http(s) URL. Hotlink-protected image hosts accept
+ * this as a same-site Referer; a bare host (`example.com`) is not a valid Referer.
+ */
+fun String?.originReferer(): String? {
+    if (this.isNullOrBlank()) return null
+    val uri = runCatching { URI(this) }.getOrNull() ?: return null
+    val scheme = uri.scheme?.lowercase()?.takeIf { it == "http" || it == "https" } ?: return null
+    val host = uri.host ?: return null
+    val port = if (uri.port == -1) "" else ":${uri.port}"
+    return "$scheme://$host$port/"
+}
 
 fun String?.extractDomain(): String? {
     if (this.isNullOrBlank()) return null
