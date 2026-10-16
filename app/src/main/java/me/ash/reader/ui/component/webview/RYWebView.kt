@@ -506,6 +506,10 @@ fun RYWebView(
         else if (readingFonts is ReadingFontsPreference.GoogleSans) {
             "/android_res/font/google_sans_flex.ttf"
         } else null
+    val fontUnicodeRange =
+        if (readingFonts is ReadingFontsPreference.GoogleSans) {
+            WebViewStyle.GOOGLE_SANS_UNICODE_RANGE
+        } else null
     val htmlBaseUrl = baseUrl ?: "about:blank"
     val headlineHtml =
         remember(
@@ -567,6 +571,7 @@ fun RYWebView(
                         WebViewStyle.get(
                             fontSize = fontSize,
                             fontPath = fontPath,
+                            fontUnicodeRange = fontUnicodeRange,
                             lineHeight = lineHeight,
                             letterSpacing = letterSpacing,
                             textMargin = textMargin,
