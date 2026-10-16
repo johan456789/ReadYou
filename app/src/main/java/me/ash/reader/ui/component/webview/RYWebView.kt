@@ -504,7 +504,10 @@ fun RYWebView(
         if (readingFonts is ReadingFontsPreference.External)
             ExternalFonts.FontType.ReadingFont.toPath(context)
         else if (readingFonts is ReadingFontsPreference.GoogleSans) {
-            "/android_res/font/google_sans_flex.ttf"
+            // Weight-only instance of res/font/google_sans_flex.ttf (~270 KB vs 4 MB):
+            // the other variation axes are unused by the page but made every
+            // cold load inflate and sanitize the full file.
+            "/android_asset/fonts/google_sans_flex_web.ttf"
         } else null
     val fontUnicodeRange =
         if (readingFonts is ReadingFontsPreference.GoogleSans) {
