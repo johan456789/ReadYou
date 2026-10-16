@@ -1,6 +1,7 @@
 package me.ash.reader.ui.component.webview
 
 import android.content.Context
+import android.net.Uri
 import android.net.http.SslError
 import timber.log.Timber
 import android.webkit.SslErrorHandler
@@ -9,8 +10,8 @@ import android.webkit.WebResourceRequest
 import android.webkit.WebResourceResponse
 import android.webkit.WebView
 import android.webkit.WebViewClient
-import me.ash.reader.ui.ext.isUrl
-import java.io.DataInputStream
+import me.ash.reader.ui.ext.originReferer
+import java.io.ByteArrayInputStream
 import java.net.HttpURLConnection
 import java.net.URI
 
@@ -18,7 +19,6 @@ const val INJECTION_TOKEN = "/android_asset_font/"
 
 class WebViewClient(
     private val context: Context,
-    private val refererDomain: String?,
     private val onOpenLink: (url: String) -> Unit,
 ) : WebViewClient() {
 
@@ -41,30 +41,66 @@ class WebViewClient(
             } catch (e: Exception) {
                 Timber.tag("RLog").e(e, "WebView shouldInterceptRequest")
             }
-        } else if (
-            url != null &&
-            url.isUrl() &&
-            !refererDomain.isNullOrBlank() &&
-            request?.isForMainFrame == false
-        ) {
-            try {
-                var connection = URI.create(url).toURL().openConnection() as HttpURLConnection
-                connection.connectTimeout = RESOURCE_TIMEOUT_MS
-                connection.readTimeout = RESOURCE_TIMEOUT_MS
-                if (connection.responseCode == 403) {
-                    connection.disconnect()
-                    connection = URI.create(url).toURL().openConnection() as HttpURLConnection
-                    connection.connectTimeout = RESOURCE_TIMEOUT_MS
-                    connection.readTimeout = RESOURCE_TIMEOUT_MS
-                    connection.setRequestProperty("Referer", refererDomain)
-                    val inputStream = DataInputStream(connection.inputStream)
-                    return WebResourceResponse(connection.contentType, "UTF-8", inputStream)
-                }
-            } catch (e: Exception) {
-                Timber.tag("RLog").e(e, "shouldInterceptRequest url")
+        } else if (url != null && request?.isForMainFrame == false) {
+            // Everything else loads through the WebView with its own Referer (the
+            // article's site). Only a failed image retry, or a host that already
+            // needed one, is fetched here with the image host as Referer.
+            val retryUrl = ImageRefererRetry.unmark(url)
+            val targetUrl = retryUrl ?: url
+            val host = Uri.parse(targetUrl).host
+            if (host != null && (retryUrl != null || ImageRefererRetry.isKnown(host))) {
+                fetchWithOriginReferer(targetUrl, host, request)?.let { return it }
             }
         }
         return super.shouldInterceptRequest(view, request)
+    }
+
+    private fun fetchWithOriginReferer(
+        url: String,
+        host: String,
+        request: WebResourceRequest,
+    ): WebResourceResponse? {
+        val referer = url.originReferer() ?: return null
+        return try {
+            val connection = URI.create(url).toURL().openConnection() as HttpURLConnection
+            connection.connectTimeout = RESOURCE_TIMEOUT_MS
+            connection.readTimeout = RESOURCE_TIMEOUT_MS
+            request.requestHeaders.forEach { (name, value) ->
+                if (!name.equals("Referer", true) && !name.equals("Accept-Encoding", true)) {
+                    connection.setRequestProperty(name, value)
+                }
+            }
+            connection.setRequestProperty("Referer", referer)
+            val status = connection.responseCode
+            // WebResourceResponse rejects 3xx; a redirect HttpURLConnection would not
+            // follow (e.g. https -> http) is left to the WebView.
+            if (status in 300..399) {
+                connection.disconnect()
+                return null
+            }
+            if (status in 200..299) ImageRefererRetry.remember(host) else ImageRefererRetry.forget(host)
+            val body =
+                if (status >= 400) connection.errorStream ?: ByteArrayInputStream(ByteArray(0))
+                else connection.inputStream
+            val contentType = connection.contentType
+            WebResourceResponse(
+                contentType?.substringBefore(';')?.trim(),
+                contentType?.substringAfter("charset=", "")?.trim()?.ifBlank { null },
+                status,
+                connection.responseMessage?.ifBlank { null } ?: "OK",
+                connection.headerFields
+                    .filterKeys {
+                        it != null &&
+                            !it.equals("Content-Encoding", true) &&
+                            !it.equals("Content-Length", true)
+                    }
+                    .mapValues { it.value.joinToString(", ") },
+                body,
+            )
+        } catch (e: Exception) {
+            Timber.tag("RLog").e(e, "fetchWithOriginReferer url")
+            null
+        }
     }
 
     override fun onPageCommitVisible(view: WebView?, url: String?) {
@@ -124,7 +160,7 @@ class WebViewClient(
     }
 
     companion object {
-        private const val RESOURCE_TIMEOUT_MS = 3_000
+        private const val RESOURCE_TIMEOUT_MS = 10_000
 
         private const val OnImgClickScript = """
             javascript:(function() {
@@ -139,7 +175,7 @@ class WebViewClient(
                             var figcaption = figure.getElementsByTagName('figcaption')[0];
                             if (figcaption) { caption = figcaption.innerText || ''; }
                         }
-                        window.${JavaScriptInterface.NAME}.onImgTagClick(this.src, this.alt, caption);
+                        window.${JavaScriptInterface.NAME}.onImgTagClick(this.dataset.rySrc || this.src, this.alt, caption);
                     }
                 }
             })()

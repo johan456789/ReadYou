@@ -18,7 +18,7 @@ import coil.request.ImageRequest
 import coil.size.Precision
 import coil.size.Scale
 import coil.size.Size
-import me.ash.reader.ui.ext.extractDomain
+import me.ash.reader.ui.ext.originReferer
 
 val SIZE_1000 = Size(1000, 1000)
 
@@ -41,10 +41,7 @@ fun RYAsyncImage(
             model =
                 ImageRequest.Builder(context)
                     .apply {
-                        val domain = data.toString().extractDomain()
-                        if (data.toString().extractDomain() != null) {
-                            addHeader("Referer", domain!!)
-                        }
+                        (data as? String).originReferer()?.let { addHeader("Referer", it) }
                     }
                     .data(data = data)
                     .apply {

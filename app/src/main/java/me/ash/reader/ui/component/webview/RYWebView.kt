@@ -379,7 +379,6 @@ fun RYWebView(
     modifier: Modifier = Modifier,
     content: String,
     baseUrl: String? = null,
-    refererDomain: String? = null,
     headlineTitle: String = "",
     headlineFeedName: String = "",
     headlineAuthor: String? = null,
@@ -449,10 +448,9 @@ fun RYWebView(
     val onScrollSnapshotChangeState by rememberUpdatedState(onScrollSnapshotChange)
     val onHeadlineMeasuredState by rememberUpdatedState(onHeadlineMeasured)
     val onWebViewCreatedState by rememberUpdatedState(onWebViewCreated)
-    val dynamicWebViewClient = remember(context, refererDomain) {
+    val dynamicWebViewClient = remember(context) {
         WebViewClient(
             context = context,
-            refererDomain = refererDomain,
             onOpenLink = { url ->
                 context.openURL(url, currentOpenLink, currentOpenLinkSpecificBrowser)
             },

@@ -12,6 +12,26 @@ object WebViewHtml {
         %s
     </style>
     <base href="%s" />
+    <script>
+        // Image errors don't bubble, so listen in the capture phase from <head> to
+        // catch ones that fail before the body script runs. Each image is retried
+        // once with a marker; WebViewClient refetches it with a same-site Referer.
+        window.addEventListener('error', function (event) {
+            var img = event.target;
+            if (!(img instanceof HTMLImageElement) || img.dataset.rySrc) return;
+            var src = img.currentSrc || img.src;
+            if (!/^https?:/i.test(src)) return;
+            img.dataset.rySrc = src;
+            var picture = img.parentElement;
+            if (picture && picture.tagName === 'PICTURE') {
+                picture.querySelectorAll('source').forEach(function (source) { source.remove(); });
+            }
+            img.removeAttribute('srcset');
+            img.removeAttribute('sizes');
+            var url = src.split('#')[0];
+            img.src = url + (url.indexOf('?') < 0 ? '?' : '&') + '${ImageRefererRetry.MARKER}';
+        }, true);
+    </script>
 </head>
 <body>
 <main>
