@@ -146,6 +146,7 @@ main {
     color: var(--title-color) !important;
     line-height: 1.25 !important;
     margin: 0 0 4px 0 !important;
+    text-autospace: normal !important;
 }
 
 .ry-headline .ry-title a {
@@ -164,6 +165,9 @@ article {
     font-size: var(--font-size) !important;
     font-weight: var(--text-bold) !important;
     color: var(--text-color) !important;
+    /* Insert the conventional gap between CJK and adjacent Latin/digits.
+       Skipped automatically where the author already typed a space. */
+    text-autospace: normal !important;
 }
 
 /* Page  */
