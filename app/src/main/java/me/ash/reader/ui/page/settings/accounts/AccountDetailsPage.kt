@@ -147,7 +147,7 @@ fun AccountDetailsPage(
                         text = stringResource(R.string.display),
                     )
                     SettingItem(
-                        title = stringResource(R.string.name),
+                        title = stringResource(R.string.account_name),
                         desc = selectedAccount?.name ?: "",
                         onClick = {
                             nameValue = selectedAccount?.name
