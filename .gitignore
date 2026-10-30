@@ -102,3 +102,6 @@ out/
 .vscode/
 
 signature
+
+### Playwright CLI ###
+.playwright-cli/
