@@ -99,7 +99,7 @@ fun AddGoogleReaderAccountDialog(
                     value = googleReaderServerUrl,
                     onValueChange = { googleReaderServerUrl = it },
                     label = stringResource(R.string.server_url),
-                    placeholder = "https://demo.freshrss.org/api/greader.php",
+                    placeholder = "https://www.google.com/reader/",
                     keyboardOptions = KeyboardOptions(keyboardType = KeyboardType.Uri),
                 )
                 Spacer(modifier = Modifier.height(10.dp))
