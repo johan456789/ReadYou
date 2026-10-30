@@ -52,7 +52,6 @@ import me.ash.reader.infrastructure.preference.KeepArchivedPreference
 import me.ash.reader.infrastructure.preference.SyncBlockListPreference
 import me.ash.reader.infrastructure.preference.SyncIntervalPreference
 import me.ash.reader.infrastructure.preference.not
-import me.ash.reader.ui.component.base.DisplayText
 import me.ash.reader.ui.component.base.FeedbackIconButton
 import me.ash.reader.ui.component.base.RYDialog
 import me.ash.reader.ui.component.base.RYScaffold
@@ -142,10 +141,6 @@ fun AccountDetailsPage(
         },
         content = {
             LazyColumn {
-                item {
-                    DisplayText(text = selectedAccount?.type?.toDesc(context) ?: "", desc = "")
-                    Spacer(modifier = Modifier.height(16.dp))
-                }
                 item {
                     Subtitle(
                         modifier = Modifier.padding(horizontal = 24.dp),
