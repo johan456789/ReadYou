@@ -33,7 +33,7 @@ class DiffMapHolderPendingReadStateTest {
                     articleId = ARTICLE_ID,
                     accountId = ACCOUNT_ID,
                     feedId = FEED_ID,
-                    isUnread = false,
+                    isRead = true,
                     updatedAt = Date(0L),
                     localCommitted = false,
                     remoteSynced = true,
@@ -53,7 +53,7 @@ class DiffMapHolderPendingReadStateTest {
         )
 
         verify(rssRepository).batchMarkAsRead(setOf(ARTICLE_ID), markRead = true)
-        verify(pendingReadStateOpDao).markLocalCommitted(setOf(ARTICLE_ID), isUnread = false)
+        verify(pendingReadStateOpDao).markLocalCommitted(setOf(ARTICLE_ID), isRead = true)
         verify(pendingReadStateOpDao).deleteCompleted()
     }
 
@@ -65,7 +65,7 @@ class DiffMapHolderPendingReadStateTest {
                     articleId = ARTICLE_ID,
                     accountId = ACCOUNT_ID,
                     feedId = FEED_ID,
-                    isUnread = false,
+                    isRead = true,
                     updatedAt = Date(0L),
                     localCommitted = false,
                     remoteSynced = false,
@@ -85,7 +85,7 @@ class DiffMapHolderPendingReadStateTest {
         )
 
         verify(rssRepository).batchMarkAsRead(setOf(ARTICLE_ID), markRead = true)
-        verify(pendingReadStateOpDao).markLocalCommitted(setOf(ARTICLE_ID), isUnread = false)
+        verify(pendingReadStateOpDao).markLocalCommitted(setOf(ARTICLE_ID), isRead = true)
         verify(pendingReadStateOpDao).deleteCompleted()
     }
 
