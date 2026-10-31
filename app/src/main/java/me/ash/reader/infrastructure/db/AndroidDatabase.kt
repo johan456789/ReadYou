@@ -29,7 +29,7 @@ import java.util.*
         ArchivedArticle::class,
         PendingReadStateOp::class,
     ],
-    version = 12,
+    version = 13,
     autoMigrations = [
         AutoMigration(from = 5, to = 6),
         AutoMigration(from = 6, to = 7),
@@ -94,6 +94,7 @@ val allMigrations = arrayOf(
     MIGRATION_4_5,
     MIGRATION_10_11,
     MIGRATION_11_12,
+    MIGRATION_12_13,
 )
 
 @Suppress("ClassName")
@@ -257,5 +258,97 @@ object MIGRATION_11_12 : Migration(11, 12) {
         )
         db.execSQL("DROP TABLE `account`")
         db.execSQL("ALTER TABLE `account_new` RENAME TO `account`")
+    }
+}
+
+@Suppress("ClassName")
+object MIGRATION_12_13 : Migration(12, 13) {
+
+    override fun migrate(db: SupportSQLiteDatabase) {
+        // The Kotlin isRead field is the semantic inverse of the legacy isUnread
+        // column, so the stored values must be flipped while renaming the column.
+        db.execSQL(
+            """
+            CREATE TABLE IF NOT EXISTS `article_new` (
+                `id` TEXT NOT NULL,
+                `date` INTEGER NOT NULL,
+                `title` TEXT NOT NULL,
+                `author` TEXT,
+                `rawDescription` TEXT NOT NULL,
+                `shortDescription` TEXT NOT NULL,
+                `fullContent` TEXT,
+                `img` TEXT,
+                `link` TEXT NOT NULL,
+                `feedId` TEXT NOT NULL,
+                `accountId` INTEGER NOT NULL,
+                `isRead` INTEGER NOT NULL,
+                `isStarred` INTEGER NOT NULL,
+                `isReadLater` INTEGER NOT NULL,
+                `updateAt` INTEGER,
+                PRIMARY KEY(`id`),
+                FOREIGN KEY(`feedId`) REFERENCES `feed`(`id`)
+                    ON UPDATE CASCADE ON DELETE CASCADE
+            )
+            """.trimIndent()
+        )
+        db.execSQL(
+            """
+            INSERT INTO `article_new` (
+                `id`, `date`, `title`, `author`, `rawDescription`, `shortDescription`,
+                `fullContent`, `img`, `link`, `feedId`, `accountId`, `isRead`,
+                `isStarred`, `isReadLater`, `updateAt`
+            )
+            SELECT
+                `id`, `date`, `title`, `author`, `rawDescription`, `shortDescription`,
+                `fullContent`, `img`, `link`, `feedId`, `accountId`, NOT `isUnread`,
+                `isStarred`, `isReadLater`, `updateAt`
+            FROM `article`
+            """.trimIndent()
+        )
+        db.execSQL("DROP TABLE `article`")
+        db.execSQL("ALTER TABLE `article_new` RENAME TO `article`")
+        db.execSQL(
+            "CREATE INDEX IF NOT EXISTS `index_article_feedId` ON `article` (`feedId`)"
+        )
+        db.execSQL(
+            "CREATE INDEX IF NOT EXISTS `index_article_accountId` ON `article` (`accountId`)"
+        )
+
+        db.execSQL(
+            """
+            CREATE TABLE IF NOT EXISTS `pending_read_state_op_new` (
+                `articleId` TEXT NOT NULL,
+                `accountId` INTEGER NOT NULL,
+                `feedId` TEXT NOT NULL,
+                `isRead` INTEGER NOT NULL,
+                `updatedAt` INTEGER NOT NULL,
+                `localCommitted` INTEGER NOT NULL DEFAULT 0,
+                `remoteSynced` INTEGER NOT NULL DEFAULT 0,
+                PRIMARY KEY(`articleId`)
+            )
+            """.trimIndent()
+        )
+        db.execSQL(
+            """
+            INSERT INTO `pending_read_state_op_new` (
+                `articleId`, `accountId`, `feedId`, `isRead`, `updatedAt`,
+                `localCommitted`, `remoteSynced`
+            )
+            SELECT
+                `articleId`, `accountId`, `feedId`, NOT `isUnread`, `updatedAt`,
+                `localCommitted`, `remoteSynced`
+            FROM `pending_read_state_op`
+            """.trimIndent()
+        )
+        db.execSQL("DROP TABLE `pending_read_state_op`")
+        db.execSQL("ALTER TABLE `pending_read_state_op_new` RENAME TO `pending_read_state_op`")
+        db.execSQL(
+            "CREATE INDEX IF NOT EXISTS `index_pending_read_state_op_accountId` " +
+                "ON `pending_read_state_op` (`accountId`)"
+        )
+        db.execSQL(
+            "CREATE INDEX IF NOT EXISTS `index_pending_read_state_op_feedId` " +
+                "ON `pending_read_state_op` (`feedId`)"
+        )
     }
 }
