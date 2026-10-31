@@ -295,7 +295,7 @@ interface ArticleDao {
         DELETE FROM article
         WHERE accountId = :accountId
         AND updateAt < :before
-        AND isRead = 0
+        AND isRead = 1
         AND isStarred = 0
         """
     )
@@ -309,7 +309,7 @@ interface ArticleDao {
         select * FROM article
         WHERE accountId = :accountId
         AND updateAt < :before
-        AND isRead = 0
+        AND isRead = 1
         AND isStarred = 0
         """
     )
@@ -668,7 +668,7 @@ interface ArticleDao {
         LEFT JOIN feed AS f ON a.feedId = f.id
         WHERE f.accountId = :accountId
         AND f.isFullContent = 1
-        AND a.isRead = 1
+        AND a.isRead = 0
         """
     )
     suspend fun queryUnreadFullContentArticles(
@@ -834,7 +834,7 @@ interface ArticleDao {
         """
         SELECT * FROM article
         WHERE accountId = :accountId
-        AND isRead = 1
+        AND isRead = 0
         ORDER BY date desc
         LIMIT :limit
         """
@@ -850,7 +850,7 @@ interface ArticleDao {
         """
         SELECT * FROM article
         WHERE feedId = :feedId
-        AND isRead = 1
+        AND isRead = 0
         ORDER BY date desc
         LIMIT :limit
         """
@@ -867,7 +867,7 @@ interface ArticleDao {
         SELECT a.* FROM article AS a
         LEFT JOIN feed AS f ON a.feedId = f.id
         WHERE f.groupId = :groupId
-        AND a.isRead = 1
+        AND a.isRead = 0
         ORDER BY a.date DESC
         LIMIT :limit
         """
@@ -883,7 +883,7 @@ interface ArticleDao {
         """
         SELECT * FROM article
         WHERE accountId = :accountId
-        AND isRead = 1
+        AND isRead = 0
         ORDER BY date desc
         LIMIT :limit
         """
