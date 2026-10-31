@@ -80,7 +80,7 @@ class AdjacentArticleIdsTest {
                     link = "https://example.com/$id",
                     feedId = "feed",
                     accountId = 1,
-                    isUnread = true,
+                    isRead = false,
                 ),
             feed =
                 Feed(

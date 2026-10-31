@@ -41,13 +41,13 @@ class ReadingUiStateTest {
                     link = "https://example.com/article",
                     feedId = "feed",
                     accountId = 1,
-                    isUnread = true,
+                    isRead = false,
                 ),
             feed = sampleFeed(),
         )
 
     private fun readArticle(): ArticleWithFeed =
-        unreadArticle().run { copy(article = article.copy(isUnread = false)) }
+        unreadArticle().run { copy(article = article.copy(isRead = true)) }
 
     private fun sampleFeed(): Feed =
         Feed(

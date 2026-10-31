@@ -72,7 +72,7 @@ class BenchmarkSeedTest {
                     link = "https://example.com/articles/$index",
                     feedId = feed.id,
                     accountId = accountId,
-                    isUnread = index % 3 != 0,
+                    isRead = index % 3 == 0,
                 )
             runBlocking { database.articleDao().insert(article) }
         }

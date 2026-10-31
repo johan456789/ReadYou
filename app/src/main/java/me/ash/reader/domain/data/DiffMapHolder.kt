@@ -348,11 +348,11 @@ class DiffMapHolder @Inject constructor(
 
         if (markAsReadIds.isNotEmpty()) {
             rssService.get().batchMarkAsRead(articleIds = markAsReadIds, markRead = true)
-            pendingReadStateOpDao.markLocalCommitted(markAsReadIds, isUnread = false)
+            pendingReadStateOpDao.markLocalCommitted(markAsReadIds, isRead = true)
         }
         if (markAsUnreadIds.isNotEmpty()) {
             rssService.get().batchMarkAsRead(articleIds = markAsUnreadIds, markRead = false)
-            pendingReadStateOpDao.markLocalCommitted(markAsUnreadIds, isUnread = true)
+            pendingReadStateOpDao.markLocalCommitted(markAsUnreadIds, isRead = false)
         }
 
         removeAppliedDiffsFromUi(
@@ -383,11 +383,11 @@ class DiffMapHolder @Inject constructor(
 
         if (diffBatch.markReadIds.isNotEmpty()) {
             rssService.get().batchMarkAsRead(articleIds = diffBatch.markReadIds, markRead = true)
-            pendingReadStateOpDao.markLocalCommitted(diffBatch.markReadIds, isUnread = false)
+            pendingReadStateOpDao.markLocalCommitted(diffBatch.markReadIds, isRead = true)
         }
         if (diffBatch.markUnreadIds.isNotEmpty()) {
             rssService.get().batchMarkAsRead(articleIds = diffBatch.markUnreadIds, markRead = false)
-            pendingReadStateOpDao.markLocalCommitted(diffBatch.markUnreadIds, isUnread = true)
+            pendingReadStateOpDao.markLocalCommitted(diffBatch.markUnreadIds, isRead = false)
         }
 
         removeAppliedDiffsFromUi(diffsToCommit)
@@ -473,11 +473,11 @@ class DiffMapHolder @Inject constructor(
 
             if (markAsReadIds.isNotEmpty()) {
                 rssService.get().batchMarkAsRead(articleIds = markAsReadIds, markRead = true)
-                pendingReadStateOpDao.markLocalCommitted(markAsReadIds, isUnread = false)
+                pendingReadStateOpDao.markLocalCommitted(markAsReadIds, isRead = true)
             }
             if (markAsUnreadIds.isNotEmpty()) {
                 rssService.get().batchMarkAsRead(articleIds = markAsUnreadIds, markRead = false)
-                pendingReadStateOpDao.markLocalCommitted(markAsUnreadIds, isUnread = true)
+                pendingReadStateOpDao.markLocalCommitted(markAsUnreadIds, isRead = false)
             }
 
             pendingReadStateOpDao.deleteCompleted()
@@ -535,7 +535,7 @@ class DiffMapHolder @Inject constructor(
             pendingReadStateOpDao.upsertAll(
                 ops.map { op ->
                     val existing = existingOps[op.articleId]
-                    if (existing != null && existing.isUnread == op.isUnread) {
+                    if (existing != null && existing.isRead == op.isRead) {
                         op.copy(
                             localCommitted = existing.localCommitted,
                             remoteSynced = existing.remoteSynced,
@@ -556,13 +556,13 @@ class DiffMapHolder @Inject constructor(
             if (markReadIds.isNotEmpty()) {
                 pendingReadStateOpDao.markRemoteSynced(
                     articleIds = markReadIds,
-                    isUnread = false,
+                    isRead = true,
                 )
             }
             if (markUnreadIds.isNotEmpty()) {
                 pendingReadStateOpDao.markRemoteSynced(
                     articleIds = markUnreadIds,
-                    isUnread = true,
+                    isRead = false,
                 )
             }
             pendingReadStateOpDao.deleteCompleted()
@@ -576,7 +576,7 @@ class DiffMapHolder @Inject constructor(
             articleId = diff.articleId,
             accountId = accountId,
             feedId = diff.feedId,
-            isUnread = !diff.isRead,
+            isRead = diff.isRead,
             localCommitted = false,
             remoteSynced = account.type.id == AccountType.Local.id,
         )

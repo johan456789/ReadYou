@@ -265,7 +265,7 @@ class FreshRssSyncE2eTest {
             link = "https://example.com/articles/$remoteArticleId",
             feedId = feed.id,
             accountId = accountId,
-            isUnread = true,
+            isRead = false,
         )
 
         runBlocking {

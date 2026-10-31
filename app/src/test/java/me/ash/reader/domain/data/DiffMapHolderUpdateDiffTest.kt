@@ -56,7 +56,7 @@ class DiffMapHolderUpdateDiffTest {
         assertTrue(holder.checkIfRead(originalArticle))
 
         val articleAfterWithReadState = originalArticle.copy(
-            article = originalArticle.article.copy(isUnread = false)
+            article = originalArticle.article.copy(isRead = true)
         )
         invokeUpdateDiffInternal(holder, articleAfterWithReadState, markRead = false)
 
@@ -92,14 +92,14 @@ class DiffMapHolderUpdateDiffTest {
     @Test
     fun `toggle uses current diff state not stale article state`() {
         // This test reproduces the bug from issue #59:
-        // 1. Article in DB is originally unread (isUnread=true)
+        // 1. Article in DB is originally unread (isRead=false)
         // 2. User opens article -> auto-marked as read via diffMap
         // 3. User taps "mark as unread" button in reading page
-        //    - Reading page passes articleWithFeed with MUTATED isUnread=false (from withReadState)
+        //    - Reading page passes articleWithFeed with MUTATED isRead=true (from withReadState)
         //    - This creates a diff with isRead=false
         // 4. User goes back to flow list
         // 5. User swipes to toggle
-        //    - Paging list passes articleWithFeed with ORIGINAL isUnread=true (stale DB state)
+        //    - Paging list passes articleWithFeed with ORIGINAL isRead=false (stale DB state)
         //    - Toggle should use diffMap's state (isRead=false) and toggle to read
         //    - BUG: Current implementation removes the diff, falling back to stale article.isRead=false
         val holder = createHolder()
@@ -111,15 +111,15 @@ class DiffMapHolderUpdateDiffTest {
 
         // Step 3: User taps "mark as unread" button in reading page
         // The reading page's articleWithFeed has been mutated by withReadState(true)
-        // so it now has article.isRead = true (article.isUnread = false)
+        // so it now has article.isRead = true
         val readingPageArticle = originalUnreadArticle.copy(
-            article = originalUnreadArticle.article.copy(isUnread = false)
+            article = originalUnreadArticle.article.copy(isRead = true)
         )
         invokeUpdateDiffInternal(holder, readingPageArticle, markRead = false)
         assertFalse(holder.checkIfRead(originalUnreadArticle))
 
         // Step 4-5: User goes back to flow list. 
-        // The paging data still has the stale article with isUnread = true (original DB state),
+        // The paging data still has the stale article with isRead = false (original DB state),
         // but diffMap has isRead = false
 
         // Step 6: User swipes to toggle. The paging list passes the stale article.
@@ -146,7 +146,7 @@ class DiffMapHolderUpdateDiffTest {
             val opsCaptor = argumentCaptor<List<PendingReadStateOp>>()
             inOrder(pendingReadStateOpDao).apply {
                 verify(pendingReadStateOpDao).upsertAll(opsCaptor.capture())
-                verify(pendingReadStateOpDao).markLocalCommitted(setOf("article"), isUnread = false)
+                verify(pendingReadStateOpDao).markLocalCommitted(setOf("article"), isRead = true)
             }
             assertTrue(opsCaptor.firstValue.single().remoteSynced)
         }
@@ -212,7 +212,7 @@ class DiffMapHolderUpdateDiffTest {
             articleId = "article",
             accountId = 1,
             feedId = "feed",
-            isUnread = false,
+            isRead = true,
             localCommitted = true,
             remoteSynced = false,
         )
@@ -390,13 +390,13 @@ class DiffMapHolderUpdateDiffTest {
                 link = "https://example.com/article",
                 feedId = "feed",
                 accountId = 1,
-                isUnread = true,
+                isRead = false,
             ),
             feed = sampleFeed(),
         )
 
     private fun readArticle(): ArticleWithFeed =
-        unreadArticle().run { copy(article = article.copy(isUnread = false)) }
+        unreadArticle().run { copy(article = article.copy(isRead = true)) }
 
     private fun sampleFeed(): Feed =
         Feed(
@@ -438,18 +438,18 @@ class DiffMapHolderUpdateDiffTest {
         override suspend fun queryRemotePending(accountId: Int): List<PendingReadStateOp> =
             ops.values.filter { it.accountId == accountId && !it.remoteSynced }
 
-        override suspend fun markLocalCommitted(articleIds: Set<String>, isUnread: Boolean) {
+        override suspend fun markLocalCommitted(articleIds: Set<String>, isRead: Boolean) {
             articleIds.forEach { articleId ->
-                ops[articleId]?.takeIf { it.isUnread == isUnread }?.let { op ->
+                ops[articleId]?.takeIf { it.isRead == isRead }?.let { op ->
                     ops[articleId] = op.copy(localCommitted = true)
                 }
             }
         }
 
-        override suspend fun markRemoteSynced(articleIds: Set<String>, isUnread: Boolean) {
+        override suspend fun markRemoteSynced(articleIds: Set<String>, isRead: Boolean) {
             events += "markRemoteSynced"
             articleIds.forEach { articleId ->
-                ops[articleId]?.takeIf { it.isUnread == isUnread }?.let { op ->
+                ops[articleId]?.takeIf { it.isRead == isRead }?.let { op ->
                     ops[articleId] = op.copy(remoteSynced = true)
                 }
             }
@@ -459,9 +459,9 @@ class DiffMapHolderUpdateDiffTest {
             ops.entries.removeIf { (_, op) -> op.localCommitted && op.remoteSynced }
         }
 
-        override suspend fun deleteByArticleIdsAndUnreadState(articleIds: Set<String>, isUnread: Boolean) {
+        override suspend fun deleteByArticleIdsAndReadState(articleIds: Set<String>, isRead: Boolean) {
             articleIds.forEach { articleId ->
-                ops[articleId]?.takeIf { it.isUnread == isUnread }?.let {
+                ops[articleId]?.takeIf { it.isRead == isRead }?.let {
                     ops.remove(articleId)
                 }
             }

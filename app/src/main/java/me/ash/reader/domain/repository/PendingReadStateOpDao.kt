@@ -53,20 +53,20 @@ interface PendingReadStateOpDao {
         UPDATE pending_read_state_op
         SET localCommitted = 1
         WHERE articleId IN (:articleIds)
-        AND isUnread = :isUnread
+        AND isUnread = NOT :isRead
         """
     )
-    suspend fun markLocalCommitted(articleIds: Set<String>, isUnread: Boolean)
+    suspend fun markLocalCommitted(articleIds: Set<String>, isRead: Boolean)
 
     @Query(
         """
         UPDATE pending_read_state_op
         SET remoteSynced = 1
         WHERE articleId IN (:articleIds)
-        AND isUnread = :isUnread
+        AND isUnread = NOT :isRead
         """
     )
-    suspend fun markRemoteSynced(articleIds: Set<String>, isUnread: Boolean)
+    suspend fun markRemoteSynced(articleIds: Set<String>, isRead: Boolean)
 
     @Query(
         """
@@ -81,10 +81,10 @@ interface PendingReadStateOpDao {
         """
         DELETE FROM pending_read_state_op
         WHERE articleId IN (:articleIds)
-        AND isUnread = :isUnread
+        AND isUnread = NOT :isRead
         """
     )
-    suspend fun deleteByArticleIdsAndUnreadState(articleIds: Set<String>, isUnread: Boolean)
+    suspend fun deleteByArticleIdsAndReadState(articleIds: Set<String>, isRead: Boolean)
 
     @Query(
         """

@@ -41,8 +41,8 @@ data class Article(
     var feedId: String,
     @field:ColumnInfo(index = true)
     var accountId: Int,
-    @field:ColumnInfo
-    var isUnread: Boolean = true,
+    @field:ColumnInfo(name = "isUnread")
+    var isRead: Boolean = false,
     @field:ColumnInfo
     var isStarred: Boolean = false,
     @field:ColumnInfo
@@ -53,10 +53,4 @@ data class Article(
 
     @Ignore
     var dateString: String? = null
-
-    var isRead: Boolean
-        get() = !isUnread
-        set(value) {
-            isUnread = !value
-        }
 }

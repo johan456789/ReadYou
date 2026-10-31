@@ -104,7 +104,6 @@ abstract class AbstractRssRepository(
         before: Date?,
         markRead: Boolean,
     ): Set<String> {
-        val storedUnread = !markRead
         val accountId = accountService.getCurrentAccountId()
         val affectedIds =
             when {
@@ -113,7 +112,7 @@ abstract class AbstractRssRepository(
                         .queryMetadataByGroupIdWhenIsUnread(
                             accountId = accountId,
                             groupId = groupId,
-                            isUnread = !storedUnread,
+                            isRead = !markRead,
                             before = before ?: Date(Long.MAX_VALUE),
                         )
                         .map { it.id }
@@ -124,7 +123,7 @@ abstract class AbstractRssRepository(
                         .queryMetadataByFeedId(
                             accountId = accountId,
                             feedId = feedId,
-                            isUnread = !storedUnread,
+                            isRead = !markRead,
                             before = before ?: Date(Long.MAX_VALUE),
                         )
                         .map { it.id }
@@ -136,7 +135,7 @@ abstract class AbstractRssRepository(
                     articleDao
                         .queryMetadataAll(
                             accountId = accountId,
-                            isUnread = !storedUnread,
+                            isRead = !markRead,
                             before = before ?: Date(Long.MAX_VALUE),
                         )
                         .map { it.id }
@@ -147,7 +146,7 @@ abstract class AbstractRssRepository(
                 articleDao.markAllAsReadByGroupId(
                     accountId = accountId,
                     groupId = groupId,
-                    storedUnread = storedUnread,
+                    isRead = markRead,
                     before = before ?: Date(Long.MAX_VALUE),
                 )
             }
@@ -156,17 +155,17 @@ abstract class AbstractRssRepository(
                 articleDao.markAllAsReadByFeedId(
                     accountId = accountId,
                     feedId = feedId,
-                    storedUnread = storedUnread,
+                    isRead = markRead,
                     before = before ?: Date(Long.MAX_VALUE),
                 )
             }
 
             articleId != null -> {
-                articleDao.markAsReadByArticleId(accountId, articleId, storedUnread)
+                articleDao.markAsReadByArticleId(accountId, articleId, isRead = markRead)
             }
 
             else -> {
-                articleDao.markAllAsRead(accountId, storedUnread, before ?: Date(Long.MAX_VALUE))
+                articleDao.markAllAsRead(accountId, isRead = markRead, before ?: Date(Long.MAX_VALUE))
             }
         }
         return affectedIds
@@ -174,12 +173,11 @@ abstract class AbstractRssRepository(
 
     open suspend fun batchMarkAsRead(articleIds: Set<String>, markRead: Boolean) {
         val accountId = accountService.getCurrentAccountId()
-        val storedUnread = !markRead
         articleIds
             .takeIf { it.isNotEmpty() }
             ?.chunked(500)
             ?.forEachIndexed { index, it ->
-                articleDao.markAsReadByIdSet(accountId, it.toSet(), storedUnread)
+                articleDao.markAsReadByIdSet(accountId, it.toSet(), markRead)
             }
     }
 
@@ -292,7 +290,7 @@ abstract class AbstractRssRepository(
                         articleDao.queryArticleWithFeedByGroupIdWhenIsUnread(
                             accountId,
                             groupId,
-                            true,
+                            isRead = false,
                             sortAscending = sortAscending,
                         )
 
@@ -312,7 +310,7 @@ abstract class AbstractRssRepository(
                         articleDao.queryArticleWithFeedByFeedIdWhenIsUnread(
                             accountId,
                             feedId,
-                            true,
+                            isRead = false,
                             sortAscending = sortAscending,
                         )
 
@@ -325,7 +323,7 @@ abstract class AbstractRssRepository(
                     isUnread ->
                         articleDao.queryArticleWithFeedWhenIsUnread(
                             accountId,
-                            true,
+                            isRead = false,
                             sortAscending = sortAscending,
                         )
 
@@ -342,7 +340,7 @@ abstract class AbstractRssRepository(
         )
         return when {
             isStarred -> articleDao.queryImportantCountWhenIsStarred(accountId, true)
-            isUnread -> articleDao.queryImportantCountWhenIsUnread(accountId, true)
+            isUnread -> articleDao.queryImportantCountWhenIsUnread(accountId, isRead = false)
             else -> articleDao.queryImportantCountWhenIsAll(accountId)
         }
     }
@@ -489,7 +487,7 @@ abstract class AbstractRssRepository(
                             accountId,
                             content,
                             groupId,
-                            true,
+                            isRead = false,
                             sortAscending,
                         )
 
@@ -511,7 +509,7 @@ abstract class AbstractRssRepository(
                             accountId,
                             content,
                             feedId,
-                            true,
+                            isRead = false,
                             sortAscending,
                         )
 
@@ -525,7 +523,7 @@ abstract class AbstractRssRepository(
                         articleDao.searchArticleWhenIsUnread(
                             accountId,
                             content,
-                            true,
+                            isRead = false,
                             sortAscending,
                         )
 
