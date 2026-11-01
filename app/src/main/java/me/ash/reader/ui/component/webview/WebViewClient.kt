@@ -169,9 +169,19 @@ class WebViewClient(
         if (current.scheme.isNullOrEmpty() || current.host.isNullOrEmpty()) return false
         if (!target.scheme.equals(current.scheme, ignoreCase = true)) return false
         if (!target.host.equals(current.host, ignoreCase = true)) return false
+        if (effectivePort(target) != effectivePort(current)) return false
         // Servers add or drop the trailing slash on article URLs.
         return target.path.orEmpty().trimEnd('/') == current.path.orEmpty().trimEnd('/')
     }
+
+    /** `Uri.port` is -1 when omitted; fall back to the scheme's default port. */
+    private fun effectivePort(uri: Uri): Int =
+        when {
+            uri.port != -1 -> uri.port
+            uri.scheme.equals("https", ignoreCase = true) -> 443
+            uri.scheme.equals("http", ignoreCase = true) -> 80
+            else -> -1
+        }
 
     private fun scrollToFragment(view: WebView, fragment: String) {
         view.evaluateJavascript(

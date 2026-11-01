@@ -98,6 +98,22 @@ class RYWebViewAnchorTest {
         assertEquals(emptyList<String>(), openedLinks)
     }
 
+    /**
+     * Same host and path on another port is a different server. The Kotlin
+     * fallback is the only path taken here, because propagation is stopped.
+     */
+    @Test
+    fun samePathOnDifferentPortOpensExternallyWhenClickPropagationIsStopped() {
+        loadArticle(
+            article(refHref = "https://example.com:8443/post/#fn-1", stopPropagation = true)
+        )
+
+        clickFootnoteRef()
+
+        assertTrue("Expected the other port to be handed to the app", awaitOpenedLink())
+        assertEquals("https://example.com:8443/post/#fn-1", openedLinks.first())
+    }
+
     @Test
     fun pageUrlMatchesArticleBaseUrl() {
         loadArticle(article(refHref = "#fn-1"))
