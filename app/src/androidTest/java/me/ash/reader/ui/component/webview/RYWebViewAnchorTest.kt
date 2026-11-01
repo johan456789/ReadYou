@@ -17,9 +17,9 @@ import org.junit.Test
 import org.junit.runner.RunWith
 
 /**
- * Footnote refs must jump inside the article. Some servers (FreshRSS with
- * full-content retrieval, Inoreader, ...) rewrite "#fn-1" to the article's own
- * absolute URL plus the fragment, which used to be handed to the browser.
+ * Footnote refs must jump inside the article. Some feeds write footnote refs
+ * as the article's own absolute URL plus the fragment, which used to be
+ * handed to the browser.
  */
 @RunWith(AndroidJUnit4::class)
 class RYWebViewAnchorTest {
