@@ -173,6 +173,8 @@ class WebViewClient(
         if (!target.scheme.equals(current.scheme, ignoreCase = true)) return false
         if (!target.host.equals(current.host, ignoreCase = true)) return false
         if (effectivePort(target) != effectivePort(current)) return false
+        // A query can select a different document, so it must match exactly.
+        if (target.encodedQuery != current.encodedQuery) return false
         // Servers add or drop the trailing slash on article URLs.
         return target.path.orEmpty().trimEnd('/') == current.path.orEmpty().trimEnd('/')
     }
@@ -334,6 +336,7 @@ class WebViewClient(
                     if (!resolved.hash || resolved.hash === '#') return null;
                     if (resolved.protocol !== base.protocol) return null;
                     if (resolved.host !== base.host) return null;
+                    if (resolved.search !== base.search) return null;
                     function trimSlash(path) { return path.replace(/\/+$/, ''); }
                     if (trimSlash(resolved.pathname) !== trimSlash(base.pathname)) return null;
                     return resolved.hash.substring(1);

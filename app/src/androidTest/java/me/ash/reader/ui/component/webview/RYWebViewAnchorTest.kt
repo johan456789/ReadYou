@@ -138,6 +138,52 @@ class RYWebViewAnchorTest {
         assertEquals("https://example.com:8443/post/#fn-1", openedLinks.first())
     }
 
+    /**
+     * The query is part of the document's identity: a link to the same path
+     * with a different query is another document, not an in-page jump.
+     */
+    @Test
+    fun samePathWithDifferentQueryOpensExternally() {
+        loadArticle(article(refHref = "https://example.com/post?id=2#fn-1"))
+
+        clickFootnoteRef()
+
+        assertTrue("Expected the different query to be handed to the app", awaitOpenedLink())
+        assertEquals("https://example.com/post?id=2#fn-1", openedLinks.first())
+    }
+
+    /**
+     * Same as [samePathWithDifferentQueryOpensExternally], through the Kotlin
+     * fallback, because propagation is stopped.
+     */
+    @Test
+    fun samePathWithDifferentQueryOpensExternallyWhenClickPropagationIsStopped() {
+        loadArticle(
+            article(refHref = "https://example.com/post?id=2#fn-1", stopPropagation = true)
+        )
+
+        clickFootnoteRef()
+
+        assertTrue("Expected the different query to be handed to the app", awaitOpenedLink())
+        assertEquals("https://example.com/post?id=2#fn-1", openedLinks.first())
+    }
+
+    /**
+     * A link whose query matches the article's is still an in-page jump.
+     */
+    @Test
+    fun sameQueryFootnoteLinkScrollsInsideArticle() {
+        loadArticle(
+            article(refHref = "https://example.com/post?id=1#fn-1"),
+            base = "https://example.com/post?id=1",
+        )
+
+        clickFootnoteRef()
+
+        assertTrue("Expected the article to scroll to the footnote", awaitScroll() > 0)
+        assertEquals(emptyList<String>(), openedLinks)
+    }
+
     @Test
     fun pageUrlMatchesArticleBaseUrl() {
         loadArticle(article(refHref = "#fn-1"))
@@ -177,7 +223,7 @@ class RYWebViewAnchorTest {
         evalJs("document.querySelector('a.footnote-ref').click(); null")
     }
 
-    private fun loadArticle(content: String) {
+    private fun loadArticle(content: String, base: String = BASE_URL) {
         val html =
             WebViewHtml.HTML.format(
                 WebViewStyle.get(
@@ -200,7 +246,7 @@ class RYWebViewAnchorTest {
                     selectionTextColor = 0xFFFFFFFF.toInt(),
                     selectionBgColor = 0xFF000000.toInt(),
                 ),
-                BASE_URL,
+                base,
                 "",
                 content,
                 WebViewScript.get(boldCharacters = false),
@@ -215,7 +261,7 @@ class RYWebViewAnchorTest {
         scenario!!.onActivity { activity ->
             val client =
                 WebViewClient(activity, onOpenLink = { openedLinks.add(it) }).apply {
-                    baseUrl = BASE_URL
+                    baseUrl = base
                 }
             webViewClient = client
             webView =
@@ -224,7 +270,7 @@ class RYWebViewAnchorTest {
                     webViewClient = client
                 }
             activity.setContentView(webView)
-            webView!!.loadDataWithBaseURL(BASE_URL, html, "text/html", "UTF-8", null)
+            webView!!.loadDataWithBaseURL(base, html, "text/html", "UTF-8", null)
         }
 
         assertTrue("Anchor click handler was not installed", awaitAnchorClickBound())
