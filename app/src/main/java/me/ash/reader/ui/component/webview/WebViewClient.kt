@@ -317,8 +317,8 @@ class WebViewClient(
                 window.__anchorClickBound = true;
                 // Returns the fragment when the link points back at this same
                 // article, whether it is written as "#fn-1" or as the article's
-                // absolute URL plus "#fn-1" (feeds such as seangoedecke.com write
-                // footnote links this way). Returns null for links to other pages.
+                // absolute URL plus "#fn-1" (some feeds write footnote links this
+                // way). Returns null for links to other pages.
                 function samePageFragment(href) {
                     if (href.charAt(0) === '#') return href.substring(1);
                     var resolved, base;
