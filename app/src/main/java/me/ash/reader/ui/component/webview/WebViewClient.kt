@@ -150,10 +150,10 @@ class WebViewClient(
             return false
         }
 
-        // Some servers (FreshRSS with full-content retrieval, Inoreader, ...)
-        // rewrite footnote refs from "#fn-1" to the article's own URL plus the
-        // fragment. That is still an in-page jump, not an external link: scroll
-        // the WebView instead of handing it to the browser.
+        // Some feeds write footnote refs as the article's own URL plus the
+        // fragment instead of a bare "#fn-1". That is still an in-page jump,
+        // not an external link: scroll the WebView instead of handing it to
+        // the browser.
         if (view != null && isSameDocumentFragment(request.url)) {
             scrollToFragment(view, request.url.fragment.orEmpty())
             return true
