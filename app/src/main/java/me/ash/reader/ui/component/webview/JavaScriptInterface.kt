@@ -14,9 +14,6 @@ interface JavaScriptInterface {
     fun onHorizontalScrollableTouchStart(isScrollable: Boolean)
 
     @JavascriptInterface
-    fun onAnchorScrollTo(cssTop: Double)
-
-    @JavascriptInterface
     fun onMediaTouchStart(isMedia: Boolean)
 
     companion object {

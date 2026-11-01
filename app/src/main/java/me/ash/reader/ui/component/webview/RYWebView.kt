@@ -80,7 +80,6 @@ class HorizontalScrollAwareWebView(context: Context) : WebView(context) {
     var onHeadlineMeasured: ((Int) -> Unit)? = null
     var onImageClick: ((imgUrl: String, altText: String, caption: String) -> Unit)? = null
     var onLinkLongPress: ((url: String, text: String) -> Unit)? = null
-    var onAnchorScroll: ((cssTop: Double) -> Unit)? = null
     var handledScrollToTopRequest: Int = 0
     private val touchStartsInHorizontalScrollableContent = AtomicBoolean(false)
     private val touchStartsInMediaContent = AtomicBoolean(false)
@@ -386,7 +385,6 @@ fun RYWebView(
     scrollToTopRequest: Int = 0,
     onImageClick: ((imgUrl: String, altText: String, caption: String) -> Unit)? = null,
     onLinkLongPress: ((url: String, text: String) -> Unit)? = null,
-    onAnchorScroll: ((cssTop: Double) -> Unit)? = null,
     onHeadlineMeasured: ((Int) -> Unit)? = null,
     onShowCustomView: ((View, WebChromeClient.CustomViewCallback) -> Unit)? = null,
     onHideCustomView: (() -> Unit)? = null,
@@ -490,7 +488,6 @@ fun RYWebView(
                     webChromeClient = null,
                     onImageClick = onImageClick,
                     onLinkLongPress = onLinkLongPress,
-                    onAnchorScroll = onAnchorScroll,
                 ).also {
                     onWebViewCreatedForTest?.invoke(it)
                     onWebViewCreatedState?.invoke(it)
@@ -626,6 +623,7 @@ fun RYWebView(
         update = { wv ->
             wv.onScrollSnapshotChanged = { snapshot -> onScrollSnapshotChangeState?.invoke(snapshot) }
             wv.onHeadlineMeasured = { px -> onHeadlineMeasuredState?.invoke(px) }
+            dynamicWebViewClient.baseUrl = htmlBaseUrl
             if (wv.webViewClient !== dynamicWebViewClient) {
                 wv.webViewClient = dynamicWebViewClient
             }

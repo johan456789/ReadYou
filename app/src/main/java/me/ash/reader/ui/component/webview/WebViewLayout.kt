@@ -41,7 +41,6 @@ object WebViewLayout {
         webChromeClient: RYWebChromeClient? = null,
         onImageClick: ((imgUrl: String, altText: String, caption: String) -> Unit)? = null,
         onLinkLongPress: ((url: String, text: String) -> Unit)? = null,
-        onAnchorScroll: ((cssTop: Double) -> Unit)? = null,
     ): HorizontalScrollAwareWebView {
         val retained = retainedWebView
         val webView =
@@ -55,7 +54,6 @@ object WebViewLayout {
                     webChromeClient = webChromeClient,
                     onImageClick = onImageClick,
                     onLinkLongPress = onLinkLongPress,
-                    onAnchorScroll = onAnchorScroll,
                 )
         timber.log.Timber.tag("RYPool")
             .d("obtain %s id=%08x", if (retained != null) "HIT" else "MISS", System.identityHashCode(webView))
@@ -66,7 +64,6 @@ object WebViewLayout {
             webChromeClient = webChromeClient,
             onImageClick = onImageClick,
             onLinkLongPress = onLinkLongPress,
-            onAnchorScroll = onAnchorScroll,
         )
         return webView
     }
@@ -85,7 +82,6 @@ object WebViewLayout {
         webView.onHeadlineMeasured = null
         webView.onImageClick = null
         webView.onLinkLongPress = null
-        webView.onAnchorScroll = null
         webView.handledScrollToTopRequest = 0
         webView.resetTouchStartsInHorizontalScrollableContent()
         runCatching { webView.stopLoading() }
@@ -108,7 +104,6 @@ object WebViewLayout {
         webChromeClient: RYWebChromeClient? = null,
         onImageClick: ((imgUrl: String, altText: String, caption: String) -> Unit)? = null,
         onLinkLongPress: ((url: String, text: String) -> Unit)? = null,
-        onAnchorScroll: ((cssTop: Double) -> Unit)? = null,
     ): HorizontalScrollAwareWebView =
         obtain(
             context = context,
@@ -117,7 +112,6 @@ object WebViewLayout {
             webChromeClient = webChromeClient,
             onImageClick = onImageClick,
             onLinkLongPress = onLinkLongPress,
-            onAnchorScroll = onAnchorScroll,
         )
 
     private fun buildRetainedWebView(
@@ -131,7 +125,6 @@ object WebViewLayout {
             webChromeClient = null,
             onImageClick = null,
             onLinkLongPress = null,
-            onAnchorScroll = null,
         ).also { webView ->
             webView.loadDataWithBaseURL(
                 PREWARM_BASE_URL,
@@ -150,7 +143,6 @@ object WebViewLayout {
         webChromeClient: RYWebChromeClient?,
         onImageClick: ((imgUrl: String, altText: String, caption: String) -> Unit)?,
         onLinkLongPress: ((url: String, text: String) -> Unit)?,
-        onAnchorScroll: ((cssTop: Double) -> Unit)?,
     ): HorizontalScrollAwareWebView =
         HorizontalScrollAwareWebView(context).apply {
             isHorizontalScrollBarEnabled = false
@@ -180,11 +172,6 @@ object WebViewLayout {
                     }
 
                     @JavascriptInterface
-                    override fun onAnchorScrollTo(cssTop: Double) {
-                        this@apply.onAnchorScroll?.invoke(cssTop)
-                    }
-
-                    @JavascriptInterface
                     override fun onMediaTouchStart(isMedia: Boolean) {
                         this@apply.setTouchStartsInMediaContent(isMedia)
                     }
@@ -198,7 +185,6 @@ object WebViewLayout {
                 webChromeClient = webChromeClient,
                 onImageClick = onImageClick,
                 onLinkLongPress = onLinkLongPress,
-                onAnchorScroll = onAnchorScroll,
             )
         }
 
@@ -209,11 +195,9 @@ object WebViewLayout {
         webChromeClient: RYWebChromeClient?,
         onImageClick: ((imgUrl: String, altText: String, caption: String) -> Unit)?,
         onLinkLongPress: ((url: String, text: String) -> Unit)?,
-        onAnchorScroll: ((cssTop: Double) -> Unit)?,
     ) {
         webView.onImageClick = onImageClick
         webView.onLinkLongPress = onLinkLongPress
-        webView.onAnchorScroll = onAnchorScroll
         webView.webViewClient = webViewClient
         webView.webChromeClient = webChromeClient
         webView.onResume()
