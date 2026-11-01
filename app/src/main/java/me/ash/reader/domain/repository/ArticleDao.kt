@@ -36,7 +36,7 @@ interface ArticleDao {
 
     @Query(
         """
-        UPDATE article SET isUnread = NOT :isRead
+        UPDATE article SET isRead = :isRead
         WHERE accountId = :accountId
         AND id in (:ids)
         """
@@ -92,7 +92,7 @@ interface ArticleDao {
         AND feedId IN (
             SELECT id FROM feed WHERE groupId = :groupId
         )
-        AND isUnread = NOT :isRead
+        AND isRead = :isRead
         AND (
             title LIKE '%' || :text || '%'
             OR shortDescription LIKE '%' || :text || '%'
@@ -166,7 +166,7 @@ interface ArticleDao {
         SELECT * FROM article
         WHERE accountId = :accountId 
         AND feedId = :feedId
-        AND isUnread = NOT :isRead
+        AND isRead = :isRead
         AND (
             title LIKE '%' || :text || '%'
             OR shortDescription LIKE '%' || :text || '%'
@@ -235,7 +235,7 @@ interface ArticleDao {
         """
         SELECT * FROM article
         WHERE accountId = :accountId 
-        AND isUnread = NOT :isRead
+        AND isRead = :isRead
         AND (
             title LIKE '%' || :text || '%'
             OR shortDescription LIKE '%' || :text || '%'
@@ -295,7 +295,7 @@ interface ArticleDao {
         DELETE FROM article
         WHERE accountId = :accountId
         AND updateAt < :before
-        AND isUnread = 0
+        AND isRead = 1
         AND isStarred = 0
         """
     )
@@ -309,7 +309,7 @@ interface ArticleDao {
         select * FROM article
         WHERE accountId = :accountId
         AND updateAt < :before
-        AND isUnread = 0
+        AND isRead = 1
         AND isStarred = 0
         """
     )
@@ -321,10 +321,10 @@ interface ArticleDao {
     @Transaction
     @Query(
         """
-        UPDATE article SET isUnread = NOT :isRead
+        UPDATE article SET isRead = :isRead
         WHERE accountId = :accountId
         AND date < :before
-        AND isUnread != NOT :isRead
+        AND isRead != :isRead
         """
     )
     suspend fun markAllAsRead(
@@ -336,13 +336,13 @@ interface ArticleDao {
     @Transaction
     @Query(
         """
-        UPDATE article SET isUnread = NOT :isRead
+        UPDATE article SET isRead = :isRead
         WHERE feedId IN (
             SELECT id FROM feed 
             WHERE groupId = :groupId
         )
         AND accountId = :accountId
-        AND isUnread != NOT :isRead
+        AND isRead != :isRead
         AND date < :before
         """
     )
@@ -356,10 +356,10 @@ interface ArticleDao {
     @Transaction
     @Query(
         """
-        UPDATE article SET isUnread = NOT :isRead
+        UPDATE article SET isRead = :isRead
         WHERE feedId = :feedId
         AND accountId = :accountId
-        AND isUnread != NOT :isRead
+        AND isRead != :isRead
         AND date < :before
         """
     )
@@ -373,7 +373,7 @@ interface ArticleDao {
     @Transaction
     @Query(
         """
-        UPDATE article SET isUnread = NOT :isRead
+        UPDATE article SET isRead = :isRead
         WHERE id = :articleId
         AND accountId = :accountId
         """
@@ -436,7 +436,7 @@ interface ArticleDao {
         """
         SELECT feedId, COUNT(*) AS important
         FROM article
-        WHERE isUnread = NOT :isRead
+        WHERE isRead = :isRead
         AND accountId = :accountId
         GROUP BY feedId
         """
@@ -507,7 +507,7 @@ interface ArticleDao {
     @Query(
         """
         SELECT * FROM article 
-        WHERE isUnread = NOT :isRead 
+        WHERE isRead = :isRead 
         AND accountId = :accountId
         ORDER BY
             CASE WHEN :sortAscending = 1 THEN date END ASC,
@@ -524,7 +524,7 @@ interface ArticleDao {
         """
         SELECT a.id, a.date, a.title, a.author, a.rawDescription, 
         a.shortDescription, a.fullContent, a.img, a.link, a.feedId, 
-        a.accountId, a.isUnread, a.isStarred, a.isReadLater, a.updateAt 
+        a.accountId, a.isRead, a.isStarred, a.isReadLater, a.updateAt 
         FROM article AS a
         LEFT JOIN feed AS b ON b.id = a.feedId
         LEFT JOIN `group` AS c ON c.id = b.groupId
@@ -545,7 +545,7 @@ interface ArticleDao {
         """
         SELECT a.id, a.date, a.title, a.author, a.rawDescription, 
         a.shortDescription, a.fullContent, a.img, a.link, a.feedId, 
-        a.accountId, a.isUnread, a.isStarred, a.isReadLater, a.updateAt 
+        a.accountId, a.isRead, a.isStarred, a.isReadLater, a.updateAt 
         FROM article AS a
         LEFT JOIN feed AS b ON b.id = a.feedId
         LEFT JOIN `group` AS c ON c.id = b.groupId
@@ -567,12 +567,12 @@ interface ArticleDao {
         """
         SELECT a.id, a.date, a.title, a.author, a.rawDescription, 
         a.shortDescription, a.fullContent, a.img, a.link, a.feedId, 
-        a.accountId, a.isUnread, a.isStarred, a.isReadLater, a.updateAt 
+        a.accountId, a.isRead, a.isStarred, a.isReadLater, a.updateAt 
         FROM article AS a
         LEFT JOIN feed AS b ON b.id = a.feedId
         LEFT JOIN `group` AS c ON c.id = b.groupId
         WHERE c.id = :groupId
-        AND a.isUnread = NOT :isRead
+        AND a.isRead = :isRead
         AND a.accountId = :accountId
         ORDER BY
             CASE WHEN :sortAscending = 1 THEN a.date END ASC,
@@ -619,7 +619,7 @@ interface ArticleDao {
         """
         SELECT * FROM article 
         WHERE feedId = :feedId 
-        AND isUnread = NOT :isRead
+        AND isRead = :isRead
         AND accountId = :accountId
         ORDER BY
             CASE WHEN :sortAscending = 1 THEN date END ASC,
@@ -636,7 +636,7 @@ interface ArticleDao {
         """
         SELECT a.id, a.date, a.title, a.author, a.rawDescription, 
         a.shortDescription, a.fullContent, a.img, a.link, a.feedId, 
-        a.accountId, a.isUnread, a.isStarred, a.isReadLater, a.updateAt 
+        a.accountId, a.isRead, a.isStarred, a.isReadLater, a.updateAt 
         FROM article AS a LEFT JOIN feed AS b 
         ON a.feedId = b.id
         WHERE a.feedId = :feedId 
@@ -668,7 +668,7 @@ interface ArticleDao {
         LEFT JOIN feed AS f ON a.feedId = f.id
         WHERE f.accountId = :accountId
         AND f.isFullContent = 1
-        AND a.isUnread = 1
+        AND a.isRead = 0
         """
     )
     suspend fun queryUnreadFullContentArticles(
@@ -688,7 +688,7 @@ interface ArticleDao {
     @Transaction
     @Query(
         """
-        SELECT id, isUnread, isStarred FROM article
+        SELECT id, isRead, isStarred FROM article
         WHERE accountId = :accountId
         ORDER BY
             CASE WHEN :sortAscending = 1 THEN date END ASC,
@@ -702,9 +702,9 @@ interface ArticleDao {
     @Transaction
     @Query(
         """
-        SELECT id, isUnread, isStarred FROM article
+        SELECT id, isRead, isStarred FROM article
         WHERE accountId = :accountId
-        AND isUnread = NOT :isRead
+        AND isRead = :isRead
         ORDER BY
             CASE WHEN :sortAscending = 1 THEN date END ASC,
             CASE WHEN :sortAscending = 0 THEN date END DESC
@@ -717,7 +717,7 @@ interface ArticleDao {
     @Transaction
     @Query(
         """
-        SELECT id, isUnread, isStarred FROM article
+        SELECT id, isRead, isStarred FROM article
         WHERE accountId = :accountId
         AND date < :before
         ORDER BY
@@ -732,9 +732,9 @@ interface ArticleDao {
     @Transaction
     @Query(
         """
-        SELECT id, isUnread, isStarred FROM article
+        SELECT id, isRead, isStarred FROM article
         WHERE accountId = :accountId
-        AND isUnread = NOT :isRead
+        AND isRead = :isRead
         AND date < :before
         ORDER BY
             CASE WHEN :sortAscending = 1 THEN date END ASC,
@@ -748,10 +748,10 @@ interface ArticleDao {
     @Transaction
     @Query(
         """
-        SELECT id, isUnread, isStarred FROM article
+        SELECT id, isRead, isStarred FROM article
         WHERE accountId = :accountId
         AND feedId = :feedId
-        AND isUnread = NOT :isRead
+        AND isRead = :isRead
         ORDER BY
             CASE WHEN :sortAscending = 1 THEN date END ASC,
             CASE WHEN :sortAscending = 0 THEN date END DESC
@@ -764,10 +764,10 @@ interface ArticleDao {
     @Transaction
     @Query(
         """
-        SELECT id, isUnread, isStarred FROM article
+        SELECT id, isRead, isStarred FROM article
         WHERE accountId = :accountId
         AND feedId = :feedId
-        AND isUnread = NOT :isRead
+        AND isRead = :isRead
         AND date < :before
         ORDER BY
             CASE WHEN :sortAscending = 1 THEN date END ASC,
@@ -785,13 +785,13 @@ interface ArticleDao {
     @Transaction
     @Query(
         """
-        SELECT a.id, a.isUnread, a.isStarred 
+        SELECT a.id, a.isRead, a.isStarred 
         FROM article AS a
         LEFT JOIN feed AS b ON b.id = a.feedId
         LEFT JOIN `group` AS c ON c.id = b.groupId
         WHERE c.id = :groupId
         AND a.accountId = :accountId
-        AND a.isUnread = NOT :isRead
+        AND a.isRead = :isRead
         ORDER BY
             CASE WHEN :sortAscending = 1 THEN a.date END ASC,
             CASE WHEN :sortAscending = 0 THEN a.date END DESC
@@ -804,13 +804,13 @@ interface ArticleDao {
     @Transaction
     @Query(
         """
-        SELECT a.id, a.isUnread, a.isStarred 
+        SELECT a.id, a.isRead, a.isStarred 
         FROM article AS a
         LEFT JOIN feed AS b ON b.id = a.feedId
         LEFT JOIN `group` AS c ON c.id = b.groupId
         WHERE c.id = :groupId
         AND a.accountId = :accountId
-        AND a.isUnread = NOT :isRead
+        AND a.isRead = :isRead
         AND a.date < :before
         ORDER BY
             CASE WHEN :sortAscending = 1 THEN a.date END ASC,
@@ -834,7 +834,7 @@ interface ArticleDao {
         """
         SELECT * FROM article
         WHERE accountId = :accountId
-        AND isUnread = 1
+        AND isRead = 0
         ORDER BY date desc
         LIMIT :limit
         """
@@ -850,7 +850,7 @@ interface ArticleDao {
         """
         SELECT * FROM article
         WHERE feedId = :feedId
-        AND isUnread = 1
+        AND isRead = 0
         ORDER BY date desc
         LIMIT :limit
         """
@@ -867,7 +867,7 @@ interface ArticleDao {
         SELECT a.* FROM article AS a
         LEFT JOIN feed AS f ON a.feedId = f.id
         WHERE f.groupId = :groupId
-        AND a.isUnread = 1
+        AND a.isRead = 0
         ORDER BY a.date DESC
         LIMIT :limit
         """
@@ -883,7 +883,7 @@ interface ArticleDao {
         """
         SELECT * FROM article
         WHERE accountId = :accountId
-        AND isUnread = 1
+        AND isRead = 0
         ORDER BY date desc
         LIMIT :limit
         """

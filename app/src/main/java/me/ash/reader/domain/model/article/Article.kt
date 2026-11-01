@@ -41,7 +41,7 @@ data class Article(
     var feedId: String,
     @field:ColumnInfo(index = true)
     var accountId: Int,
-    @field:ColumnInfo(name = "isUnread")
+    @field:ColumnInfo
     var isRead: Boolean = false,
     @field:ColumnInfo
     var isStarred: Boolean = false,
