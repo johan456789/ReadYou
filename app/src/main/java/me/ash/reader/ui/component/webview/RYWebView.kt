@@ -2,6 +2,9 @@ package me.ash.reader.ui.component.webview
 
 import android.annotation.SuppressLint
 import android.content.Context
+import android.os.Handler
+import android.os.Looper
+import android.os.Message
 import android.os.SystemClock
 import timber.log.Timber
 import android.view.MotionEvent
@@ -26,6 +29,8 @@ import androidx.compose.ui.unit.dp
 import androidx.compose.ui.viewinterop.AndroidView
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.withContext
+import org.json.JSONObject
+import org.json.JSONTokener
 import java.util.concurrent.atomic.AtomicBoolean
 import kotlin.math.abs
 import me.ash.reader.infrastructure.preference.LocalOpenLink
@@ -83,6 +88,195 @@ class HorizontalScrollAwareWebView(context: Context) : WebView(context) {
     var handledScrollToTopRequest: Int = 0
     private val touchStartsInHorizontalScrollableContent = AtomicBoolean(false)
     private val touchStartsInMediaContent = AtomicBoolean(false)
+
+    init {
+        // Link and image gestures are sourced from native hit testing, which the
+        // page cannot spoof: URLs come from the engine, never from page
+        // JavaScript. No injected page script may hand URLs or text into the app.
+        isLongClickable = true
+        setOnLongClickListener {
+            val hit = hitTestResult
+            // Both the hit test data and the focused-node info are computed
+            // asynchronously by the engine and are often not yet populated
+            // while the finger is still down. Ask right away (fast path for
+            // when the data is already there), retry shortly, and ask once
+            // more when the touch ends - by then the engine has settled and
+            // the query is reliable. See dispatchTouchEvent.
+            linkGestureTouch = touchSequence
+            requestLinkHrefAsync(hit.type, hit.extra)
+            postDelayed({ retryLinkHrefQuery(hit.type, hit.extra) }, LINK_NODE_RETRY_MS)
+            when (hit.type) {
+                WebView.HitTestResult.SRC_ANCHOR_TYPE,
+                WebView.HitTestResult.SRC_IMAGE_ANCHOR_TYPE,
+                WebView.HitTestResult.EMAIL_TYPE,
+                WebView.HitTestResult.PHONE_TYPE,
+                WebView.HitTestResult.GEO_TYPE -> true
+                else -> false
+            }
+        }
+    }
+
+    /**
+     * Asks the engine for the focused node's anchor URL and text. The reply
+     * bundle carries "url" (the anchor href) and "title" (the anchor's visible
+     * text). Must be called while the long-pressed node is still focused, i.e.
+     * for the current touch sequence.
+     *
+     * Replies are deduplicated per touch sequence, so the fast path, the retry
+     * and the gesture-end query can all be issued without double-firing.
+     */
+    private fun requestLinkHrefAsync(fallbackType: Int, fallbackExtra: String?) {
+        val message = Message()
+        message.target = object : Handler(Looper.getMainLooper()) {
+            override fun handleMessage(msg: Message) {
+                val bundle = msg.data
+                val url = bundle?.getString("url")
+                if (linkGestureTouch != touchSequence || linkGestureHandled) return
+                if (!url.isNullOrEmpty()) {
+                    linkGestureHandled = true
+                    onLinkLongPress?.invoke(url, bundle.getString("title").orEmpty().trim())
+                } else when (fallbackType) {
+                    // No href in the reply: only the snapshot taken at
+                    // long-click can speak for non-navigational targets
+                    // (mailto:/tel:/geo: links).
+                    WebView.HitTestResult.EMAIL_TYPE,
+                    WebView.HitTestResult.PHONE_TYPE,
+                    WebView.HitTestResult.GEO_TYPE,
+                    -> {
+                        linkGestureHandled = true
+                        fallbackExtra?.let { onLinkLongPress?.invoke(it, "") }
+                    }
+                }
+            }
+        }
+        // Deferred queries can outlive the view when the article is recycled
+        // mid-gesture; a destroyed WebView must not be asked for node info.
+        runCatching { requestFocusNodeHref(message) }
+    }
+
+    private fun retryLinkHrefQuery(fallbackType: Int, fallbackExtra: String?) {
+        if (linkGestureTouch != touchSequence || linkGestureHandled) return
+        requestLinkHrefAsync(fallbackType, fallbackExtra)
+    }
+
+    private var touchSequence = 0
+    private var linkGestureTouch = -1
+    private var linkGestureHandled = false
+
+    private var tapDownX = 0f
+    private var tapDownY = 0f
+    private var tapDownEventTime = 0L
+    private var tapCandidate = false
+    private var gestureEndHitType = 0
+    private var gestureEndHitExtra: String? = null
+    private var downHitType = 0
+    private var downHitExtra: String? = null
+
+    /**
+     * Tap detection for bare images. Tap is any gesture that stays within the
+     * touch slop and ends before a long press would fire. Only
+     * [WebView.HitTestResult.IMAGE_TYPE] opens the viewer; a link-wrapped image
+     * is a link and navigates as usual.
+     */
+    @SuppressLint("ClickableViewAccessibility")
+    override fun onTouchEvent(event: MotionEvent): Boolean {
+        val handled = super.onTouchEvent(event)
+        when (event.actionMasked) {
+            MotionEvent.ACTION_DOWN -> {
+                tapDownX = event.x
+                tapDownY = event.y
+                tapDownEventTime = event.eventTime
+                tapCandidate = true
+            }
+            MotionEvent.ACTION_POINTER_DOWN -> tapCandidate = false
+            MotionEvent.ACTION_MOVE -> {
+                if (tapCandidate &&
+                    (abs(event.x - tapDownX) > touchSlop || abs(event.y - tapDownY) > touchSlop)
+                ) {
+                    tapCandidate = false
+                }
+            }
+            MotionEvent.ACTION_UP -> {
+                val isTap = tapCandidate &&
+                    abs(event.x - tapDownX) <= touchSlop &&
+                    abs(event.y - tapDownY) <= touchSlop &&
+                    event.eventTime - tapDownEventTime < ViewConfiguration.getLongPressTimeout()
+                tapCandidate = false
+                if (isTap && !resolveImageTap()) {
+                    // One more read a frame later: the hit test data may land
+                    // just after the gesture ends.
+                    val tappedSequence = touchSequence
+                    postDelayed({
+                        if (tappedSequence != touchSequence) return@postDelayed
+                        runCatching {
+                            val hit = hitTestResult
+                            val extra = hit.extra
+                            if (hit.type == WebView.HitTestResult.IMAGE_TYPE &&
+                                !extra.isNullOrEmpty()
+                            ) {
+                                resolveImageMetadata(extra)
+                            }
+                        }
+                    }, TAP_HIT_RETRY_MS)
+                }
+            }
+            MotionEvent.ACTION_CANCEL -> tapCandidate = false
+        }
+        return handled
+    }
+
+    /**
+     * Opens the image viewer for a tap when the engine reported a bare image,
+     * preferring the freshest read of the hit test data. Returns false when
+     * neither read saw an image, leaving the decision to the later retry.
+     */
+    private fun resolveImageTap(): Boolean {
+        val type = gestureEndHitType.takeIf { it != 0 } ?: downHitType
+        val extra = gestureEndHitExtra ?: downHitExtra
+        if (type != WebView.HitTestResult.IMAGE_TYPE) return false
+        val imgUrl = extra
+        if (imgUrl.isNullOrEmpty()) return false
+        resolveImageMetadata(imgUrl)
+        return true
+    }
+
+    /**
+     * Fills in what hit testing cannot know: the un-rewritten image URL
+     * (images retried with a referer marker keep the original in
+     * `dataset.rySrc`, see [ImageRefererRetry]), plus the alt text and
+     * figcaption. Kotlin initiates the pull, so the page only answers with
+     * data - the returned string is decoded, never executed.
+     */
+    private fun resolveImageMetadata(imgUrl: String) {
+        val script = """
+            (function() {
+                var u = ${JSONObject.quote(imgUrl)};
+                var img = Array.from(document.images).find(function(i) {
+                    return i.src === u || i.dataset.rySrc === u; });
+                if (!img) return JSON.stringify({rySrc: null, alt: '', caption: ''});
+                var fig = img.closest('figure');
+                var cap = fig ? fig.querySelector('figcaption') : null;
+                return JSON.stringify({rySrc: img.dataset.rySrc || null,
+                                       alt: img.alt || '', caption: cap ? cap.innerText : ''});
+            })()
+        """.trimIndent()
+        runCatching {
+            evaluateJavascript(script) { result ->
+                val (rySrc, altText, caption) = parseImageMetadata(result)
+                onImageClick?.invoke(rySrc ?: imgUrl, altText, caption)
+            }
+        }
+    }
+
+    /** evaluateJavascript delivers the JSON string double-encoded; unwrap both layers. */
+    private fun parseImageMetadata(raw: String?): Triple<String?, String, String> {
+        val json = runCatching {
+            JSONTokener(raw.orEmpty().trim()).nextValue() as? String
+        }.getOrNull() ?: return Triple(null, "", "")
+        val obj = runCatching { JSONObject(json) }.getOrNull() ?: return Triple(null, "", "")
+        val rySrc = if (obj.isNull("rySrc")) null else obj.optString("rySrc").takeIf { it.isNotEmpty() }
+        return Triple(rySrc, obj.optString("alt"), obj.optString("caption"))
+    }
 
     fun setTouchStartsInHorizontalScrollableContent(isScrollable: Boolean) {
         touchStartsInHorizontalScrollableContent.set(isScrollable)
@@ -149,6 +343,18 @@ class HorizontalScrollAwareWebView(context: Context) : WebView(context) {
                 "if(!h) return -1;" +
                 "return Math.round((h.getBoundingClientRect().bottom + window.scrollY)" +
                 " * window.devicePixelRatio);})()"
+
+        /** Delay before the post-gesture focused-node query, letting the engine settle. */
+        private const val LINK_NODE_SETTLE_MS = 30L
+
+        /** Delay before the mid-hold retry of the focused-node query. */
+        private const val LINK_NODE_RETRY_MS = 250L
+
+        /** Delay before sampling the hit test data after a touch down. */
+        private const val TAP_HIT_SAMPLE_MS = 20L
+
+        /** Delay before the post-gesture retry of the image tap hit test. */
+        private const val TAP_HIT_RETRY_MS = 150L
 
         /**
          * Silences every audible source in the page: pauses inline
@@ -335,6 +541,24 @@ class HorizontalScrollAwareWebView(context: Context) : WebView(context) {
                 startY = event.y
                 isHorizontalGesture = null
                 resetTouchStartsInHorizontalScrollableContent()
+                touchSequence++
+                linkGestureHandled = false
+                gestureEndHitType = 0
+                gestureEndHitExtra = null
+                downHitType = 0
+                downHitExtra = null
+                // Sample the hit test just after the down settles. The engine
+                // computes it asynchronously and may drop it again before the
+                // touch ends, so the tap path keeps the earliest read.
+                val sampledSequence = touchSequence
+                postDelayed({
+                    if (sampledSequence != touchSequence) return@postDelayed
+                    runCatching {
+                        val hit = hitTestResult
+                        downHitType = hit.type
+                        downHitExtra = hit.extra
+                    }
+                }, TAP_HIT_SAMPLE_MS)
             }
             MotionEvent.ACTION_MOVE -> {
                 lastX = event.x
@@ -352,12 +576,39 @@ class HorizontalScrollAwareWebView(context: Context) : WebView(context) {
                     }
                 }
             }
-            MotionEvent.ACTION_UP, MotionEvent.ACTION_CANCEL -> {
+            MotionEvent.ACTION_UP -> {
+                // The engine may wipe its hit test data while processing the
+                // release, so the last chance to read it for a tap is right
+                // before that. A scrolled gesture is filtered out by the tap
+                // check afterwards.
+                val hit = hitTestResult
+                gestureEndHitType = hit.type
+                gestureEndHitExtra = hit.extra
+                // A long-pressed link whose focused-node query came back empty
+                // while the finger was down: the engine has settled the node by
+                // the time the touch ends, so ask once more.
+                scheduleLinkQueryOnGestureEnd(gestureEndHitType, gestureEndHitExtra)
+                isHorizontalGesture = null
+                resetTouchStartsInHorizontalScrollableContent()
+            }
+            MotionEvent.ACTION_CANCEL -> {
+                val hit = hitTestResult
+                scheduleLinkQueryOnGestureEnd(hit.type, hit.extra)
+                gestureEndHitType = 0
+                gestureEndHitExtra = null
                 isHorizontalGesture = null
                 resetTouchStartsInHorizontalScrollableContent()
             }
         }
         return super.dispatchTouchEvent(event)
+    }
+
+    private fun scheduleLinkQueryOnGestureEnd(fallbackType: Int, fallbackExtra: String?) {
+        if (linkGestureTouch != touchSequence || linkGestureHandled) return
+        postDelayed({
+            if (linkGestureTouch != touchSequence || linkGestureHandled) return@postDelayed
+            requestLinkHrefAsync(fallbackType, fallbackExtra)
+        }, LINK_NODE_SETTLE_MS)
     }
 }
 

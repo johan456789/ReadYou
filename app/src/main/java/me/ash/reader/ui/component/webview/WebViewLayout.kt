@@ -153,20 +153,6 @@ object WebViewLayout {
             addJavascriptInterface(
                 object : JavaScriptInterface {
                     @JavascriptInterface
-                    override fun onImgTagClick(imgUrl: String?, alt: String?, caption: String?) {
-                        if (imgUrl != null) {
-                            this@apply.onImageClick?.invoke(imgUrl, alt ?: "", caption ?: "")
-                        }
-                    }
-
-                    @JavascriptInterface
-                    override fun onLinkLongPress(url: String?, text: String?) {
-                        if (url != null) {
-                            this@apply.onLinkLongPress?.invoke(url, text ?: "")
-                        }
-                    }
-
-                    @JavascriptInterface
                     override fun onHorizontalScrollableTouchStart(isScrollable: Boolean) {
                         this@apply.setTouchStartsInHorizontalScrollableContent(isScrollable)
                     }

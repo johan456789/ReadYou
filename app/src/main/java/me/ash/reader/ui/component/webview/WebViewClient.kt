@@ -129,9 +129,7 @@ class WebViewClient(
         super.onPageFinished(view, url)
         Timber.tag("RYPool")
             .d("pageFinished id=%08x url=%s", System.identityHashCode(view), url)
-        view!!.evaluateJavascript(OnImgClickScript, null)
-        view.evaluateJavascript(OnLinkLongPressScript, null)
-        view.evaluateJavascript(OnAnchorClickScript, null)
+        view!!.evaluateJavascript(OnAnchorClickScript, null)
         (view as? HorizontalScrollAwareWebView)?.notifyPageFinished()
     }
 
@@ -232,92 +230,6 @@ class WebViewClient(
 
     companion object {
         private const val RESOURCE_TIMEOUT_MS = 10_000
-
-        private const val OnImgClickScript = """
-            javascript:(function() {
-                var imgs = document.getElementsByTagName("img");
-                for(var i = 0; i < imgs.length; i++){
-                    imgs[i].pos = i;
-                    imgs[i].onclick = function(event) {
-                        event.preventDefault();
-                        var caption = '';
-                        var figure = this.closest ? this.closest('figure') : null;
-                        if (figure) {
-                            var figcaption = figure.getElementsByTagName('figcaption')[0];
-                            if (figcaption) { caption = figcaption.innerText || ''; }
-                        }
-                        window.${JavaScriptInterface.NAME}.onImgTagClick(this.dataset.rySrc || this.src, this.alt, caption);
-                    }
-                }
-            })()
-            """
-
-        private const val OnLinkLongPressScript = """
-            javascript:(function() {
-                var links = document.getElementsByTagName("a");
-                var longPressTimer = null;
-                var longPressDuration = 500;
-                var touchStartX = 0;
-                var touchStartY = 0;
-                var moveThreshold = 10;
-                var suppressNextClick = false;
-
-                for(var i = 0; i < links.length; i++){
-                    (function(link) {
-                        link.addEventListener('touchstart', function(event) {
-                            touchStartX = event.touches[0].clientX;
-                            touchStartY = event.touches[0].clientY;
-                            longPressTimer = setTimeout(function() {
-                                suppressNextClick = true;
-                                var href = link.href || '';
-                                var text = link.innerText || link.textContent || '';
-                                window.${JavaScriptInterface.NAME}.onLinkLongPress(href, text.trim());
-                            }, longPressDuration);
-                        }, {passive: false});
-
-                        link.addEventListener('touchmove', function(event) {
-                            if (longPressTimer) {
-                                var dx = Math.abs(event.touches[0].clientX - touchStartX);
-                                var dy = Math.abs(event.touches[0].clientY - touchStartY);
-                                if (dx > moveThreshold || dy > moveThreshold) {
-                                    clearTimeout(longPressTimer);
-                                    longPressTimer = null;
-                                }
-                            }
-                        });
-
-                        link.addEventListener('touchend', function(event) {
-                            if (longPressTimer) {
-                                clearTimeout(longPressTimer);
-                                longPressTimer = null;
-                            }
-                        });
-
-                        link.addEventListener('touchcancel', function(event) {
-                            if (longPressTimer) {
-                                clearTimeout(longPressTimer);
-                                longPressTimer = null;
-                            }
-                        });
-
-                        link.addEventListener('contextmenu', function(event) {
-                            event.preventDefault();
-                            var href = link.href || '';
-                            var text = link.innerText || link.textContent || '';
-                            window.${JavaScriptInterface.NAME}.onLinkLongPress(href, text.trim());
-                        });
-
-                        link.addEventListener('click', function(event) {
-                            if (suppressNextClick) {
-                                event.preventDefault();
-                                event.stopPropagation();
-                                suppressNextClick = false;
-                            }
-                        }, true);
-                    })(links[i]);
-                }
-            })()
-            """
 
         private const val OnAnchorClickScript = """
             javascript:(function() {
