@@ -155,7 +155,10 @@ class WebViewClient(
         // not an external link: scroll the WebView instead of handing it to
         // the browser.
         if (view != null && isSameDocumentFragment(request.url)) {
-            scrollToFragment(view, request.url.fragment.orEmpty())
+            // The script in scrollToFragment decodes the fragment itself, so
+            // hand over the still-encoded form. Uri.fragment is already
+            // decoded, and decoding twice misses ids with a literal '%'.
+            scrollToFragment(view, request.url.encodedFragment.orEmpty())
             return true
         }
 

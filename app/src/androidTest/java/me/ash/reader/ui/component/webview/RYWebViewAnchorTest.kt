@@ -99,6 +99,30 @@ class RYWebViewAnchorTest {
     }
 
     /**
+     * The fragment must reach the scroll script still percent-encoded, because
+     * the script decodes it exactly once. `Uri.fragment` is already decoded,
+     * and a second decode misses ids containing a literal '%'. The ref drops
+     * the trailing slash so the navigation is a different document and the
+     * Kotlin fallback handles it; stopPropagation keeps the injected listener
+     * out of the way.
+     */
+    @Test
+    fun encodedFragmentDecodesOnceWhenClickPropagationIsStopped() {
+        loadArticle(
+            article(
+                refHref = "https://example.com/post#a%2520b",
+                stopPropagation = true,
+                footnoteId = "a%20b",
+            )
+        )
+
+        clickFootnoteRef()
+
+        assertTrue("Expected the article to scroll to the footnote", awaitScroll() > 0)
+        assertEquals(emptyList<String>(), openedLinks)
+    }
+
+    /**
      * Same host and path on another port is a different server. The Kotlin
      * fallback is the only path taken here, because propagation is stopped.
      */
@@ -132,7 +156,11 @@ class RYWebViewAnchorTest {
         assertEquals("https://other.example.com/post/#fn-1", openedLinks.first())
     }
 
-    private fun article(refHref: String, stopPropagation: Boolean = false): String {
+    private fun article(
+        refHref: String,
+        stopPropagation: Boolean = false,
+        footnoteId: String = "fn-1",
+    ): String {
         val onclick = if (stopPropagation) """ onclick="event.stopPropagation()"""" else ""
         return """
         <p>Intro paragraph with a footnote ref
@@ -140,7 +168,7 @@ class RYWebViewAnchorTest {
         </p>
         ${"<p>Filler paragraph to create scroll distance.</p>".repeat(40)}
         <section class="footnotes">
-            <ol><li id="fn-1">The footnote text.</li></ol>
+            <ol><li id="$footnoteId">The footnote text.</li></ol>
         </section>
         """
     }
