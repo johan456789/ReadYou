@@ -175,8 +175,11 @@ class WebViewClient(
         if (effectivePort(target) != effectivePort(current)) return false
         // A query can select a different document, so it must match exactly.
         if (target.encodedQuery != current.encodedQuery) return false
-        // Servers add or drop the trailing slash on article URLs.
-        return target.path.orEmpty().trimEnd('/') == current.path.orEmpty().trimEnd('/')
+        // Compare encoded paths: Uri.path decodes, which conflates an encoded
+        // slash inside a segment with a real one. Servers add or drop the
+        // trailing slash on article URLs.
+        return target.encodedPath.orEmpty().trimEnd('/') ==
+            current.encodedPath.orEmpty().trimEnd('/')
     }
 
     /** `Uri.port` is -1 when omitted; fall back to the scheme's default port. */

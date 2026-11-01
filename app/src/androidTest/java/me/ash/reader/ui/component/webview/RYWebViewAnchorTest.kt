@@ -184,6 +184,64 @@ class RYWebViewAnchorTest {
         assertEquals(emptyList<String>(), openedLinks)
     }
 
+    /**
+     * Uri.path decodes, so an article loaded from `/post/a%2Fb` and a link to
+     * `/post/a/b` look equal when compared decoded — but they are different
+     * documents. The Kotlin fallback must compare the encoded form. The Kotlin
+     * path is the only one taken here, because propagation is stopped.
+     */
+    @Test
+    fun encodedSlashInPathOpensExternallyWhenClickPropagationIsStopped() {
+        loadArticle(
+            article(refHref = "https://example.com/post/a/b#fn-1", stopPropagation = true),
+            base = "https://example.com/post/a%2Fb",
+        )
+
+        clickFootnoteRef()
+
+        assertTrue("Expected the different path to be handed to the app", awaitOpenedLink())
+        assertEquals("https://example.com/post/a/b#fn-1", openedLinks.first())
+    }
+
+    /**
+     * A link whose encoded path matches the article's is still an in-page
+     * jump: the URL API keeps percent-encoding in the pathname, so this also
+     * pins the injected handler to the encoded comparison.
+     */
+    @Test
+    fun sameEncodedPathFootnoteLinkScrollsInsideArticle() {
+        loadArticle(
+            article(refHref = "https://example.com/post/a%2Fb#fn-1"),
+            base = "https://example.com/post/a%2Fb",
+        )
+
+        clickFootnoteRef()
+
+        assertTrue("Expected the article to scroll to the footnote", awaitScroll() > 0)
+        assertEquals(emptyList<String>(), openedLinks)
+    }
+
+    /**
+     * Same as [sameEncodedPathFootnoteLinkScrollsInsideArticle], through the
+     * Kotlin fallback: the added trailing slash makes it a different document,
+     * and the comparison must still tolerate it on the encoded form.
+     */
+    @Test
+    fun sameEncodedPathWithTrailingSlashScrollsWhenClickPropagationIsStopped() {
+        loadArticle(
+            article(
+                refHref = "https://example.com/post/a%2Fb/#fn-1",
+                stopPropagation = true,
+            ),
+            base = "https://example.com/post/a%2Fb",
+        )
+
+        clickFootnoteRef()
+
+        assertTrue("Expected the article to scroll to the footnote", awaitScroll() > 0)
+        assertEquals(emptyList<String>(), openedLinks)
+    }
+
     @Test
     fun pageUrlMatchesArticleBaseUrl() {
         loadArticle(article(refHref = "#fn-1"))
