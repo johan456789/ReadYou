@@ -626,6 +626,7 @@ fun RYWebView(
         update = { wv ->
             wv.onScrollSnapshotChanged = { snapshot -> onScrollSnapshotChangeState?.invoke(snapshot) }
             wv.onHeadlineMeasured = { px -> onHeadlineMeasuredState?.invoke(px) }
+            dynamicWebViewClient.baseUrl = htmlBaseUrl
             if (wv.webViewClient !== dynamicWebViewClient) {
                 wv.webViewClient = dynamicWebViewClient
             }
