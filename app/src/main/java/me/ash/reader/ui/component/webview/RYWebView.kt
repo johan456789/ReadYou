@@ -93,6 +93,8 @@ class HorizontalScrollAwareWebView(context: Context) : WebView(context) {
         // Link and image gestures are sourced from native hit testing, which the
         // page cannot spoof: URLs come from the engine, never from page
         // JavaScript. No injected page script may hand URLs or text into the app.
+        // Only real anchors open the dialog; EMAIL/PHONE/GEO hit types are the
+        // engine's auto-detection of plain text, not links, and stay inert.
         isLongClickable = true
         setOnLongClickListener {
             val hit = hitTestResult
@@ -103,14 +105,11 @@ class HorizontalScrollAwareWebView(context: Context) : WebView(context) {
             // more when the touch ends - by then the engine has settled and
             // the query is reliable. See dispatchTouchEvent.
             linkGestureTouch = touchSequence
-            requestLinkHrefAsync(hit.type, hit.extra)
-            postDelayed({ retryLinkHrefQuery(hit.type, hit.extra) }, LINK_NODE_RETRY_MS)
+            requestLinkHrefAsync()
+            postDelayed({ retryLinkHrefQuery() }, LINK_NODE_RETRY_MS)
             when (hit.type) {
                 WebView.HitTestResult.SRC_ANCHOR_TYPE,
-                WebView.HitTestResult.SRC_IMAGE_ANCHOR_TYPE,
-                WebView.HitTestResult.EMAIL_TYPE,
-                WebView.HitTestResult.PHONE_TYPE,
-                WebView.HitTestResult.GEO_TYPE -> true
+                WebView.HitTestResult.SRC_IMAGE_ANCHOR_TYPE -> true
                 else -> false
             }
         }
@@ -125,7 +124,7 @@ class HorizontalScrollAwareWebView(context: Context) : WebView(context) {
      * Replies are deduplicated per touch sequence, so the fast path, the retry
      * and the gesture-end query can all be issued without double-firing.
      */
-    private fun requestLinkHrefAsync(fallbackType: Int, fallbackExtra: String?) {
+    private fun requestLinkHrefAsync() {
         val message = Message()
         message.target = object : Handler(Looper.getMainLooper()) {
             override fun handleMessage(msg: Message) {
@@ -135,17 +134,6 @@ class HorizontalScrollAwareWebView(context: Context) : WebView(context) {
                 if (!url.isNullOrEmpty()) {
                     linkGestureHandled = true
                     onLinkLongPress?.invoke(url, bundle.getString("title").orEmpty().trim())
-                } else when (fallbackType) {
-                    // No href in the reply: only the snapshot taken at
-                    // long-click can speak for non-navigational targets
-                    // (mailto:/tel:/geo: links).
-                    WebView.HitTestResult.EMAIL_TYPE,
-                    WebView.HitTestResult.PHONE_TYPE,
-                    WebView.HitTestResult.GEO_TYPE,
-                    -> {
-                        linkGestureHandled = true
-                        fallbackExtra?.let { onLinkLongPress?.invoke(it, "") }
-                    }
                 }
             }
         }
@@ -154,9 +142,9 @@ class HorizontalScrollAwareWebView(context: Context) : WebView(context) {
         runCatching { requestFocusNodeHref(message) }
     }
 
-    private fun retryLinkHrefQuery(fallbackType: Int, fallbackExtra: String?) {
+    private fun retryLinkHrefQuery() {
         if (linkGestureTouch != touchSequence || linkGestureHandled) return
-        requestLinkHrefAsync(fallbackType, fallbackExtra)
+        requestLinkHrefAsync()
     }
 
     private var touchSequence = 0
@@ -587,13 +575,12 @@ class HorizontalScrollAwareWebView(context: Context) : WebView(context) {
                 // A long-pressed link whose focused-node query came back empty
                 // while the finger was down: the engine has settled the node by
                 // the time the touch ends, so ask once more.
-                scheduleLinkQueryOnGestureEnd(gestureEndHitType, gestureEndHitExtra)
+                scheduleLinkQueryOnGestureEnd()
                 isHorizontalGesture = null
                 resetTouchStartsInHorizontalScrollableContent()
             }
             MotionEvent.ACTION_CANCEL -> {
-                val hit = hitTestResult
-                scheduleLinkQueryOnGestureEnd(hit.type, hit.extra)
+                scheduleLinkQueryOnGestureEnd()
                 gestureEndHitType = 0
                 gestureEndHitExtra = null
                 isHorizontalGesture = null
@@ -603,11 +590,11 @@ class HorizontalScrollAwareWebView(context: Context) : WebView(context) {
         return super.dispatchTouchEvent(event)
     }
 
-    private fun scheduleLinkQueryOnGestureEnd(fallbackType: Int, fallbackExtra: String?) {
+    private fun scheduleLinkQueryOnGestureEnd() {
         if (linkGestureTouch != touchSequence || linkGestureHandled) return
         postDelayed({
             if (linkGestureTouch != touchSequence || linkGestureHandled) return@postDelayed
-            requestLinkHrefAsync(fallbackType, fallbackExtra)
+            requestLinkHrefAsync()
         }, LINK_NODE_SETTLE_MS)
     }
 }
