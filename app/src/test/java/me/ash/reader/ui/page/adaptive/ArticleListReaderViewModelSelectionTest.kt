@@ -76,14 +76,14 @@ class ArticleListReaderViewModelSelectionTest {
                     link = "https://example.com/$id",
                     feedId = "feed",
                     accountId = 1,
-                    isUnread = true,
+                    isRead = false,
                 ),
             feed = sampleFeed(),
         )
 
     private fun readArticle(id: String, date: Date): ArticleWithFeed =
         unreadArticle(id = id, date = date).run {
-            copy(article = article.copy(isUnread = false))
+            copy(article = article.copy(isRead = true))
         }
 
     private fun sampleFeed(): Feed =

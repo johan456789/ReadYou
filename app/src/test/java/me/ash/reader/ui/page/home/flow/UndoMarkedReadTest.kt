@@ -94,7 +94,7 @@ class UndoMarkedReadTest {
                     link = "https://example.com/article/$id",
                     feedId = "feed",
                     accountId = 1,
-                    isUnread = true,
+                    isRead = false,
                 ),
             feed =
                 Feed(
