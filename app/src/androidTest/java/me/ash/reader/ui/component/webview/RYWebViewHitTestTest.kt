@@ -134,6 +134,27 @@ class RYWebViewHitTestTest {
     }
 
     /**
+     * Same as [forgedRySrcCannotOverrideEngineUrl], but on an image whose
+     * engine URL IS retry-marked: here `unmark(engineUrl)` is non-null, so
+     * only the exact equality against the marked form rejects the forgery.
+     */
+    @Test
+    fun forgedRySrcOnMarkedImageCannotOverrideEngineUrl() {
+        loadArticle(useRetryServingClient = true)
+        settleBeforeGesture()
+
+        val center = awaitVisibleElementCenter("#imf")
+        injectTap(center.x, center.y)
+
+        assertTrue("Expected an image click callback", awaitTrue { imageClicks.isNotEmpty() })
+        assertEquals(
+            "https://retry.example.com/pic.jpg?${ImageRefererRetry.MARKER}",
+            imageClicks.first().first,
+        )
+        assertEquals("Forged caption", imageClicks.first().third)
+    }
+
+    /**
      * Two figures may share one image URL with different captions. The
      * elementsFromPoint lookup, filtered by the engine URL, must resolve the
      * tapped copy, not the first document match.
@@ -209,6 +230,7 @@ class RYWebViewHitTestTest {
         <figure><img id="tw1" alt="Twin one" src="$SVG_BLUE_200"><figcaption>First caption</figcaption></figure>
         <figure><img id="tw2" alt="Twin two" src="$SVG_BLUE_200"><figcaption>Second caption</figcaption></figure>
         <figure><img id="im2" alt="Retried" src="https://retry.example.com/pic.jpg?${ImageRefererRetry.MARKER}" data-ry-src="https://retry.example.com/pic.jpg"><figcaption>Retry caption</figcaption></figure>
+        <figure><img id="imf" alt="Forged target" src="https://retry.example.com/pic.jpg?${ImageRefererRetry.MARKER}" data-ry-src="https://evil.example.com/forged.jpg"><figcaption>Forged caption</figcaption></figure>
         <figure><img id="imr" alt="Red variant" src="$SVG_BLUE_200" srcset="$SVG_RED_200 2x"><figcaption>Variant caption</figcaption></figure>
         ${"<p>Filler paragraph to give the document some height.</p>".repeat(20)}
         """
