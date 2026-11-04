@@ -202,7 +202,7 @@ class HorizontalScrollAwareWebView(context: Context) : WebView(context) {
                             if (hit.type == WebView.HitTestResult.IMAGE_TYPE &&
                                 !extra.isNullOrEmpty()
                             ) {
-                                resolveImageMetadata(extra)
+                                resolveImageMetadata(extra, tapDownX, tapDownY)
                             }
                         }
                     }, TAP_HIT_RETRY_MS)
@@ -224,33 +224,63 @@ class HorizontalScrollAwareWebView(context: Context) : WebView(context) {
         if (type != WebView.HitTestResult.IMAGE_TYPE) return false
         val imgUrl = extra
         if (imgUrl.isNullOrEmpty()) return false
-        resolveImageMetadata(imgUrl)
+        resolveImageMetadata(imgUrl, tapDownX, tapDownY)
         return true
     }
 
     /**
-     * Fills in what hit testing cannot know: the un-rewritten image URL
-     * (images retried with a referer marker keep the original in
-     * `dataset.rySrc`, see [ImageRefererRetry]), plus the alt text and
-     * figcaption. Kotlin initiates the pull, so the page only answers with
-     * data - the returned string is decoded, never executed.
+     * Fills in what hit testing cannot know: which element among same-URL
+     * twins was tapped, the un-rewritten image URL (images retried with a
+     * referer marker keep the original in `dataset.rySrc`, see
+     * [ImageRefererRetry]), plus the alt text and figcaption. Kotlin initiates
+     * the pull, so the page only answers with data - the returned string is
+     * decoded, never executed.
+     *
+     * Identity stays anchored to the engine: the page may only annotate an
+     * image whose URL the engine reported, and `rySrc` is accepted solely when
+     * the engine URL is exactly its referer-retry-marked form - a shape only
+     * our retry flow can produce, so a page-writable attribute can never
+     * override the engine's answer.
      */
-    private fun resolveImageMetadata(imgUrl: String) {
+    private fun resolveImageMetadata(imgUrl: String, tapViewX: Float, tapViewY: Float) {
+        val density = resources.displayMetrics.density
+        val cssX = tapViewX / density
+        val cssY = tapViewY / density
         val script = """
             (function() {
                 var u = ${JSONObject.quote(imgUrl)};
-                var img = Array.from(document.images).find(function(i) {
-                    return i.src === u || i.dataset.rySrc === u; });
-                if (!img) return JSON.stringify({rySrc: null, alt: '', caption: ''});
-                var fig = img.closest('figure');
+                function matches(e) {
+                    return e.tagName === 'IMG' &&
+                        (e.currentSrc === u || e.src === u);
+                }
+                // The engine's hit test repeated in DOM terms: the whole
+                // element stack at the tap point, filtered by the engine URL,
+                // so geometry can never introduce a different image.
+                var hit = document.elementsFromPoint($cssX, $cssY).find(matches);
+                if (!hit) {
+                    // Fallback for layout shifts between tap and reply.
+                    hit = Array.from(document.images).find(function(i) {
+                        return i.currentSrc === u || i.src === u; });
+                }
+                if (!hit) return JSON.stringify({rySrc: null, alt: '', caption: ''});
+                var fig = hit.closest('figure');
                 var cap = fig ? fig.querySelector('figcaption') : null;
-                return JSON.stringify({rySrc: img.dataset.rySrc || null,
-                                       alt: img.alt || '', caption: cap ? cap.innerText : ''});
+                return JSON.stringify({rySrc: hit.dataset.rySrc || null,
+                                       alt: hit.alt || '', caption: cap ? cap.innerText : ''});
             })()
         """.trimIndent()
         runCatching {
+            val gesture = touchSequence
+            val contentKey = loadedContentKey
             evaluateJavascript(script) { result ->
-                val (rySrc, altText, caption) = parseImageMetadata(result)
+                // The WebView may have moved on (new gesture, new article)
+                // before the page answered; a stale reply opens a stale viewer.
+                if (gesture != touchSequence || contentKey != loadedContentKey) {
+                    return@evaluateJavascript
+                }
+                val (pageRySrc, altText, caption) = parseImageMetadata(result)
+                val rySrc = pageRySrc
+                    ?.takeIf { ImageRefererRetry.unmark(imgUrl) == it }
                 onImageClick?.invoke(rySrc ?: imgUrl, altText, caption)
             }
         }

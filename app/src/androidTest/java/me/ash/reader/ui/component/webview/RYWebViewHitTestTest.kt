@@ -6,6 +6,9 @@ import android.os.Handler
 import android.os.Looper
 import android.os.SystemClock
 import android.view.MotionEvent
+import android.webkit.WebResourceRequest
+import android.webkit.WebResourceResponse
+import android.webkit.WebView
 import androidx.test.core.app.ActivityScenario
 import androidx.test.ext.junit.runners.AndroidJUnit4
 import androidx.test.platform.app.InstrumentationRegistry
@@ -92,24 +95,80 @@ class RYWebViewHitTestTest {
 
     /**
      * Images retried through the referer fallback keep the original URL in
-     * dataset.rySrc (see ImageRefererRetry); the viewer must be handed that
-     * original instead of the engine's hit test result.
+     * dataset.rySrc and a marked src; the viewer must be handed the original.
      */
     @Test
-    fun tapOnImageWithRefererRetryReportsOriginalUrl() {
+    fun tapOnRefererRetriedImageReportsOriginalUrl() {
+        loadArticle(useRetryServingClient = true)
+        settleBeforeGesture()
+
+        val center = awaitVisibleElementCenter("#im2")
+        injectTap(center.x, center.y)
+
+        assertTrue("Expected an image click callback", awaitTrue { imageClicks.isNotEmpty() })
+        assertEquals("https://retry.example.com/pic.jpg", imageClicks.first().first)
+        assertEquals("Retry caption", imageClicks.first().third)
+    }
+
+    /**
+     * The page can write dataset.rySrc on any of its elements; a forged value
+     * must not override the engine-reported URL. Only a value whose engine URL
+     * is exactly the referer-retry-marked form is accepted.
+     */
+    @Test
+    fun forgedRySrcCannotOverrideEngineUrl() {
         loadArticle()
         settleBeforeGesture()
 
         evalJs(
             "(function(){var img=document.querySelector('#im1');" +
-                "img.dataset.rySrc='https://orig.example.com/pic.jpg';" +
+                "img.dataset.rySrc='https://evil.example.com/forged.jpg';" +
                 "return 'ok';})()"
         )
         val center = awaitElementCenter("#im1")
         injectTap(center.x, center.y)
 
         assertTrue("Expected an image click callback", awaitTrue { imageClicks.isNotEmpty() })
-        assertEquals("https://orig.example.com/pic.jpg", imageClicks.first().first)
+        assertEquals(SVG_BLUE_200, imageClicks.first().first)
+        assertEquals("Alt text", imageClicks.first().second)
+    }
+
+    /**
+     * Two figures may share one image URL with different captions. The
+     * elementsFromPoint lookup, filtered by the engine URL, must resolve the
+     * tapped copy, not the first document match.
+     */
+    @Test
+    fun tapOnDuplicateUrlImageUsesTappedCopy() {
+        loadArticle()
+        settleBeforeGesture()
+
+        val center = awaitVisibleElementCenter("#tw2")
+        injectTap(center.x, center.y)
+
+        assertTrue("Expected an image click callback", awaitTrue { imageClicks.isNotEmpty() })
+        assertEquals(SVG_BLUE_200, imageClicks.first().first)
+        assertEquals("Twin two", imageClicks.first().second)
+        assertEquals("Second caption", imageClicks.first().third)
+    }
+
+    /**
+     * The engine's hit test reports the resource actually loaded (currentSrc),
+     * which for srcset/picture images is not the src attribute. The lookup
+     * must match currentSrc so responsive images resolve their metadata.
+     */
+    @Test
+    fun tapOnSrcsetVariantResolvesMetadata() {
+        loadArticle()
+        settleBeforeGesture()
+
+        val center = awaitVisibleElementCenter("#imr")
+        injectTap(center.x, center.y)
+
+        assertTrue("Expected an image click callback", awaitTrue { imageClicks.isNotEmpty() })
+        assertEquals(SVG_RED_200, imageClicks.first().first)
+        assertEquals("Red variant", imageClicks.first().second)
+        assertEquals("Variant caption", imageClicks.first().third)
     }
 
     /** A long press that moves beyond the touch slop is a scroll, not an inspect gesture. */
@@ -142,11 +201,15 @@ class RYWebViewHitTestTest {
         assertEquals("https://other.example.com/page", openedLinks.first())
     }
 
-    private fun loadArticle() {
+    private fun loadArticle(useRetryServingClient: Boolean = false) {
         val content = """
         <p>Intro paragraph with <a id="l1" href="https://other.example.com/page">Anchor Text Here</a> in it.</p>
         <p><a id="la" href="https://other.example.com/wrapped"><img id="ima" alt="Wrapped" src="$SVG_RED_200"></a></p>
         <figure><img id="im1" alt="Alt text" src="$SVG_BLUE_200"><figcaption>The caption</figcaption></figure>
+        <figure><img id="tw1" alt="Twin one" src="$SVG_BLUE_200"><figcaption>First caption</figcaption></figure>
+        <figure><img id="tw2" alt="Twin two" src="$SVG_BLUE_200"><figcaption>Second caption</figcaption></figure>
+        <figure><img id="im2" alt="Retried" src="https://retry.example.com/pic.jpg?${ImageRefererRetry.MARKER}" data-ry-src="https://retry.example.com/pic.jpg"><figcaption>Retry caption</figcaption></figure>
+        <figure><img id="imr" alt="Red variant" src="$SVG_BLUE_200" srcset="$SVG_RED_200 2x"><figcaption>Variant caption</figcaption></figure>
         ${"<p>Filler paragraph to give the document some height.</p>".repeat(20)}
         """
 
@@ -186,8 +249,12 @@ class RYWebViewHitTestTest {
             )
         scenario!!.onActivity { activity ->
             val client =
-                WebViewClient(activity, onOpenLink = { openedLinks.add(it) }).apply {
-                    baseUrl = BASE_URL
+                if (useRetryServingClient) {
+                    RetryServingClient(onOpenLink = { openedLinks.add(it) })
+                } else {
+                    WebViewClient(activity, onOpenLink = { openedLinks.add(it) }).apply {
+                        baseUrl = BASE_URL
+                    }
                 }
             webView =
                 HorizontalScrollAwareWebView(activity).apply {
@@ -231,6 +298,17 @@ class RYWebViewHitTestTest {
             center != null && center!!.x > 0f && center!!.y > 0f
         }
         return center ?: throw AssertionError("Element not found or not laid out: $selector")
+    }
+
+    /**
+     * Elements further down the document are outside the initial viewport;
+     * their getBoundingClientRect would produce off-screen tap coordinates.
+     * Scroll the element into view first, then measure.
+     */
+    private fun awaitVisibleElementCenter(selector: String): PointF {
+        evalJs("document.querySelector('$selector').scrollIntoView({block:'center'}); null")
+        SystemClock.sleep(200)
+        return awaitElementCenter(selector)
     }
 
     private fun elementCenter(selector: String): PointF? {
@@ -344,5 +422,23 @@ class RYWebViewHitTestTest {
         /** A 200x200 blue SVG, distinct from [SVG_RED_200]. */
         const val SVG_BLUE_200 =
             "data:image/svg+xml;base64,PHN2ZyB4bWxucz0naHR0cDovL3d3dy53My5vcmcvMjAwMC9zdmcnIHdpZHRoPScyMDAnIGhlaWdodD0nMjAwJz48cmVjdCB3aWR0aD0nMjAwJyBoZWlnaHQ9JzIwMCcgZmlsbD0nYmx1ZScvPjwvc3ZnPg=="
+    }
+}
+
+/** Serves referer-retry-marked URLs so the retry flow is testable offline. */
+private class RetryServingClient(
+    private val onOpenLink: (String) -> Unit,
+) : android.webkit.WebViewClient() {
+    override fun shouldInterceptRequest(
+        view: WebView?,
+        request: WebResourceRequest?,
+    ): WebResourceResponse? {
+        if (request?.url?.toString()?.endsWith("?${ImageRefererRetry.MARKER}") == true) {
+            val svg =
+                "<svg xmlns='http://www.w3.org/2000/svg' width='200' height='200'>" +
+                    "<rect width='200' height='200' fill='green'/></svg>"
+            return WebResourceResponse("image/svg+xml", "utf-8", svg.byteInputStream())
+        }
+        return super.shouldInterceptRequest(view, request)
     }
 }
