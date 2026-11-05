@@ -30,8 +30,6 @@
     <string name="three_days">3 ימים</string>
     <string name="seven_days">שבוע</string>
     <string name="close">סגירה</string>
-    <string name="get_new_updates">קבלת עדכונים חדשים</string>
-    <string name="get_new_updates_desc">קיימת גרסה חדשה %1$s</string>
     <string name="color_and_style">צבע וסגנון</string>
     <string name="color_and_style_desc">ערכת עיצוב, סגנון צבע, גודל גופן</string>
     <string name="interaction">שימוש</string>
@@ -51,12 +49,6 @@
     <string name="dark_theme">ערכת עיצוב כהה</string>
     <string name="reading_page">עמוד קריאה</string>
     <string name="sponsor">מימון</string>
-    <string name="update">עדכון</string>
-    <string name="skip_this_version">דילוג על הגרסה הזו</string>
-    <string name="checking_updates">מתבצע איתור עדכונים…</string>
-    <string name="is_latest_version">זאת הגרסה העדכנית ביותר של היישומון</string>
-    <string name="check_failure">איתור העדכונים נכשל</string>
-    <string name="download_failure">לא ניתן להוריד עדכונים</string>
     <string name="help">עזרה</string>
     <string name="on_start">בפתיחה</string>
     <string name="initial_filter">מסנן ברירת מחדל</string>
@@ -154,7 +146,6 @@
     <string name="reading_fonts">גופני קריאה</string>
     <string name="change_log">יומן שינויים</string>
     <string name="accounts_desc">מקומי, שירותים, אירוח עצמי</string>
-    <string name="rate_limit">קצב הבקשות מוגבל</string>
     <string name="article_images">תמונות הכתבה</string>
     <string name="tips_and_support_desc">על אודות, מימון, רישיונות קוד פתוח</string>
     <string name="on">פעיל</string>

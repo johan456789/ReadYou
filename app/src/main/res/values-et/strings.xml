@@ -82,13 +82,6 @@
     <string name="wallpaper_colors">Taustapildi värvid</string>
     <string name="open_source_licenses">Avatud lähtekoodiga tarkvara litsentsid</string>
     <string name="change_log">Muudatuste logi</string>
-    <string name="update">Uuenda</string>
-    <string name="skip_this_version">Jäta see versioon vahele</string>
-    <string name="checking_updates">Kontrollin uuendusi…</string>
-    <string name="is_latest_version">See on rakenduse viimane versioon</string>
-    <string name="check_failure">Uuenduste kontrollimine ei õnnestunud</string>
-    <string name="download_failure">Uuenduste allalaadimine ei õnnestunud</string>
-    <string name="rate_limit">Päringutel kehtib mahupiirang</string>
     <string name="help">Abiteave</string>
     <string name="on_start">Rakenduse käivitamisel</string>
     <string name="font_size">Kirjatüübi suurus</string>
@@ -111,8 +104,6 @@
     <string name="all_move_to_group_toast">Teisaldasime kõik uudisvood „%1$s“ gruppi</string>
     <string name="search_for_in">Otsing: %1$s asukohas „%2$s“</string>
     <string name="search_for">Otsing: %1$s</string>
-    <string name="get_new_updates">Otsi uuendusi</string>
-    <string name="get_new_updates_desc">Uus versioon %1$s on saadaval</string>
     <string name="specific_browser_name">Brauser: %1$s</string>
     <string name="default_browser">Sundkorras kasuta vaikimisi brauserit</string>
     <string name="always_ask">Alati küsi</string>
@@ -151,7 +142,6 @@
     <string name="flow_page">Uudislindi leht</string>
     <string name="reading_page">Lugemisvaade</string>
     <string name="sponsor">Sponsor</string>
-    <string name="update_link">https://api.github.com/repos/ReadYouApp/ReadYou/releases/latest</string>
     <string name="initial_filter">Vaikimisi filter</string>
     <string name="initial_page">Avaleht</string>
     <string name="preview_feed_name">Reddit</string>

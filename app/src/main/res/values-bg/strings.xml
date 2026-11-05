@@ -85,7 +85,6 @@
     <string name="mark_as_starred">Маркирай като със звезда</string>
     <string name="mark_as_read_seven_days">Маркирай като прочетено по-старо от 7 дни</string>
     <string name="mark_as_unstar">Маркирай като без звезда</string>
-    <string name="get_new_updates">Вземи нови актуализации</string>
     <string name="mark_as_read_three_days">Маркирай като прочетено по-старо от 3 дни</string>
     <string name="close">Затвори</string>
     <string name="one_day">1д</string>
@@ -93,7 +92,6 @@
     <string name="interaction">Употреба</string>
     <string name="help_translate">Помогни с превода</string>
     <string name="welcome">Добре дошли</string>
-    <string name="get_new_updates_desc">Нова версия %1$s е налична</string>
     <string name="color_and_style_desc">Тема, цветови стил, размер на шрифта</string>
     <string name="use_device_languages">Използвай езика на устройството</string>
     <string name="in_coding">В процес на изпълнение</string>
@@ -123,9 +121,6 @@
     <string name="reading_fonts">Шрифтове за четене</string>
     <string name="sponsor">Спонсор</string>
     <string name="open_source_licenses">Лицензи с отворен код</string>
-    <string name="skip_this_version">Пропусни тази версия</string>
-    <string name="checking_updates">Проверка за актуализации…</string>
-    <string name="is_latest_version">Това е най-новата версия на приложението</string>
     <string name="on_start">При стартиране</string>
     <string name="initial_page">Стартова страница</string>
     <string name="initial_filter">Филтър по подразбиране</string>
@@ -138,9 +133,6 @@
     <string name="unfold_less">Намали всички</string>
     <string name="amoled_dark_theme">черен тъмна тема</string>
     <string name="tonal_elevation">Тонално издигане</string>
-    <string name="check_failure">Неуспешна проверка за актуализации</string>
-    <string name="download_failure">Неуспешно изтегляне на актуализации</string>
-    <string name="rate_limit">Броят на заявките е ограничен</string>
     <string name="article_date">Време на публикуване на статията</string>
     <string name="article_desc">Описание на статии</string>
     <string name="article_images">Изображения на статии</string>
@@ -159,8 +151,6 @@
     <string name="basic_fonts">Основни шрифтове</string>
     <string name="feeds_page">Страница с емисии</string>
     <string name="flow_page">Страница на потока</string>
-    <string name="update_link">https://api.github.com/repos/ReadYouApp/ReadYou/releases/latest</string>
-    <string name="update">Актуализация</string>
     <string name="preview_feed_name">Reddit</string>
     <string name="horizontal_padding">Хоризонтална подложка</string>
     <string name="preview_article_title">Романът „Властелинът на мистериите“ най-накрая приключи</string>

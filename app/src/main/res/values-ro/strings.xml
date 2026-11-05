@@ -50,7 +50,6 @@
     <string name="all_move_to_group_tips">Mutați toate fluxurile din grupul „%1$s” în grupul „%2$s”</string>
     <string name="flow_page">Pagina Flow</string>
     <string name="every_1_hour">La fiecare oră</string>
-    <string name="get_new_updates">Obține actualizări noi</string>
     <string name="fever_desc">Depreciat. Nu se recomandă.</string>
     <string name="touch_to_play_video">Atingeți pentru a reda un videoclip</string>
     <string name="clear">Șterge tot</string>
@@ -61,7 +60,6 @@
     <string name="rounded_corners">Colțuri rotunjute</string>
     <string name="mark_as_starred">Marcheză cu stea</string>
     <string name="open_link_specific_browser">Browser</string>
-    <string name="checking_updates">Se caută actualizări…</string>
     <string name="title_desc">Bold/Îngroșat, majuscule, aliniere</string>
     <string name="agree">Acceptați</string>
     <string name="rename">Redenumește</string>
@@ -75,10 +73,8 @@
     <string name="auto_default_browser">Auto (Preferă browserul implicit)</string>
     <string name="basic_fonts">Fonturi de bază</string>
     <string name="search_for_in">Căutați %1$s articole în „%2$s”</string>
-    <string name="update">Actualizează</string>
     <string name="external_fonts">Fonturi externe</string>
     <string name="switch_account">Schimbă</string>
-    <string name="download_failure">Nu s-au putut descărca actualizările</string>
     <string name="use_device_languages">Folosește limba dispozitivului</string>
     <string name="appearance">Aspect</string>
     <string name="every_6_hours">La fiecare 6 ore</string>
@@ -94,7 +90,6 @@
     <string name="off">Dezactivat</string>
     <string name="value">valoare</string>
     <string name="all_deny_notification_toast">Toate notificările de la grupul „%1$s” sunt respinse</string>
-    <string name="get_new_updates_desc">Noua versiune %1$s este disponibilă</string>
     <string name="help">Ajutor</string>
     <string name="advanced">Avansat</string>
     <string name="must_have_an_account">Îți trebuie un cont</string>
@@ -109,7 +104,6 @@
     <string name="use_app_theme">Folosește tema aplicației</string>
     <string name="every_15_minutes">La fiecare 15 minute</string>
     <string name="interaction">Interacțiune</string>
-    <string name="check_failure">Nu s-au putut căuta actualizări</string>
     <string name="align_start">Aliniază la stânga</string>
     <string name="keep_archived_articles">Păstrează articolele arhivate</string>
     <string name="selected">Selectat</string>
@@ -123,7 +117,6 @@
     <string name="add_accounts">Adăugă conturi</string>
     <string name="center_text">Centrează textul</string>
     <string name="for_1_week">1 saptămână</string>
-    <string name="is_latest_version">Aceasta este cea mai recentă versiune a aplicației</string>
     <string name="style">Stil</string>
     <string name="help_translate">Ajută la traducere</string>
     <string name="horizontal_padding">Padding orizontal</string>
@@ -197,7 +190,6 @@
     <string name="all_allow_notification_tips">Acceptă ca toate fluxurile din grupul „%1$s” să trimită notificări</string>
     <string name="expand_less">Micșorează</string>
     <string name="list">Listă</string>
-    <string name="update_link">https://api.github.com/repos/ReadYouApp/ReadYou/releases/latest</string>
     <string name="all_parse_full_content_tips">Analiza completă a conținutului tuturor articolelor din grupul „%1$s”</string>
     <string name="search">Caută</string>
     <string name="delete_group">Șterge grupul</string>
@@ -207,7 +199,6 @@
     <string name="bold">Îngroșat</string>
     <string name="rename_toast">Redenumit în \"%1$s\"</string>
     <string name="always_expand">Extinde mereu</string>
-    <string name="skip_this_version">Sari peste această versiune</string>
     <string name="mark_as_unstar">Scoate marcajul cu stea</string>
     <string name="initial_open_app">Aplicația atunci când linkul este apăsat</string>
     <string name="fill_selected_icon">Umple pictograma filtrului curent</string>
@@ -263,5 +254,4 @@
     <string name="change_log">Jurnalul modificărilor</string>
     <string name="alignment">Aliniament</string>
     <string name="clear_articles">Șterge articolelele</string>
-    <string name="rate_limit">Rata de solicitare este limitată</string>
 </resources>

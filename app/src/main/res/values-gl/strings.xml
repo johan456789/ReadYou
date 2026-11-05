@@ -63,8 +63,6 @@
     <string name="mark_as_read_seven_days">Marcar como lido se ten máis de 7 días</string>
     <string name="three_days">3d</string>
     <string name="seven_days">7d</string>
-    <string name="get_new_updates">Obter actualizacións</string>
-    <string name="get_new_updates_desc">Nova versión %1$s dispoñible</string>
     <string name="in_coding">En progreso</string>
     <string name="coming_soon">Proximamente</string>
     <string name="accounts">Contas</string>
@@ -103,15 +101,7 @@
     <string name="reading_page">Páxina de lectura</string>
     <string name="sponsor">Patrocinar</string>
     <string name="open_source_licenses">Licenzas de código aberto</string>
-    <string name="update_link">https://api.github.com/repos/ReadYouApp/ReadYou/releases/latest</string>
     <string name="change_log">Rexistro de cambios</string>
-    <string name="update">Actualizar</string>
-    <string name="skip_this_version">Saltar esta versión</string>
-    <string name="checking_updates">Buscando actualizacións…</string>
-    <string name="is_latest_version">Esta é a última versión da aplicación</string>
-    <string name="check_failure">Fallou a busca de actualizacións</string>
-    <string name="download_failure">Non se puido descargar as actualizacións</string>
-    <string name="rate_limit">O ratio de peticións está limitado</string>
     <string name="help">Axuda</string>
     <string name="on_start">Ao inicio</string>
     <string name="initial_page">Páxina de inicio</string>

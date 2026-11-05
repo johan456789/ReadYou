@@ -92,8 +92,6 @@
     <string name="three_days">3d</string>
     <string name="seven_days">7d</string>
     <string name="close">Luk</string>
-    <string name="get_new_updates">Hent nye opdateringer</string>
-    <string name="get_new_updates_desc">Ny version %1$s er tilgængelig</string>
     <string name="coming_soon">Kommer snart</string>
     <string name="accounts">Kontoer</string>
     <string name="accounts_desc">Lokal, FreshRSS</string>
@@ -118,17 +116,9 @@
     <string name="basic_colors">Grundfarver</string>
     <string name="open_source_licenses">Frie licenser</string>
     <string name="change_log">Ændringshistorik</string>
-    <string name="update_link">https://api.github.com/repos/ReadYouApp/ReadYou/releases/latest</string>
     <string name="reading_page">Læseside</string>
-    <string name="update">Opdater</string>
     <string name="sponsor">Sponsor</string>
-    <string name="rate_limit">Forespørgsel begrænset</string>
     <string name="help">Hjælp</string>
-    <string name="skip_this_version">Spring denne version over</string>
-    <string name="checking_updates">Ser efter nye opdateringer…</string>
-    <string name="is_latest_version">Dette er den nyeste version af app\'en</string>
-    <string name="check_failure">Kunne ikke søge efter opdateringer</string>
-    <string name="download_failure">Kunne ikke downloade opdateringer</string>
     <string name="on_start">Ved start</string>
     <plurals name="all_desc">
         <item quantity="one">%1$d Arkiveret element</item>

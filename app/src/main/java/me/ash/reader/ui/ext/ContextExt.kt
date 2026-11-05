@@ -8,11 +8,9 @@ import android.content.pm.PackageManager
 import android.content.pm.ResolveInfo
 import android.os.Build
 import android.os.Parcelable
-import timber.log.Timber
 import android.widget.Toast
 import androidx.browser.customtabs.CustomTabsIntent
 import androidx.browser.customtabs.CustomTabsService.ACTION_CUSTOM_TABS_CONNECTION
-import androidx.core.content.FileProvider
 import androidx.core.net.toUri
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.withContext
@@ -21,7 +19,6 @@ import me.ash.reader.domain.model.general.Version
 import me.ash.reader.domain.model.general.toVersion
 import me.ash.reader.infrastructure.preference.OpenLinkPreference
 import me.ash.reader.infrastructure.preference.OpenLinkSpecificBrowserPreference
-import java.io.File
 
 fun Context.restart() {
     packageManager.getLaunchIntentForPackage(packageName)?.let {
@@ -40,27 +37,6 @@ fun Context.getCurrentVersion(): Version = packageManager
     .getPackageInfo(packageName, 0)
     .versionName
     .toVersion()
-
-fun Context.getLatestApk(): File = File(cacheDir, "latest.apk")
-
-fun Context.getFileProvider(): String = "${packageName}.fileprovider"
-
-fun Context.installLatestApk() {
-    try {
-        val contentUri = FileProvider.getUriForFile(this, getFileProvider(), getLatestApk())
-        val intent = Intent(Intent.ACTION_VIEW).apply {
-            addFlags(Intent.FLAG_ACTIVITY_NEW_TASK)
-            addFlags(Intent.FLAG_GRANT_READ_URI_PERMISSION);
-            setDataAndType(contentUri, "application/vnd.android.package-archive")
-        }
-        if (packageManager.queryIntentActivities(intent, 0).size > 0) {
-            startActivity(intent)
-        }
-    } catch (e: Throwable) {
-        e.printStackTrace()
-        Timber.tag("RLog").e(e, "installLatestApk: ${e.message}")
-    }
-}
 
 private var toast: Toast? = null
 

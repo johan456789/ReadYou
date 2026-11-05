@@ -88,8 +88,6 @@
     <string name="three_days">3e</string>
     <string name="seven_days">7e</string>
     <string name="close">Itxi</string>
-    <string name="get_new_updates">Eguneraketa berriak lortu</string>
-    <string name="get_new_updates_desc">%1$s bertsioa eskuragarri dago</string>
     <string name="in_coding">Kodeatzen</string>
     <string name="coming_soon">Laster</string>
     <string name="accounts">Kontuak</string>
@@ -239,15 +237,7 @@
     <string name="reading_page">Irakurketa orria</string>
     <string name="sponsor">Babesa eman</string>
     <string name="open_source_licenses">Kode irekiko lizentziak</string>
-    <string name="update_link">https://api.github.com/repos/ReadYouApp/ReadYou/releases/latest</string>
     <string name="change_log">Aldaketa egunkaria</string>
-    <string name="update">Eguneratu</string>
-    <string name="skip_this_version">Ez eguneratu bertsio honetara</string>
-    <string name="checking_updates">Eguneraketak bilatzen…</string>
-    <string name="is_latest_version">Hau da bertsiorik berriena</string>
-    <string name="check_failure">Ezin izan da eguneraketarik bilatu</string>
-    <string name="download_failure">Ezin izan da eguneraketarik deskargatu</string>
-    <string name="rate_limit">Eskaera tasa mugatuta dago</string>
     <string name="help">Laguntza</string>
     <string name="on_start">Abioan</string>
     <string name="initial_page">Hasierako orria</string>

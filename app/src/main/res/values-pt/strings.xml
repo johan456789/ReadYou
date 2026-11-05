@@ -66,11 +66,9 @@
     <string name="mark_as_read_seven_days">Marcar como lidos artigos com mais de 7 dias</string>
     <string name="agree">Concordar</string>
     <string name="reading_fonts">Tipos de letra de leitura</string>
-    <string name="skip_this_version">Ignorar esta versão</string>
     <string name="wallpaper_colors">Cores do fundo</string>
     <string name="basic_colors">Cores básicas</string>
     <string name="primary_color">Cor primária</string>
-    <string name="check_failure">Não foi possível verificar atualizações</string>
     <string name="preview_article_title">A novela \"Lorde dos Mistérios\" chega finalmente ao fim</string>
     <string name="preview_feed_name">Reddit</string>
     <string name="article_date">Hora da publicação do artigo</string>
@@ -98,8 +96,6 @@
     <string name="three_days">3d</string>
     <string name="seven_days">7d</string>
     <string name="close">Fechar</string>
-    <string name="get_new_updates">Obter novas atualizações</string>
-    <string name="get_new_updates_desc">Nova versão %1$s disponível</string>
     <string name="in_coding">Em progresso</string>
     <string name="coming_soon">Em breve</string>
     <string name="accounts">Contas</string>
@@ -136,13 +132,7 @@
     <string name="feeds_page">Página das fontes</string>
     <string name="sponsor">Tornar-se num mecenas</string>
     <string name="open_source_licenses">Licenças de código aberto</string>
-    <string name="update_link">https://api.github.com/repos/ReadYouApp/ReadYou/releases/latest</string>
     <string name="change_log">Registo de alterações</string>
-    <string name="update">Atualizar</string>
-    <string name="checking_updates">A verificar atualizações…</string>
-    <string name="is_latest_version">Esta é a versão mais recente da aplicação</string>
-    <string name="download_failure">Não foi possível descarregar atualizações</string>
-    <string name="rate_limit">O pedido foi limitado</string>
     <string name="help">Ajuda</string>
     <string name="on_start">Ao iniciar</string>
     <string name="initial_page">Página inicial</string>

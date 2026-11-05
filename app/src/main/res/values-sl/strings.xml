@@ -75,10 +75,6 @@
     <string name="sponsor">Sponzor</string>
     <string name="open_source_licenses">Odprtokodne licence</string>
     <string name="change_log">Seznam sprememb</string>
-    <string name="skip_this_version">Preskoči to različico</string>
-    <string name="download_failure">Posodobitev ni bilo mogoče prenesti</string>
-    <string name="check_failure">Posodobitev ni bilo mogoče preveriti</string>
-    <string name="rate_limit">Število zahtevkov je omejeno</string>
     <string name="help">Pomoč</string>
     <string name="on_start">Ob zagonu</string>
     <string name="initial_filter">Začetni filter</string>
@@ -169,9 +165,7 @@
     <string name="one_day">1 dan</string>
     <string name="three_days">3 dni</string>
     <string name="mark_as_unread">Označi kot neprebrano</string>
-    <string name="get_new_updates">Pridobi nove posodobitve</string>
     <string name="seven_days">7 dni</string>
-    <string name="get_new_updates_desc">Na voljo je nova različica %1$s</string>
     <string name="accounts_desc">Lokalni, FreshRSS</string>
     <string name="interaction">Interakcija</string>
     <string name="tips_and_support_desc">O programski opremi, odprtokodne licence</string>
@@ -179,10 +173,6 @@
     <string name="color_and_style_desc">Tema, barvni slog, velikost pisave</string>
     <string name="tips_and_support">Nasveti in podpora</string>
     <string name="help_translate">Pomoč pri prevajanju</string>
-    <string name="update_link">https://api.github.com/repos/ReadYouApp/ReadYou/releases/latest</string>
-    <string name="update">Posodobitev</string>
-    <string name="checking_updates">Preverjanje posodobitev…</string>
-    <string name="is_latest_version">To je najnovejša različica</string>
     <string name="initial_page">Začetna stran</string>
     <string name="preview_article_desc">The Fool je osmi in zadnji del serije Lord of the Mysteries avtorja Cuttlefish That Loves Diving.</string>
     <string name="preview_article_title">Roman Lord of the Mysteries se je končno končal</string>

@@ -76,7 +76,6 @@
     <string name="amoled_dark_theme">Tema fosc negre</string>
     <string name="open_source_licenses">Llicències de codi obert</string>
     <string name="change_log">Log de canvis</string>
-    <string name="checking_updates">Cercant actualitzacions…</string>
     <string name="unsubscribe">Cancel·lar la subscripció</string>
     <string name="unsubscribe_tips">Donat de baixa de \"%1$s\" esborrant els seus articles arxivats</string>
     <string name="delete_group">Esborrar el Grup</string>
@@ -95,8 +94,6 @@
     <string name="one_day">1d</string>
     <string name="seven_days">7d</string>
     <string name="close">Tanca</string>
-    <string name="get_new_updates">Actualitza</string>
-    <string name="get_new_updates_desc">Una nova versió de \"%1$s\" està disponible</string>
     <string name="in_coding">Codificant-se</string>
     <string name="coming_soon">Aviat disponible</string>
     <string name="color_and_style">Color i estil</string>
@@ -130,11 +127,6 @@
     <string name="flow_page">Pàgina de fluxe</string>
     <string name="reading_page">Llegint pàgina</string>
     <string name="sponsor">Espònsor</string>
-    <string name="update">Actualització</string>
-    <string name="skip_this_version">Descarta aquesta versió</string>
-    <string name="is_latest_version">Tens l\'última actualització de l\'aplicació</string>
-    <string name="check_failure">No s\'ha pogut actualitzar</string>
-    <string name="download_failure">Es possible que no poguem descarregar actualitzacions</string>
     <string name="today">Avui</string>
     <string name="yesterday">Ahir</string>
     <string name="mark_as_unread">Marca com no llegit</string>
@@ -142,7 +134,6 @@
     <string name="accounts">Comptes</string>
     <string name="accounts_desc">Local, Fresh RSS</string>
     <string name="tips_and_support">Consells i suport</string>
-    <string name="rate_limit">El rati de peticions es limitat</string>
     <string name="help">Ajuda</string>
     <string name="on_start">Al iniciar</string>
     <string name="initial_page">Pàgina inicial</string>
@@ -245,7 +236,6 @@
     <string name="password">Paraula clau</string>
     <string name="connection">Connexió</string>
     <string name="system_default">Sistema</string>
-    <string name="update_link">https://api.github.com/repos/ReadYouApp/ReadYou/releases/latest</string>
     <string name="preview_article_desc">El Boig és el vuitè i últim volum de la sèrie Senyor dels Misteris escrita per Sípia a la qual li encanta el busseig.</string>
     <string name="alignment">Alineament</string>
     <string name="general">General</string>

@@ -39,7 +39,6 @@
     <string name="mark_as_unread">வாசிக்காதவை எனக் குறியிடு</string>
     <string name="mark_as_starred">விண்மீனிடப்பட்டவை எனக் குறியிடு</string>
     <string name="mark_as_read_one_day">1 நாள் முந்தையவற்றை வாசித்தவை எனக் குறியிடு</string>
-    <string name="get_new_updates">இற்றைப்படுத்து</string>
     <string name="use_device_languages">சாதன மொழியை பயன்படுத்து</string>
     <string name="terms_of_service">சேவை விதிமுறைகள்</string>
     <string name="welcome">நல்வரவு</string>
@@ -133,7 +132,6 @@
     <string name="color_and_style">நிறம் &amp; பாணி</string>
     <string name="tips_and_support_desc">இது பற்றி, விரி எழுவாய் உரிமங்கள்</string>
     <string name="wallpaper_colors">முகப்போவிய நிறங்கள்</string>
-    <string name="rate_limit">கோரிக்கை விகிதம் வரையறுக்கப்பட்டது</string>
     <string name="icons">வடிவுருக்கள்</string>
     <string name="icons_and_labels">வடிவுருக்கள் மற்றும் பொறிப்புகள்</string>
     <string name="letter_spacing">எழுத்து இடைவிடல்</string>
@@ -172,7 +170,6 @@
     <string name="local_desc">இந்த சாதனத்தில்</string>
     <string name="swipe_to_end">வலப்புறம் கீறு</string>
     <string name="line_height_multiple">வரி உயர மடங்கு</string>
-    <string name="checking_updates">புதுப்பிக்க சோதிக்கிறது…</string>
     <string name="open_link_something_wrong">ஏதோ தவறு நடந்ததால் \"இணைப்பைத் திற\" அமைப்பு புறக்கணிக்கப்பட்டது.</string>
     <string name="unexpected_error_title">ஐயோ! ஏதோ கோளாரு ஏற்பட்டது…</string>
     <string name="services">சேவைகள்</string>
@@ -205,7 +202,6 @@
     <string name="date_at_time">%1$s அன்று %2$s</string>
     <string name="mark_all_as_read">அனைத்தையும் வாசித்தவை எனக் குறியிடு</string>
     <string name="mark_as_read_seven_days">7 நாள்கள் முந்தையவற்றை வாசித்தவை எனக் குறியிடு</string>
-    <string name="get_new_updates_desc">புதிய பதிப்பு %1$s கிடைக்கும்</string>
     <string name="three_days">3 நா</string>
     <string name="seven_days">7 நா</string>
     <string name="one_day">1 நா</string>
@@ -236,12 +232,6 @@
     <string name="reading_page">வாசிப்பு பக்கம்</string>
     <string name="sponsor">ஆதரவாளர்</string>
     <string name="change_log">மாற்றப்பதிகை</string>
-    <string name="update">புதுப்பி</string>
-    <string name="skip_this_version">இப்பதிப்பைக் கடந்திடு</string>
-    <string name="is_latest_version">இதுவே இச்செயலியின் பிந்தையப் பதிப்பு</string>
-    <string name="update_link">https://api.github.com/repos/ReadYouApp/ReadYou/releases/latest</string>
-    <string name="check_failure">புதுப்பிக்கும் சோதனை செயலிழந்தது</string>
-    <string name="download_failure">புதுப்பித்தல்களை பதிவிறக்கமுடியவில்லை</string>
     <string name="help">உதவி</string>
     <string name="on_start">துவக்கத்தில்</string>
     <string name="initial_page">முதன்மைப் பக்கம்</string>

@@ -85,8 +85,6 @@
     <string name="three_days">3h</string>
     <string name="seven_days">7h</string>
     <string name="close">Tutup</string>
-    <string name="get_new_updates">Dapatkan pembaruan terbaru</string>
-    <string name="get_new_updates_desc">Versi %1$s baru sudah tersedia</string>
     <string name="in_coding">Dalam proses</string>
     <string name="coming_soon">Segera datang</string>
     <string name="accounts">Akun</string>
@@ -128,15 +126,7 @@
     <string name="reading_page">Halaman membaca</string>
     <string name="sponsor">Sponsor</string>
     <string name="open_source_licenses">Lisensi sumber terbuka</string>
-    <string name="update_link">https://api.github.com/repos/ReadYouApp/ReadYou/releases/latest</string>
     <string name="change_log">Daftar Perubahan</string>
-    <string name="update">Perbarui</string>
-    <string name="skip_this_version">Lewati Versi ini</string>
-    <string name="checking_updates">Memeriksa pembaruan…</string>
-    <string name="is_latest_version">Versi aplikasi sudah yang terbaru</string>
-    <string name="check_failure">Gagal memeriksa pembaruan</string>
-    <string name="download_failure">Tidak bisa mengunduh pembaruan</string>
-    <string name="rate_limit">Tingkat permintaan terbataa</string>
     <string name="help">Bantuan</string>
     <string name="on_start">Saat memulai</string>
     <string name="initial_page">Halaman Utama</string>

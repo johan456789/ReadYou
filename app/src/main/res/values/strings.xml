@@ -98,8 +98,6 @@
     <string name="three_days">3d</string>
     <string name="seven_days">7d</string>
     <string name="close">Close</string>
-    <string name="get_new_updates">Get new updates</string>
-    <string name="get_new_updates_desc">New version %1$s is available</string>
     <string name="in_coding">In progress</string>
     <string name="coming_soon">Coming soon</string>
     <string name="accounts">Accounts</string>
@@ -159,15 +157,7 @@
     <string name="github_link" translatable="false">https://github.com/ReadYouApp/ReadYou</string>
     <string name="telegram_link" translatable="false">https://t.me/ReadYouApp</string>
     <string name="wiki_link" translatable="false">https://github.com/ReadYouApp/ReadYou/wiki/Getting-Started</string>
-    <string name="update_link">https://api.github.com/repos/ReadYouApp/ReadYou/releases/latest</string>
     <string name="change_log">Changelog</string>
-    <string name="update">Update</string>
-    <string name="skip_this_version">Skip this version</string>
-    <string name="checking_updates">Checking for updates…</string>
-    <string name="is_latest_version">This is the latest version of the app</string>
-    <string name="check_failure">Failed to check for updates</string>
-    <string name="download_failure">Could not download updates</string>
-    <string name="rate_limit">The request rate is limited</string>
     <string name="help">Help</string>
     <string name="on_start">On start</string>
     <string name="initial_page">Startup page</string>

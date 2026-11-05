@@ -50,7 +50,6 @@
     <string name="three_days">3д</string>
     <string name="seven_days">7д</string>
     <string name="close">Закрыть</string>
-    <string name="get_new_updates">Получить обновления</string>
     <string name="in_coding">В процессе</string>
     <string name="coming_soon">В скором времени</string>
     <string name="accounts">Аккаунты</string>
@@ -62,10 +61,6 @@
     <string name="only_android_8.1_plus">Только Android 8.1+</string>
     <string name="basic_colors">Основные цвета</string>
     <string name="change_log">Список изменений</string>
-    <string name="update">Обновить</string>
-    <string name="skip_this_version">Пропустить эту версию</string>
-    <string name="checking_updates">Поиск обновлений…</string>
-    <string name="is_latest_version">Это последняя версия приложения</string>
     <string name="help">Помощь</string>
     <string name="preview_feed_name">Reddit</string>
     <string name="on">Вкл</string>
@@ -81,7 +76,6 @@
     <string name="date_at_time">%1$s в %2$s</string>
     <string name="search_for_in">Поиск %1$s элементов в \"%2$s\"</string>
     <string name="search_for">Поиск %1$s элементов</string>
-    <string name="get_new_updates_desc">Доступна версия %1$s</string>
     <string name="accounts_desc">Локальный, services, self-hosted</string>
     <string name="color_and_style_desc">Тема, цветовая палитра, размер текста</string>
     <string name="interaction">Использование</string>
@@ -102,7 +96,6 @@
     <string name="icons">Иконки</string>
     <string name="horizontal_padding">Горизонтальный отступ</string>
     <string name="on_start">На старте</string>
-    <string name="update_link">https://api.github.com/repos/ReadYouApp/ReadYou/releases/latest</string>
     <string name="open_source_licenses">Лицензии свободного ПО</string>
     <string name="sponsor">Спонсор</string>
     <string name="reading_page">Страница чтения</string>
@@ -128,9 +121,6 @@
     <string name="amoled_dark_theme">Черная темная тема</string>
     <string name="browse_tos_tips">Открыть <i><u>Условия использования и Политику конфиденциальности</u></i></string>
     <string name="basic_fonts">Базовые шрифты</string>
-    <string name="check_failure">Не удалость проверить наличие обновлений</string>
-    <string name="download_failure">Не удалось скачать обновления</string>
-    <string name="rate_limit">Превышен предел количества запросов</string>
     <string name="initial_page">Стартовая страница</string>
     <string name="initial_filter">Фильтр по умолчанию</string>
     <string name="value">значение</string>

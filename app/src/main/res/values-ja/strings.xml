@@ -27,8 +27,6 @@
     <string name="mark_as_read_three_days">３日以上前の記事を既読にする</string>
     <string name="seven_days">7日</string>
     <string name="close">閉じる</string>
-    <string name="get_new_updates">新しいアップデートを取得する</string>
-    <string name="get_new_updates_desc">新しいバージョン %1$s が利用可能です</string>
     <string name="accounts">アカウント</string>
     <string name="interaction">使い方</string>
     <string name="interaction_desc">起動時のページ、ジェスチャー</string>
@@ -51,10 +49,7 @@
     <string name="tonal_elevation">色調</string>
     <string name="basic_fonts">基本フォント</string>
     <string name="open_source_licenses">オープンソースライセンス</string>
-    <string name="update_link">https://api.github.com/repos/ReadYouApp/ReadYou/releases/latest</string>
     <string name="change_log">変更履歴</string>
-    <string name="update">アップデート</string>
-    <string name="download_failure">アップデートをダウンロードできませんでした</string>
     <string name="help">ヘルプ</string>
     <string name="initial_page">スタートページ</string>
     <string name="preview_feed_name">Reddit</string>
@@ -135,13 +130,8 @@
     <string name="tos_content"><h5> プライバシー ポリシー </h5> <br/> <p> 私はあなたのプライバシーを非常に真剣に受け止めています。 </p> <br/> <p> <b>Read You</b> はユーザーデータを収集せず、すべての重要情報 (パスワードやその他のアカウント情報) はデバイスのローカルのアプリケーションデータベースに安全に保存されます。 </p> <br/> <p> <b>Read You</b> は、サービスを提供するために、次の権限を必要とします。 </p> <br/> <p> - ネットワークアクセスの権限 (指定したオンラインコンテンツにアクセスするため) </p> <p> - ネットワークの状態を取得する権限 (現在デバイスが利用可能なネットワーク状況かどうかを取得するため) </p> <p> - バックグラウンドサービスの権限 (定期的にコンテンツを同期するため) </p> <br/> <br/> <h5> サード パーティ サービス </h5> <br/> <p> このポリシーは、<b>Read You</b> で使用するパーティー サービスには適用されません。 </p> <br/> <br/> <h5> 免責事項 </h5> <br/> <p> <b>Read You</b> はあくまで情報収集ツールです。 <b>Read You</b> の使用は、あなたの国と地域の法律と規制の対象となり、あなたのの行為から生じる責任は、あなたが個人的に負うものとします。 </p> <br/> <br/> <h5> オープンソース ライセンス </h5> <br/> <p> <b>Read You</b> は、GNU GPL 3.0 オープンソース ライセンス[1]に基づくオープン ソース プロジェクトです。 <b>Read You</b> のソース コードを無料で使用、参照、および変更することはできますが、変更および派生したコードをクローズドソースの商用ソフトウェアとして配布および販売することはできません。詳細については、完全な GNU GPL 3.0 オープン ソース ライセンス[2]全文をご覧ください。 </p> <br/> <br/> <h5> 付録 </h5> <br/> <p> - [1] https://github.com/ReadYouApp/ReadYou </p> <p> - [2] https:/ /www.gnu.org/licenses/gpl-3.0.html </p></string>
     <string name="appearance">外観</string>
     <string name="use_device_theme">デバイスのテーマを使用する</string>
-    <string name="skip_this_version">このバージョンをスキップ</string>
     <string name="feeds_page">フィードページ</string>
     <string name="sponsor">スポンサー</string>
-    <string name="check_failure">アップデートを確認できませんでした</string>
-    <string name="rate_limit">リクエストレートが制限されています</string>
-    <string name="checking_updates">アップデートを確認中…</string>
-    <string name="is_latest_version">アプリは最新のバージョンです</string>
     <string name="article_date">記事の公開日時</string>
     <string name="on_start">アプリ起動時</string>
     <string name="initial_filter">標準のフィルター</string>

@@ -63,14 +63,6 @@ class SettingsProvider @Inject constructor(
         val settings = settingsFlow.collectAsStateValue()
         CompositionLocalProvider(
             LocalSettings provides settings,
-
-            // Version
-            NewVersionNumberPreference.provide(settings),
-            LocalSkipVersionNumber provides settings.skipVersionNumber,
-            LocalNewVersionPublishDate provides settings.newVersionPublishDate,
-            LocalNewVersionLog provides settings.newVersionLog,
-            LocalNewVersionSize provides settings.newVersionSize,
-            LocalNewVersionDownloadUrl provides settings.newVersionDownloadUrl,
             LocalBasicFonts provides settings.basicFonts,
 
             // Theme
