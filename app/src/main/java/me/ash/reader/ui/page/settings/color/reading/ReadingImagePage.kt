@@ -108,7 +108,7 @@ fun ReadingImagePage(
                         onClick = { roundedCornersDialogVisible = true },
                     ) {}
                     SettingItem(
-                        title = stringResource(R.string.horizontal_padding),
+                        title = stringResource(R.string.image_edge_padding),
                         desc = "${horizontalPadding}dp",
                         onClick = { horizontalPaddingDialogVisible = true },
                     ) {}
@@ -142,7 +142,7 @@ fun ReadingImagePage(
 
     TextFieldDialog(
         visible = horizontalPaddingDialogVisible,
-        title = stringResource(R.string.horizontal_padding),
+        title = stringResource(R.string.image_edge_padding),
         value = (horizontalPaddingValue ?: "").toString(),
         placeholder = stringResource(R.string.value),
         onValueChange = {

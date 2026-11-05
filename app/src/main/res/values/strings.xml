@@ -169,6 +169,7 @@
     <string name="preview_feed_name">Reddit</string>
     <string name="value">value</string>
     <string name="horizontal_padding">Horizontal padding</string>
+    <string name="image_edge_padding">Edge padding for full-width images</string>
     <string name="article_date">Article publication time</string>
     <string name="article_desc">Article descriptions</string>
     <string name="article_images">Article images</string>
