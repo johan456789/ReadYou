@@ -74,8 +74,6 @@ import me.ash.reader.infrastructure.preference.LocalFeedsGroupListExpand
 import me.ash.reader.infrastructure.preference.LocalFeedsGroupListTonalElevation
 import me.ash.reader.infrastructure.preference.LocalFeedsTopBarTonalElevation
 import me.ash.reader.infrastructure.preference.FlowFilterBarStylePreference
-import me.ash.reader.infrastructure.preference.LocalNewVersionNumber
-import me.ash.reader.infrastructure.preference.LocalSkipVersionNumber
 import me.ash.reader.ui.component.FilterBar
 import me.ash.reader.ui.component.base.DisplayText
 import me.ash.reader.ui.component.base.FeedbackIconButton
@@ -84,7 +82,6 @@ import me.ash.reader.ui.component.scrollbar.drawVerticalScrollIndicator
 import me.ash.reader.ui.ext.collectAsStateValue
 import me.ash.reader.ui.ext.currentAccountId
 import me.ash.reader.ui.ext.findActivity
-import me.ash.reader.ui.ext.getCurrentVersion
 import me.ash.reader.ui.ext.surfaceColorAtElevation
 import me.ash.reader.ui.page.common.RouteName
 import me.ash.reader.ui.page.home.feeds.accounts.AccountsTab
@@ -150,9 +147,6 @@ fun FeedsPage(
             derivedStateOf { groupWithFeedList.fastAny { groupsVisible[it.group.id] == true } }
         }
 
-    val newVersion = LocalNewVersionNumber.current
-    val skipVersion = LocalSkipVersionNumber.current
-    val currentVersion = remember { context.getCurrentVersion() }
     val listState =
         if (groupWithFeedList.isNotEmpty()) feedsUiState.listState else rememberLazyListState()
 
@@ -251,7 +245,6 @@ fun FeedsPage(
                         imageVector = Icons.Outlined.Settings,
                         contentDescription = stringResource(R.string.settings),
                         tint = MaterialTheme.colorScheme.onSurface,
-                        showBadge = newVersion.whetherNeedUpdate(currentVersion, skipVersion),
                     ) {
                         navigateToSettings()
                     }

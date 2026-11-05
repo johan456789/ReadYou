@@ -95,14 +95,7 @@
     <string name="reading_page">Legada paĝo</string>
     <string name="sponsor">Sponsori</string>
     <string name="open_source_licenses">Malfermitkodaj Licencoj</string>
-    <string name="update_link">https://api.github.com/repos/ReadYouApp/ReadYou/releases/latest</string>
     <string name="change_log">Ŝanĝprotokolo</string>
-    <string name="skip_this_version">Salti ĉi tiun version</string>
-    <string name="checking_updates">Kontrolante ĝisdatigojn…</string>
-    <string name="is_latest_version">Ĉi tiu estas la plej nova versio de la aplikaĵo</string>
-    <string name="check_failure">Malsukcesis kontroli por ĝisdatigoj</string>
-    <string name="download_failure">Ne eblis elŝuti ĝisdatigojn</string>
-    <string name="rate_limit">La peta rapido estas limigita</string>
     <string name="help">Helpo</string>
     <string name="on_start">Je la startigo</string>
     <string name="initial_page">Komenca paĝo</string>
@@ -208,8 +201,6 @@
     <string name="mark_as_unstar">Malstelumi</string>
     <string name="mark_as_read_three_days">Marki artikolojn pli malnovajn ol 3 tagojn kiel legitajn</string>
     <string name="seven_days">7t</string>
-    <string name="get_new_updates">Akiri novajn ĝisdatigojn</string>
-    <string name="get_new_updates_desc">Nova versio %1$s disponeblas</string>
     <string name="accounts_desc">Loka, servoj, mem-gastigita</string>
     <string name="color_and_style_desc">Haŭto, kolora stilo, tiparo</string>
     <string name="languages">Lingvoj</string>
@@ -217,7 +208,6 @@
     <string name="dark_theme">Malhela Haŭto</string>
     <string name="reading_fonts">Legadaj tiparoj</string>
     <string name="feeds_page">Paĝo de Fluoj</string>
-    <string name="update">Ĝisdatigi</string>
     <string name="preview_article_desc">The Fool estas la oka kaj fina volumo de la Lord of the Mysteries serialo skribita far Cuttlefish That Loves Diving.</string>
     <string name="value">Valoro</string>
     <string name="horizontal_padding">Horizontala remburaĵo</string>

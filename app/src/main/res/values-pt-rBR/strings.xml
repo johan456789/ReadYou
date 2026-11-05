@@ -71,7 +71,6 @@
     <string name="search_for">Buscar por %1$s itens</string>
     <string name="search_for_in">Buscar por %1$s itens em \"%2$s\"</string>
     <string name="mark_as_read">Marcar como lido</string>
-    <string name="get_new_updates_desc">Nova versão %1$s está disponível</string>
     <string name="in_coding">Em progresso</string>
     <string name="coming_soon">Em breve</string>
     <string name="accounts">Contas</string>
@@ -107,12 +106,6 @@
     <string name="feeds_page">Página de Feeds</string>
     <string name="flow_page">Página de Flow</string>
     <string name="change_log">Histórico de atualizações</string>
-    <string name="skip_this_version">Pular esta versão</string>
-    <string name="checking_updates">Verificando atualizações…</string>
-    <string name="is_latest_version">Esta é a versão mais recente do app</string>
-    <string name="check_failure">Não foi possível verificar por atualizações</string>
-    <string name="download_failure">Não foi possível baixar as atualizações</string>
-    <string name="rate_limit">O limite de requisições está limitado</string>
     <string name="initial_page">Página inicial</string>
     <string name="initial_filter">Filtro padrão</string>
     <string name="paste">Colar</string>
@@ -135,7 +128,6 @@
     <string name="mark_as_unstar">Desmarcar dos favoritos</string>
     <string name="mark_as_read_one_day">Marcar como lido artigos com mais de 1 dia</string>
     <string name="seven_days">7d</string>
-    <string name="get_new_updates">Receber novas atualizações</string>
     <string name="tips_and_support">Dicas e Suporte</string>
     <string name="terms_of_service">Termos de serviço</string>
     <string name="tips_and_support_desc">Sobre, patrocinar, licenças de código aberto</string>
@@ -145,7 +137,6 @@
     <string name="help">Ajuda</string>
     <string name="on_start">Ao abrir</string>
     <string name="reading_page">Página de Leitura</string>
-    <string name="update">Atualizar</string>
     <string name="preview_article_title">A obra Lord of the Mysteries chega a sua conclusão</string>
     <string name="preview_article_desc">O Tolo é o oitavo e último volume da série Lord of the Mysteries, escrito por Cuttlefish That Loves Diving.</string>
     <string name="value">valor</string>
@@ -212,7 +203,6 @@
     <string name="synchronous_tips">Para ver as mudanças é necessário reiniciar o app</string>
     <string name="synchronous">Sincronizando</string>
     <string name="delete_account_tips">Você tem certeza que quer apagar essa conta\?</string>
-    <string name="update_link">https://api.github.com/repos/ReadYouApp/ReadYou/releases/latest</string>
     <string name="every_15_minutes">A cada 15 minutos</string>
     <string name="every_30_minutes">A cada 30 minutos</string>
     <string name="every_1_hour">A cada hora</string>

@@ -91,8 +91,6 @@
     <string name="three_days">3d</string>
     <string name="seven_days">7d</string>
     <string name="close">Zavřít</string>
-    <string name="get_new_updates">Získat aktualizace</string>
-    <string name="get_new_updates_desc">Nová verze %1$s je k dispozici</string>
     <string name="in_coding">Ve vývoji</string>
     <string name="coming_soon">Již brzy</string>
     <string name="accounts">Účty</string>
@@ -134,15 +132,7 @@
     <string name="reading_page">Čtecí stránka</string>
     <string name="sponsor">Sponzor</string>
     <string name="open_source_licenses">Licence open source</string>
-    <string name="update_link">https://api.github.com/repos/ReadYouApp/ReadYou/releases/latest</string>
     <string name="change_log">Seznam změn</string>
-    <string name="update">Aktualizovat</string>
-    <string name="skip_this_version">Přeskočit tuto verzi</string>
-    <string name="checking_updates">Zkontrolovat aktualizace…</string>
-    <string name="is_latest_version">Toto je nejnovější verze aplikace</string>
-    <string name="check_failure">Nezdařilo se zkontrolovat aktualizace</string>
-    <string name="download_failure">Nepodařilo se stáhnout aktualizace</string>
-    <string name="rate_limit">Rychlost požadavků je limitována</string>
     <string name="help">Nápověda</string>
     <string name="on_start">Při spuštění</string>
     <string name="initial_page">Úvodní stránka</string>

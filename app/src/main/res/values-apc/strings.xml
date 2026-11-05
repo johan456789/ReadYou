@@ -94,13 +94,6 @@
     <string name="reading_page">صفحة القراية</string>
     <string name="sponsor">موّل</string>
     <string name="change_log">شو فيه جديد؟</string>
-    <string name="update">تجديد</string>
-    <string name="skip_this_version">أفي هيدا الڤيرجن</string>
-    <string name="checking_updates">عم ننبش ع تجديد…</string>
-    <string name="is_latest_version">اصلًا عم تستعمل الڤريجن الاجد تبع هال آپ</string>
-    <string name="check_failure">فشل التنبيش ع تجديدات</string>
-    <string name="download_failure">م قدرنا ننزل التجديدات</string>
-    <string name="rate_limit">كميات الطلب محدودة</string>
     <string name="help">مساعدة</string>
     <string name="on_start">عال تبليشة</string>
     <string name="initial_page">الصفحة الابتدائية</string>
@@ -210,10 +203,8 @@
     <string name="one_day">يوم</string>
     <string name="seven_days">7 إيَّام</string>
     <string name="mark_as_read_seven_days">علم اللي أقدم من سبعة إيّام ك منقرا</string>
-    <string name="get_new_updates">جيب التجديدات</string>
     <string name="three_days">3 إيام</string>
     <string name="close">سكر</string>
-    <string name="get_new_updates_desc">فيه الڤرجن الجديد %1$s</string>
     <string name="tips_and_support">تعليمات و دعم</string>
     <string name="tips_and_support_desc">معلومات، و الترخيصات تبع المصادر المفتوحة</string>
     <string name="browse_tos_tips">تصفّح <i><u>شروط الخدمة و سياسة الخصوصيَّة</u></i></string>
@@ -221,7 +212,6 @@
     <string name="upper_case">كاپيتل</string>
     <string name="reading_fonts">فونتات القراية</string>
     <string name="open_source_licenses">ترخيصات الپروگرامات المفتوحة المصدر</string>
-    <string name="update_link">https://api.github.com/repos/ReadYouApp/ReadYou/releases/latest</string>
     <string name="always_expand">دايمًا كبر</string>
     <string name="top">الأعلى</string>
     <string name="icons_and_labels">الأيكونات وال عناوين</string>

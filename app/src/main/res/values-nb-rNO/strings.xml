@@ -23,7 +23,6 @@
     <string name="off">Av</string>
     <string name="other">Annet</string>
     <string name="sponsor">Sponsor</string>
-    <string name="is_latest_version">Dette er siste versjon</string>
     <string name="help">Hjelp</string>
     <string name="on_start">Ved oppstart</string>
     <string name="preview_feed_name">Reddit</string>
@@ -64,7 +63,6 @@
     <string name="date_at_time">%1$s klokken %2$s</string>
     <string name="search_for_in">Søk etter %1$s elementer i «%2$s»</string>
     <string name="search_for">Søk etter %1$s elementer</string>
-    <string name="get_new_updates_desc">Versjon %1$s er tilgjengelig</string>
     <string name="languages">Språk</string>
     <string name="welcome">Velkommen</string>
     <string name="close">Lukk</string>
@@ -75,7 +73,6 @@
     <string name="agree">Jeg samtykker</string>
     <string name="appearance">Utseende</string>
     <string name="primary_color">Primærfarge</string>
-    <string name="skip_this_version">Hopp over denne versjonen</string>
     <string name="top_bar">Toppfelt</string>
     <string name="icons_and_labels">Ikoner og etiketter</string>
     <string name="searching">Søker …</string>
@@ -170,10 +167,8 @@
     <string name="mark_as_read_seven_days">Marker som lest for mer enn 7 dager siden</string>
     <string name="one_day">1 d</string>
     <string name="three_days">3 d</string>
-    <string name="get_new_updates">Hent nye versjoner av programmet</string>
     <string name="in_coding">Kodes nå</string>
     <string name="coming_soon">Kommer snart</string>
-    <string name="rate_limit">Du må vente før du kan utføre nye forespørsler</string>
     <string name="tips_group_list_tonal_elevation">Denne fargelysstyrken er kun tilgjengelig med lys drakt.</string>
     <string name="rearrange_buttons">Endre knapperekkefølge</string>
     <string name="dark_reading_theme">Mørk lesedrakt</string>
@@ -198,11 +193,6 @@
     <string name="tonal_elevation">Fargelysstyrke</string>
     <string name="display">Skjerm</string>
     <string name="article_date_sticky_header">Festet hode for publiseringsdato (eksperimentelt)</string>
-    <string name="update_link">https://api.github.com/repos/ReadYouApp/ReadYou/releases/latest</string>
-    <string name="update">Installer</string>
-    <string name="checking_updates">Ser etter nye versjoner …</string>
-    <string name="check_failure">Kunne ikke lete etter nye versjoner</string>
-    <string name="download_failure">Kunne ikke laste ned ny versjon</string>
     <string name="article_date">Publiseringstidspunkt</string>
     <string name="filter_bar">Filtreringsfelt</string>
     <string name="icons_and_label_only_selected">Ikoner og etikett (kun valgte)</string>

@@ -88,8 +88,6 @@
     <string name="three_days">3 T</string>
     <string name="seven_days">7 T</string>
     <string name="close">Schließen</string>
-    <string name="get_new_updates">Neue Updates erhalten</string>
-    <string name="get_new_updates_desc">Version %1$s wurde veröffentlicht</string>
     <string name="in_coding">In Arbeit</string>
     <string name="coming_soon">Demnächst verfügbar</string>
     <string name="accounts">Konten</string>
@@ -131,15 +129,7 @@
     <string name="reading_page">Leseseite</string>
     <string name="sponsor">Sponsor</string>
     <string name="open_source_licenses">Open Source Lizenzen</string>
-    <string name="update_link">https://api.github.com/repos/ReadYouApp/ReadYou/releases/latest</string>
     <string name="change_log">Änderungsprotokoll</string>
-    <string name="update">Aktualisieren</string>
-    <string name="skip_this_version">Diese Version überspringen</string>
-    <string name="checking_updates">Suche nach Aktualisierungen…</string>
-    <string name="is_latest_version">Dies ist die neueste Version der App</string>
-    <string name="check_failure">Suche nach Updates fehlgeschlagen</string>
-    <string name="download_failure">Fehler beim Herunterladen des Updates</string>
-    <string name="rate_limit">Die Anfragerate ist limitiert</string>
     <string name="help">Hilfe</string>
     <string name="on_start">Beim Start</string>
     <string name="initial_page">Startseite</string>

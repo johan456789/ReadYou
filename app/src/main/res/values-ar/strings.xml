@@ -110,8 +110,6 @@
     <string name="accounts_desc">محليٌّ، الخدمات، مستضاف ذاتيًّا</string>
     <string name="three_days">3 أيَّام</string>
     <string name="color_and_style_desc">السمة، أسلوب الألوان، حجم الخطِّ</string>
-    <string name="get_new_updates_desc">يتوفَّر الإصدار %1$s</string>
-    <string name="get_new_updates">احصل على التحديثات الجديدة</string>
     <string name="color_and_style">اللون والأسلوب</string>
     <string name="close">أغلق</string>
     <string name="interaction_desc">صفحة البدء، الإيماءات</string>
@@ -134,7 +132,6 @@
     <string name="sponsor">موِّل</string>
     <string name="open_source_licenses">التراخيص مفتوحة المصدر</string>
     <string name="change_log">سجل التغييرات</string>
-    <string name="update">حدِّث</string>
     <string name="horizontal_padding">الإزاحة الأفقيَّة</string>
     <string name="tips_article_list_tonal_elevation">يتوفَّر ارتفاع الطابَع للشريط العلويِّ في السمة الفاتحة فقط</string>
     <string name="tips_group_list_tonal_elevation">يتوفَّر ارتفاع الطابَع للشريط العلويِّ في السمة الفاتحة فقط</string>
@@ -173,9 +170,6 @@
     <string name="primary_color">اللون الرئيسي</string>
     <string name="primary_color_hint">مثل 666666# أو 666666</string>
     <string name="tonal_elevation">ارتفاع الطابَع</string>
-    <string name="update_link">https://api.github.com/repos/ReadYouApp/ReadYou/releases/latest</string>
-    <string name="is_latest_version">هذا أحدث إصدار للتطبيق</string>
-    <string name="rate_limit">معدَّل الطلب محدود</string>
     <string name="initial_page">صفحة البدء</string>
     <string name="preview_feed_name">رِدِت</string>
     <string name="font_size">حجم الخطِّ</string>
@@ -214,8 +208,6 @@
     <string name="videos_desc">الزوايا المقوَّسة، الإزاحة الأفقيَّة</string>
     <string name="feed_favicons">الأيقونات المفضَّلة للتلقيمات</string>
     <string name="filter_bar">شريط التصفية</string>
-    <string name="checking_updates">قيد البحث عن التحديثات…</string>
-    <string name="download_failure">تعذَّر تنزيل التحديثات</string>
     <string name="preview_article_title">اختُتمت رواية «سيِّد الخفايا» أخيرًا</string>
     <string name="preview_article_desc">«المغفَّل» هو المجلَّد الثامن والأخير لسلسلة «سيِّد الخفايا» لكاتبها «الحبَّار المحبُّ للسباحة».</string>
     <string name="value">قيمة</string>
@@ -236,8 +228,6 @@
     <string name="article_images">صور المقالات</string>
     <string name="mark_as_read_button_position">موقع زرِّ «علِّمه مقروءًا»</string>
     <string name="fill_selected_icon">املأ أيقونة التصفية الحالية</string>
-    <string name="skip_this_version">تخطَّ هذا الإصدار</string>
-    <string name="check_failure">فشل التماس التحديثات</string>
     <string name="icons">الأيقونات</string>
     <string name="mark_as_read_seven_days">علِّمه مقروءًا منذ أكثر من ٧ أيَّام</string>
     <string name="only_android_8.1_plus">فقط أندرويد +8.1</string>

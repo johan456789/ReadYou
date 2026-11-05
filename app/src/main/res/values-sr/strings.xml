@@ -50,7 +50,6 @@
     <string name="all_move_to_group_tips">Преместите све фидове из групе „%1$s“ у групу „%2$s“</string>
     <string name="flow_page">Страница за ток</string>
     <string name="every_1_hour">Сваки сат</string>
-    <string name="get_new_updates">Добијај нова ажурирања</string>
     <string name="fever_desc">Застарело. Не препоручује се.</string>
     <string name="touch_to_play_video">Додирните да бисте пустили видео снимак</string>
     <string name="clear">Очисти</string>
@@ -61,7 +60,6 @@
     <string name="rounded_corners">Заобљени углови</string>
     <string name="mark_as_starred">Означи са звездицом</string>
     <string name="open_link_specific_browser">Претраживач</string>
-    <string name="checking_updates">Провера ажурирања…</string>
     <string name="title_desc">Подебљано, велика слова, поравнање</string>
     <string name="agree">Сагласан сам</string>
     <string name="rename">Преименуј</string>
@@ -75,10 +73,8 @@
     <string name="auto_default_browser">Аутоматски (преферирање подразумеваног претраживача)</string>
     <string name="basic_fonts">Основни фонтови</string>
     <string name="search_for_in">Претражите %1$s предмете у „%2$s“</string>
-    <string name="update">Ажурирање</string>
     <string name="external_fonts">Спољни фонтови</string>
     <string name="switch_account">Промени</string>
-    <string name="download_failure">Није могуће преузети ажурирања</string>
     <string name="use_device_languages">Користи језик уређаја</string>
     <string name="appearance">Изглед</string>
     <string name="every_6_hours">Сваких 6 сати</string>
@@ -94,7 +90,6 @@
     <string name="off">Искључено</string>
     <string name="value">вредност</string>
     <string name="all_deny_notification_toast">Сва обавештења из групе „%1$s“ су одбијена</string>
-    <string name="get_new_updates_desc">Доступна је нова верзија %1$s</string>
     <string name="help">Помоћ</string>
     <string name="advanced">Напредно</string>
     <string name="must_have_an_account">Морате имати налог најмање 1 налог</string>
@@ -109,7 +104,6 @@
     <string name="use_app_theme">Користи тему апликације</string>
     <string name="every_15_minutes">Сваких 15 минута</string>
     <string name="interaction">Употреба</string>
-    <string name="check_failure">Провера ажурирања није успела</string>
     <string name="align_start">Поравнај почетак</string>
     <string name="keep_archived_articles">Чување архивираних чланака</string>
     <string name="selected">Изабрано</string>
@@ -123,7 +117,6 @@
     <string name="add_accounts">Додавање налога</string>
     <string name="center_text">Центрирај текст</string>
     <string name="for_1_week">1 недеља</string>
-    <string name="is_latest_version">Ово је најновија верзија апликације</string>
     <string name="style">Стил</string>
     <string name="help_translate">Помози у превођењу</string>
     <string name="horizontal_padding">Хоризонтални испун</string>
@@ -197,7 +190,6 @@
     <string name="all_allow_notification_tips">Дозволите свим фидовима у групи „%1$s“ да шаљу обавештења</string>
     <string name="expand_less">Скупи</string>
     <string name="list">Листа</string>
-    <string name="update_link">https://api.github.com/repos/ReadYouApp/ReadYou/releases/latest</string>
     <string name="all_parse_full_content_tips">Рашчлањивање комплетног садржаја свих чланака у групи „%1$s“</string>
     <string name="search">Претражи</string>
     <string name="delete_group">Избриши групу</string>
@@ -207,7 +199,6 @@
     <string name="bold">Подебљано</string>
     <string name="rename_toast">Преименовано у „%1$s“</string>
     <string name="always_expand">Увек прошири</string>
-    <string name="skip_this_version">Прескочи ову верзију</string>
     <string name="mark_as_unstar">Уклони звездицу</string>
     <string name="initial_open_app">Апликација када се кликне на линк</string>
     <string name="fill_selected_icon">Попуните тренутну иконицу филтера</string>
@@ -263,7 +254,6 @@
     <string name="change_log">Евиденција промена</string>
     <string name="alignment">Поравнање</string>
     <string name="clear_articles">Очисти чланке</string>
-    <string name="rate_limit">Стопа захтева је ограничена</string>
     <string name="include_additional_info">Укључи додатне информације</string>
     <string name="exclude">Искључи</string>
     <string name="additional_info_desc">Додатне информације укључују опције конфигурације за сваки фид, као што су да ли да се дозволи обавештење, рашчлани цео садржај итд. Када намеравате да користите извезени OPML фајл с другим читачима, изаберите „Искључи“.</string>

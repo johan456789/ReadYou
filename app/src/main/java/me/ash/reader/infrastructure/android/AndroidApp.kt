@@ -16,21 +16,16 @@ import kotlinx.coroutines.withContext
 import me.ash.reader.BuildConfig
 import me.ash.reader.domain.data.DiffMapHolder
 import me.ash.reader.domain.service.AccountService
-import me.ash.reader.domain.service.AppService
 import me.ash.reader.domain.service.LocalRssService
 import me.ash.reader.domain.service.OpmlService
 import me.ash.reader.domain.service.RssService
 import me.ash.reader.infrastructure.db.AndroidDatabase
 import me.ash.reader.infrastructure.di.ApplicationScope
 import me.ash.reader.infrastructure.di.IODispatcher
-import me.ash.reader.infrastructure.net.NetworkDataSource
 import me.ash.reader.infrastructure.preference.SettingsProvider
 import me.ash.reader.infrastructure.rss.OPMLDataSource
 import me.ash.reader.infrastructure.rss.ReaderCacheHelper
 import me.ash.reader.infrastructure.rss.RssHelper
-import me.ash.reader.ui.ext.del
-import me.ash.reader.ui.ext.getLatestApk
-import me.ash.reader.ui.ext.isGitHub
 import okhttp3.OkHttpClient
 import timber.log.Timber
 
@@ -54,15 +49,11 @@ class AndroidApp : Application(), Configuration.Provider {
 
     @Inject lateinit var workManager: WorkManager
 
-    @Inject lateinit var networkDataSource: NetworkDataSource
-
     @Inject lateinit var OPMLDataSource: OPMLDataSource
 
     @Inject lateinit var rssHelper: RssHelper
 
     @Inject lateinit var notificationHelper: NotificationHelper
-
-    @Inject lateinit var appService: AppService
 
     @Inject lateinit var androidStringsHelper: AndroidStringsHelper
 
@@ -95,7 +86,6 @@ class AndroidApp : Application(), Configuration.Provider {
      * 1. Set the uncaught exception handler
      * 2. Initialize the default account if there is none
      * 3. Synchronize once
-     * 4. Check for new version
      */
     override fun onCreate() {
         super.onCreate()
@@ -107,7 +97,6 @@ class AndroidApp : Application(), Configuration.Provider {
             accountInit()
             repairCurrentAccountData()
             workerInit()
-            checkUpdate()
         }
         Coil.setImageLoader(imageLoader)
     }
@@ -150,13 +139,5 @@ class AndroidApp : Application(), Configuration.Provider {
             val account = accountService.getCurrentAccount()
             rssService.get(account.type.id).repairAccountData(account.id!!)
         }
-    }
-
-    private suspend fun checkUpdate() {
-        if (!isGitHub) return
-        withContext(ioDispatcher) {
-            applicationContext.getLatestApk().let { if (it.exists()) it.del() }
-        }
-        appService.checkUpdate(showToast = false)
     }
 }

@@ -117,8 +117,6 @@
     <string name="three_days">3д</string>
     <string name="seven_days">7д</string>
     <string name="close">Закрити</string>
-    <string name="get_new_updates">Отримати оновлення</string>
-    <string name="get_new_updates_desc">Доступна нова версія %1$s</string>
     <string name="in_coding">У процесі</string>
     <string name="coming_soon">Скоро</string>
     <string name="accounts">Облікові записи</string>
@@ -156,15 +154,7 @@
     <string name="reading_page">Сторінка читання</string>
     <string name="sponsor">Спонсор</string>
     <string name="open_source_licenses">Ліцензії з відкритим кодом</string>
-    <string name="update_link">https://api.github.com/repos/ReadYouApp/ReadYou/releases/latest</string>
     <string name="change_log">Список змін</string>
-    <string name="update">Оновлення</string>
-    <string name="skip_this_version">Пропустити цю версію</string>
-    <string name="checking_updates">Перевірка оновлень…</string>
-    <string name="is_latest_version">Це остання версія застосунку</string>
-    <string name="check_failure">Не вдалося перевірити наявність оновлень</string>
-    <string name="download_failure">Не вдалося завантажити оновлення</string>
-    <string name="rate_limit">Кількість запитів обмежена</string>
     <string name="help">Допомога</string>
     <string name="on_start">Під час запуску</string>
     <string name="initial_page">Стартова сторінка</string>

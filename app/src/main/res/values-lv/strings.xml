@@ -39,7 +39,6 @@
     <string name="reading_page">Lasīšanas lapa</string>
     <string name="open_source_licenses">Atvērtā pirmkoda licences</string>
     <string name="change_log">Izmaiņu žurnāls</string>
-    <string name="is_latest_version">Šī ir jaunākā lietotnes versija</string>
     <string name="preview_feed_name">Reddit</string>
     <string name="value">vērtība</string>
     <string name="top_bar">Augšējā josla</string>
@@ -78,14 +77,9 @@
     <string name="appearance">Izskats</string>
     <string name="off">Izslēgts</string>
     <string name="primary_color">Pamatkrāsa</string>
-    <string name="update_link">https://api.github.com/repos/ReadYouApp/ReadYou/releases/latest</string>
-    <string name="update">Atjaunināt</string>
-    <string name="skip_this_version">Izlaist šo versiju</string>
-    <string name="download_failure">Nevarēja lejupielādēt atjauninājumus</string>
     <string name="article_list">Rakstu saraksts</string>
     <string name="group_list">Grupu saraksts</string>
     <string name="always_expand">Vienmēr izvērst</string>
-    <string name="rate_limit">Pārsniegts pieprasījumu skaita ierobežojums</string>
     <string name="auto_hide_toolbars">Automātiski paslēpt rīkjoslas</string>
     <string name="rounded_corners">Noapaļoti stūri</string>
     <string name="justify">Izlīdzināt</string>
@@ -113,7 +107,6 @@
     <string name="mark_as_read">Atzīmēt kā lasītu</string>
     <string name="mark_as_read_seven_days">Atzīmēt kā lasītus, kas vecāki par 7 dienām</string>
     <string name="mark_as_read_three_days">Atzīmēt kā lasītus, kas vecāki par 3 dienām</string>
-    <string name="get_new_updates_desc">Pieejama jauna %1$s versija</string>
     <string name="close">Aizvērt</string>
     <string name="password">Parole</string>
     <string name="username">Lietotājvārds</string>

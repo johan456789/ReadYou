@@ -75,7 +75,6 @@
     <string name="three_days">3d</string>
     <string name="seven_days">7d</string>
     <string name="close">Stäng</string>
-    <string name="get_new_updates_desc">Version %1$s är tillgänglig</string>
     <string name="in_coding">Under utveckling</string>
     <string name="coming_soon">Kommer snart</string>
     <string name="accounts">Konton</string>
@@ -112,15 +111,7 @@
     <string name="reading_page">Lässida</string>
     <string name="sponsor">Sponsor</string>
     <string name="open_source_licenses">Öppen källkodslicenser</string>
-    <string name="update_link">https://api.github.com/repos/ReadYouApp/ReadYou/releases/latest</string>
     <string name="change_log">Ändringslogg</string>
-    <string name="update">Uppdatera</string>
-    <string name="skip_this_version">Hoppa Över Denna Version</string>
-    <string name="checking_updates">Kontrollerar uppdateringar…</string>
-    <string name="is_latest_version">Det här är senaste versionen</string>
-    <string name="check_failure">Kunde inte kontrollera uppdateringar</string>
-    <string name="download_failure">Kunde inte hämta uppdateringar</string>
-    <string name="rate_limit">Begränsad mängd för begäran</string>
     <string name="help">Hjälp</string>
     <string name="on_start">Vid Uppstart</string>
     <string name="initial_page">Förstasida</string>
@@ -183,7 +174,6 @@
     <string name="clear_articles_in_group_toast">Rensade alla arkiverade artiklar i gruppen \"%1$s\"</string>
     <string name="clear_articles_group_tips">Rensa alla arkiverade artiklar i gruppen \"%1$s\".</string>
     <string name="tips_and_support">Råd &amp; hjälp</string>
-    <string name="get_new_updates">Hämta nya uppdateringar</string>
     <string name="tips_and_support_desc">Om, öppen källkodlicenser</string>
     <string name="use_device_languages">Använd enhetens språk</string>
     <string name="terms_of_service">Tjänstevillkor</string>

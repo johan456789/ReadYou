@@ -63,7 +63,6 @@
     <string name="three_days">3d</string>
     <string name="seven_days">7d</string>
     <string name="close">Zavrieť</string>
-    <string name="get_new_updates">Získať nové aktualizácie</string>
     <string name="in_coding">Vo vývoji</string>
     <string name="coming_soon">Už čoskoro</string>
     <string name="accounts">Účty</string>
@@ -104,7 +103,6 @@
     <string name="mark_as_read">Označiť ako prečítané</string>
     <string name="mark_as_unstar">Odobrať z obľúbených</string>
     <string name="mark_as_read_one_day">Označiť ako prečítané staršie ako 1 deň</string>
-    <string name="get_new_updates_desc">K dispozícii je nová verzia %1$s</string>
     <string name="interaction">Použitie</string>
     <string name="interaction_desc">Úvodná stránka, gestá</string>
     <string name="tips_and_support">Tipy a podpora</string>
@@ -137,10 +135,6 @@
     <string name="unexpected_error_msg">V aplikácii sa vyskytla neočakávaná chyba a zavrela sa. \n \nAk nám chcete pomôcť tento problém rýchlo identifikovať a opraviť, môžete odoslať %1$s pomocou hlásenia chýb nižšie.</string>
     <string name="all">Všetko</string>
     <string name="empty">Prázdne</string>
-    <string name="update">Aktualizovať</string>
-    <string name="skip_this_version">Preskočiť túto verziu</string>
-    <string name="checking_updates">Kontrola aktualizácií…</string>
-    <string name="is_latest_version">Toto je najnovšia verzia aplikácie</string>
     <string name="initial_page">Úvodná stránka</string>
     <string name="initial_filter">Predvolený filter</string>
     <string name="preview_article_title">Román Pán záhad sa konečne skončil</string>
@@ -167,8 +161,6 @@
     <string name="external_links">Externé odkazy</string>
     <string name="reading_page">Stránka čítania</string>
     <string name="flow_page">Stránka toku</string>
-    <string name="check_failure">Nepodarilo sa skontrolovať aktualizácie</string>
-    <string name="rate_limit">Počet požiadaviek je obmedzený</string>
     <string name="help">Pomoc</string>
     <string name="on_start">Pri spustení</string>
     <string name="value">hodnota</string>
@@ -241,8 +233,6 @@
     <string name="read_excluding_starred">Prečítané, okrem obľúbených</string>
     <string name="next_article">Ďalší článok</string>
     <string name="change_log">Zoznam zmien</string>
-    <string name="update_link">https://api.github.com/repos/ReadYouApp/ReadYou/releases/latest</string>
-    <string name="download_failure">Nepodarilo sa stiahnuť aktualizácie</string>
     <string name="preview_article_desc">Blázon je ôsmy a posledný diel série Pán záhad, ktorú napísala sépia, ktorá sa rada potápa.</string>
     <string name="preview_feed_name">Reddit</string>
     <string name="article_images">Obrázky článkov</string>

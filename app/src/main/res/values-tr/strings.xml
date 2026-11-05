@@ -87,10 +87,7 @@
     <string name="flow_page">Akış sayfası</string>
     <string name="sponsor">Sponsor</string>
     <string name="open_source_licenses">Açık kaynak lisansları</string>
-    <string name="update_link">https://api.github.com/repos/ReadYouApp/ReadYou/releases/latest</string>
     <string name="change_log">Değişim günlüğü</string>
-    <string name="is_latest_version">Bu, uygulamanın en son sürümüdür</string>
-    <string name="check_failure">Güncellemeler kontrol edilemedi</string>
     <string name="help">Yardım</string>
     <string name="on_start">Başlangıçta</string>
     <string name="value">değer</string>
@@ -137,7 +134,6 @@
     <string name="defaults">Varsayılan</string>
     <string name="search">Ara</string>
     <string name="deny">Reddet</string>
-    <string name="checking_updates">Güncellemeler kontrol ediliyor…</string>
     <string name="settings">Ayarlar</string>
     <string name="all_allow_notification_tips">\"%1$s\" grubundaki tüm beslemelerin bildirim göndermesine izin verin</string>
     <string name="clear_articles_group_tips">\"%1$s\" grubundaki tüm arşivlenmiş makaleleri temizleyin</string>
@@ -151,15 +147,12 @@
     <string name="coming_soon">Çok yakında</string>
     <string name="unsubscribe">Abonelikten Çık</string>
     <string name="unsubscribe_tips">\"%1$s\" aboneliğini iptal eder ve içindeki tüm arşivlenmiş makaleleri siler</string>
-    <string name="get_new_updates_desc">Yeni sürüm %1$s mevcut</string>
-    <string name="download_failure">Güncellemeler indirilemedi</string>
     <string name="delete_group">Grubu sil</string>
     <string name="today">Bugün</string>
     <string name="yesterday">Dün</string>
     <string name="date_at_time">%1$s %2$s</string>
     <string name="mark_as_starred">Yıldızlı olarak işaretle</string>
     <string name="close">Kapat</string>
-    <string name="get_new_updates">Yeni güncellemeleri al</string>
     <string name="only_android_8.1_plus">Yalnızca Android 8.1+</string>
     <string name="basic_colors">Temel renkler</string>
     <string name="color_and_style_desc">Tema, renk stili, yazı tipi boyutu</string>
@@ -170,8 +163,6 @@
     <string name="primary_color_hint">#666666 veya 666666 gibi</string>
     <string name="help_translate">Çeviriye yardım et</string>
     <string name="primary_color">Ana renk</string>
-    <string name="update">Güncelle</string>
-    <string name="rate_limit">Talep oranı sınırlı</string>
     <string name="initial_page">Başlangıç sayfası</string>
     <string name="initial_filter">Varsayılan filtre</string>
     <string name="preview_feed_name">Reddit</string>
@@ -184,7 +175,6 @@
     <string name="preview_article_desc">Budala, Dalmayı Seven Mürekkep Balığı tarafından yazılan Gizemlerin Efendisi serisinin sekizinci ve son cildidir.</string>
     <string name="reading_fonts">Yazı tiplerini okuma</string>
     <string name="reading_page">Okuma sayfası</string>
-    <string name="skip_this_version">Bu sürümü atla</string>
     <string name="feed_names">Besleme adları</string>
     <string name="top_bar">Üst çubuk</string>
     <string name="subhead">Alt başlık</string>

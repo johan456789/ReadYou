@@ -74,8 +74,6 @@
     <string name="three_days">3d</string>
     <string name="seven_days">7d</string>
     <string name="close">Đóng</string>
-    <string name="get_new_updates">Kiểm tra phiên bản</string>
-    <string name="get_new_updates_desc">Đã có phiên bản %1$s mới</string>
     <string name="in_coding">Lập trình</string>
     <string name="coming_soon">Sẽ sớm ra mắt</string>
     <string name="accounts">Tài khoản</string>
@@ -135,17 +133,9 @@
     <string name="tonal_elevation">Tông màu</string>
     <string name="sponsor">Tài trợ</string>
     <string name="open_source_licenses">Giấy phép mã nguồn mở</string>
-    <string name="update_link">https://api.github.com/repos/ReadYouApp/ReadYou/releases/latest</string>
     <string name="reading_page">Bài viết</string>
     <string name="flow_page">Danh sách bài viết</string>
     <string name="change_log">Có gì mới</string>
-    <string name="update">Cập nhật</string>
-    <string name="skip_this_version">Bỏ qua phiên bản này</string>
-    <string name="checking_updates">Đang kiểm tra cập nhật…</string>
-    <string name="is_latest_version">Bạn đang dùng phiên bản mới nhất</string>
-    <string name="check_failure">Không thể kiểm tra cập nhật</string>
-    <string name="download_failure">Không thể tải về bản cập nhật</string>
-    <string name="rate_limit">Giới hạn tần suất yêu cầu</string>
     <string name="help">Trợ giúp</string>
     <string name="on_start">Khi mở app</string>
     <string name="preview_article_title">Người dùng rủ nhau chuyển app khi Zalo bắt đầu thu phí</string>

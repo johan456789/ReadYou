@@ -54,19 +54,14 @@ import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.unit.Dp
 import androidx.compose.ui.unit.dp
 import androidx.graphics.shapes.Morph
-import androidx.hilt.lifecycle.viewmodel.compose.hiltViewModel
 import kotlinx.coroutines.launch
 import me.ash.reader.BuildConfig
 import me.ash.reader.R
 import me.ash.reader.infrastructure.preference.OpenLinkPreference
 import me.ash.reader.ui.component.base.FeedbackIconButton
 import me.ash.reader.ui.component.base.RYScaffold
-import me.ash.reader.ui.ext.PreferencesKey
-import me.ash.reader.ui.ext.dataStore
 import me.ash.reader.ui.ext.getCurrentVersion
 import me.ash.reader.ui.ext.openURL
-import me.ash.reader.ui.ext.put
-import me.ash.reader.ui.ext.showToast
 import me.ash.reader.ui.graphics.MorphPolygonShape
 import me.ash.reader.ui.theme.palette.alwaysLight
 import me.ash.reader.ui.theme.palette.onLight
@@ -90,7 +85,6 @@ private val ShapeGacha by lazy {
 @OptIn(ExperimentalMaterial3Api::class, ExperimentalMaterial3ExpressiveApi::class)
 @Composable
 fun TipsAndSupportPage(
-    updateViewModel: UpdateViewModel = hiltViewModel(),
     onBack: () -> Unit,
     navigateToLicenseList: () -> Unit,
 ) {
@@ -177,24 +171,6 @@ fun TipsAndSupportPage(
                                     view.performHapticFeedback(HapticFeedbackConstants.KEYBOARD_TAP)
                                     view.playSoundEffect(SoundEffectConstants.CLICK)
                                 },
-                                onTap = {
-                                    updateViewModel.checkUpdate(
-                                        {
-                                            context.showToast(context.getString(R.string.checking_updates))
-                                            context.dataStore.put(
-                                                PreferencesKey.skipVersionNumber,
-                                                ""
-                                            )
-                                        },
-                                        {
-                                            if (!it) {
-                                                context.showToast(
-                                                    context.getString(R.string.is_latest_version)
-                                                )
-                                            }
-                                        }
-                                    )
-                                }
                             )
                         },
                         horizontalAlignment = Alignment.CenterHorizontally,
@@ -303,7 +279,6 @@ fun TipsAndSupportPage(
         }
     )
 
-    UpdateDialog()
     if (showSponsorDialog) {
         SponsorDialog { showSponsorDialog = false }
     }

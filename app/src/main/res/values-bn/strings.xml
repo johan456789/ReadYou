@@ -95,8 +95,6 @@
     <string name="three_days">৩দিন</string>
     <string name="seven_days">৭দিন</string>
     <string name="close">বন্ধ করুন</string>
-    <string name="get_new_updates">হালনাগাদ পান</string>
-    <string name="get_new_updates_desc">নতুন সংস্করণ %1$s আছে</string>
     <string name="in_coding">অগ্রগতি চলছে</string>
     <string name="coming_soon">শীঘ্রই আসছে</string>
     <string name="accounts">অ্যাকাউন্ট সমূহ</string>
@@ -138,15 +136,7 @@
     <string name="reading_page">পড়ার পাতা</string>
     <string name="sponsor">পৃষ্ঠপোষক</string>
     <string name="open_source_licenses">ওপেন সোর্স লাইসেন্স</string>
-    <string name="update_link">https://api.github.com/repos/ReadYouApp/ReadYou/releases/latest</string>
     <string name="change_log">পরিবর্তন বিবরণী</string>
-    <string name="update">হালনাগাদ করুন</string>
-    <string name="skip_this_version">এই সংস্করণটি এড়িয়ে যান</string>
-    <string name="checking_updates">হালনাগাদের জন্য খোঁজা হচ্ছে…</string>
-    <string name="is_latest_version">এটি অ্যাপটির সর্বশেষ সংস্করণ</string>
-    <string name="check_failure">হালনাগাদের জন্য খোঁজা ব্যর্থ হয়েছে</string>
-    <string name="download_failure">হালনাগাদ গুলি ডাউনলোড করা যায়নি</string>
-    <string name="rate_limit">অনুরোধের হার সীমিত</string>
     <string name="help">সাহায্য</string>
     <string name="on_start">শুরুতে</string>
     <string name="initial_page">প্রারম্ভিক পৃষ্ঠা</string>

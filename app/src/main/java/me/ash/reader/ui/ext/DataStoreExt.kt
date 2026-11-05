@@ -24,8 +24,6 @@ import kotlinx.coroutines.withContext
 
 val Context.dataStore: DataStore<Preferences> by preferencesDataStore(name = "settings")
 
-val Context.skipVersionNumber: String
-    get() = this.dataStore.get(PreferencesKey.skipVersionNumber) ?: ""
 val Context.isFirstLaunch: Boolean
     get() = this.dataStore.get(PreferencesKey.isFirstLaunch) ?: true
 
@@ -131,12 +129,6 @@ sealed interface PreferencesKey {
 
         // Version
         const val isFirstLaunch = "isFirstLaunch"
-        const val newVersionPublishDate = "newVersionPublishDate"
-        const val newVersionLog = "newVersionLog"
-        const val newVersionSizeString = "newVersionSizeString"
-        const val newVersionDownloadUrl = "newVersionDownloadUrl"
-        const val newVersionNumber = "newVersionNumber"
-        const val skipVersionNumber = "skipVersionNumber"
         const val currentAccountId = "currentAccountId"
         const val currentAccountType = "currentAccountType"
         const val themeIndex = "themeIndex"
@@ -215,12 +207,6 @@ sealed interface PreferencesKey {
             listOf(
                 // Version
                 BooleanKey(isFirstLaunch),
-                StringKey(newVersionPublishDate),
-                StringKey(newVersionLog),
-                StringKey(newVersionSizeString),
-                StringKey(newVersionDownloadUrl),
-                StringKey(newVersionNumber),
-                StringKey(skipVersionNumber),
                 IntKey(currentAccountId),
                 IntKey(currentAccountType),
                 IntKey(themeIndex),

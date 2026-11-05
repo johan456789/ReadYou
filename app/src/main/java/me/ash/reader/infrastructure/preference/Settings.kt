@@ -1,19 +1,10 @@
 package me.ash.reader.infrastructure.preference
 
 import androidx.compose.runtime.compositionLocalOf
-import me.ash.reader.domain.model.general.Version
 
 val LocalSettings = compositionLocalOf { Settings() }
 
 data class Settings(
-    // Version
-    val newVersionNumber: Version = NewVersionNumberPreference.default,
-    val skipVersionNumber: Version = SkipVersionNumberPreference.default,
-    val newVersionPublishDate: String = NewVersionPublishDatePreference.default,
-    val newVersionLog: String = NewVersionLogPreference.default,
-    val newVersionSize: String = NewVersionSizePreference.default,
-    val newVersionDownloadUrl: String = NewVersionDownloadUrlPreference.default,
-
     // Theme
     val themeIndex: Int = ThemeIndexPreference.default,
     val customPrimaryColor: String = CustomPrimaryColorPreference.default,
