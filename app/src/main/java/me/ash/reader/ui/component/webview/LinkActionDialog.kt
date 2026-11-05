@@ -22,11 +22,6 @@ import androidx.compose.material3.Icon
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
-import androidx.compose.runtime.LaunchedEffect
-import androidx.compose.runtime.getValue
-import androidx.compose.runtime.mutableStateOf
-import androidx.compose.runtime.remember
-import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.graphics.vector.ImageVector
@@ -50,18 +45,6 @@ fun LinkActionDialog(
     val context = LocalContext.current
     val openLink = LocalOpenLink.current
     val openLinkSpecificBrowser = LocalOpenLinkSpecificBrowser.current
-    val titleResolverClient = remember { LinkTitleResolver.createClient() }
-    var title by remember(linkData?.url) { mutableStateOf(linkData?.fallbackTitle().orEmpty()) }
-
-    LaunchedEffect(visible, linkData?.url) {
-        val data = linkData
-        if (visible && data != null) {
-            title = data.fallbackTitle()
-            LinkTitleResolver.fetchTitle(data.url, titleResolverClient)?.let { resolvedTitle ->
-                title = resolvedTitle
-            }
-        }
-    }
 
     RYDialog(
         visible = visible && linkData != null,
@@ -74,7 +57,11 @@ fun LinkActionDialog(
         },
         title = {
             Text(
-                text = title,
+                // The link's own text (or the host as fallback). Everything in
+                // this dialog comes from the long-pressed link itself; nothing
+                // is fetched from the network, which would leak to the target.
+                text = linkData?.linkText?.takeIf { it.isNotBlank() }
+                    ?: linkData?.fallbackTitle().orEmpty(),
                 maxLines = 2,
                 overflow = TextOverflow.Ellipsis,
             )
