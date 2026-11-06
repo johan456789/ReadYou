@@ -61,6 +61,21 @@ constructor(
                             )
                             .build(),
                     )
+                    .then(
+                        // Reading insights: embed (Tier 2 pass-through for now),
+                        // then re-rank so the For You set reflects new articles.
+                        OneTimeWorkRequestBuilder<EmbedWorker>()
+                            .addTag(READER_TAG)
+                            .addTag(ONETIME_WORK_TAG)
+                            .build()
+                    )
+                    .then(
+                        OneTimeWorkRequestBuilder<RankWorker>()
+                            .addTag(READER_TAG)
+                            .addTag(ONETIME_WORK_TAG)
+                            .setInputData(workDataOf("accountId" to accountId))
+                            .build()
+                    )
                     .then(OneTimeWorkRequestBuilder<WidgetUpdateWorker>().build())
                     .enqueue()
             }
