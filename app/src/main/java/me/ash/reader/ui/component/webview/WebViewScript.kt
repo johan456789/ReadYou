@@ -173,13 +173,32 @@ var images = document.querySelectorAll("img");
 var article = document.querySelector("article");
 var columnWidth = article ? article.getBoundingClientRect().width : 412;
 
+function classifyImage(img) {
+    img.classList.toggle("thin", img.width <= columnWidth);
+}
+
+// The activity handles rotation and window resizes in place (configChanges),
+// so the column width captured at script run goes stale; re-measure and
+// re-classify every image when the viewport changes without a reload.
+function reclassifyImages() {
+    columnWidth = article ? article.getBoundingClientRect().width : 412;
+    images.forEach(function(img) {
+        img.classList.remove("thin"); // measure under the escape layout
+        classifyImage(img);
+    });
+}
+
+var resizeTimer = null;
+window.addEventListener("resize", function() {
+    if (resizeTimer) clearTimeout(resizeTimer);
+    resizeTimer = setTimeout(reclassifyImages, 200);
+});
+
 images.forEach(function(img) {
     img.onload = function() {
         img.classList.add("loaded");
         console.log("Image width:", img.width, "px");
-        if (img.width <= columnWidth) {
-            img.classList.add("thin");
-        }
+        classifyImage(img);
     };
 
     img.onerror = function() {
