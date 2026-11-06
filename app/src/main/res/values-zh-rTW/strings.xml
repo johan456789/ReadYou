@@ -136,6 +136,7 @@
     <string name="preview_feed_name">漩渦書院</string>
     <string name="value">值</string>
     <string name="horizontal_padding">水平邊距</string>
+    <string name="image_edge_padding">全寬圖片的邊緣邊距</string>
     <string name="article_date">文章發布時間</string>
     <string name="article_desc">文章描述</string>
     <string name="article_images">文章插圖</string>
