@@ -167,7 +167,9 @@ var images = document.querySelectorAll("img");
 // Images only escape the text column when the column is too narrow for them.
 // A hardcoded threshold made the alignment device-dependent (#118): on phones
 // every clamped image fell under it, while on tablets wide photos kept their
-// escaped position next to text padded far past them.
+// escaped position next to text padded far past them. Column-width images
+// (e.g. width: 100%) count as fitting: escaping them would keep the negative
+// margins and shift them to the image edge padding.
 var article = document.querySelector("article");
 var columnWidth = article ? article.getBoundingClientRect().width : 412;
 
@@ -175,7 +177,7 @@ images.forEach(function(img) {
     img.onload = function() {
         img.classList.add("loaded");
         console.log("Image width:", img.width, "px");
-        if (img.width < columnWidth) {
+        if (img.width <= columnWidth) {
             img.classList.add("thin");
         }
     };
