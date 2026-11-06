@@ -11,10 +11,17 @@ import me.ash.reader.domain.model.article.Article
 import me.ash.reader.domain.model.article.PendingReadStateOp
 import me.ash.reader.domain.model.feed.Feed
 import me.ash.reader.domain.model.group.Group
+import me.ash.reader.domain.model.insights.ArticleRank
+import me.ash.reader.domain.model.insights.ArticleVector
+import me.ash.reader.domain.model.insights.FeedPrior
+import me.ash.reader.domain.model.insights.RankerModel
+import me.ash.reader.domain.model.insights.ReadingEvent
+import me.ash.reader.domain.model.insights.ReadingSession
 import me.ash.reader.domain.repository.AccountDao
 import me.ash.reader.domain.repository.ArticleDao
 import me.ash.reader.domain.repository.FeedDao
 import me.ash.reader.domain.repository.GroupDao
+import me.ash.reader.domain.repository.InsightsDao
 import me.ash.reader.domain.repository.PendingReadStateOpDao
 import me.ash.reader.infrastructure.preference.*
 import me.ash.reader.ui.ext.toInt
@@ -28,8 +35,14 @@ import java.util.*
         Group::class,
         ArchivedArticle::class,
         PendingReadStateOp::class,
+        ReadingEvent::class,
+        ReadingSession::class,
+        ArticleVector::class,
+        ArticleRank::class,
+        FeedPrior::class,
+        RankerModel::class,
     ],
-    version = 13,
+    version = 14,
     autoMigrations = [
         AutoMigration(from = 5, to = 6),
         AutoMigration(from = 6, to = 7),
@@ -55,6 +68,7 @@ abstract class AndroidDatabase : RoomDatabase() {
     abstract fun articleDao(): ArticleDao
     abstract fun groupDao(): GroupDao
     abstract fun pendingReadStateOpDao(): PendingReadStateOpDao
+    abstract fun insightsDao(): InsightsDao
 
     companion object {
 
@@ -95,6 +109,7 @@ val allMigrations = arrayOf(
     MIGRATION_10_11,
     MIGRATION_11_12,
     MIGRATION_12_13,
+    MIGRATION_13_14,
 )
 
 @Suppress("ClassName")
@@ -349,6 +364,141 @@ object MIGRATION_12_13 : Migration(12, 13) {
         db.execSQL(
             "CREATE INDEX IF NOT EXISTS `index_pending_read_state_op_feedId` " +
                 "ON `pending_read_state_op` (`feedId`)"
+        )
+    }
+}
+
+@Suppress("ClassName")
+object MIGRATION_13_14 : Migration(13, 14) {
+
+    // Reading-insights tables (local reading recommender). All additive; no
+    // existing table is touched.
+    override fun migrate(db: SupportSQLiteDatabase) {
+        db.execSQL(
+            """
+            CREATE TABLE IF NOT EXISTS `reading_event` (
+                `id` INTEGER PRIMARY KEY AUTOINCREMENT NOT NULL,
+                `accountId` INTEGER NOT NULL,
+                `articleId` TEXT,
+                `feedId` TEXT,
+                `type` INTEGER NOT NULL,
+                `createdAt` INTEGER NOT NULL,
+                `durationMs` INTEGER,
+                `depth` REAL,
+                `position` INTEGER,
+                `context` INTEGER,
+                `url` TEXT,
+                `censored` INTEGER NOT NULL
+            )
+            """.trimIndent()
+        )
+        db.execSQL(
+            "CREATE INDEX IF NOT EXISTS `index_reading_event_accountId_createdAt` " +
+                "ON `reading_event` (`accountId`, `createdAt`)"
+        )
+        db.execSQL(
+            "CREATE INDEX IF NOT EXISTS `index_reading_event_articleId` " +
+                "ON `reading_event` (`articleId`)"
+        )
+        db.execSQL(
+            "CREATE INDEX IF NOT EXISTS `index_reading_event_type` " +
+                "ON `reading_event` (`type`)"
+        )
+
+        db.execSQL(
+            """
+            CREATE TABLE IF NOT EXISTS `reading_session` (
+                `id` INTEGER PRIMARY KEY AUTOINCREMENT NOT NULL,
+                `accountId` INTEGER NOT NULL,
+                `startedAt` INTEGER NOT NULL,
+                `endedAt` INTEGER NOT NULL,
+                `durationMs` INTEGER NOT NULL,
+                `entryPoint` INTEGER
+            )
+            """.trimIndent()
+        )
+        db.execSQL(
+            "CREATE INDEX IF NOT EXISTS `index_reading_session_accountId_startedAt` " +
+                "ON `reading_session` (`accountId`, `startedAt`)"
+        )
+
+        db.execSQL(
+            """
+            CREATE TABLE IF NOT EXISTS `article_vector` (
+                `articleId` TEXT NOT NULL,
+                `modelId` TEXT NOT NULL,
+                `accountId` INTEGER NOT NULL,
+                `feedId` TEXT NOT NULL,
+                `vector` BLOB NOT NULL,
+                `contentHash` INTEGER NOT NULL,
+                `createdAt` INTEGER NOT NULL,
+                PRIMARY KEY(`articleId`, `modelId`)
+            )
+            """.trimIndent()
+        )
+        db.execSQL(
+            "CREATE INDEX IF NOT EXISTS `index_article_vector_accountId` " +
+                "ON `article_vector` (`accountId`)"
+        )
+
+        db.execSQL(
+            """
+            CREATE TABLE IF NOT EXISTS `article_rank` (
+                `articleId` TEXT NOT NULL,
+                `accountId` INTEGER NOT NULL,
+                `feedId` TEXT NOT NULL,
+                `modelId` TEXT,
+                `pOpen` REAL NOT NULL,
+                `predictedMinutes` REAL NOT NULL,
+                `score` REAL NOT NULL,
+                `sim` REAL,
+                `feedPrior` REAL,
+                `freshness` REAL,
+                `lengthFit` REAL,
+                `exploration` INTEGER NOT NULL,
+                `admitted` INTEGER NOT NULL,
+                `expectedReadMs` INTEGER NOT NULL,
+                `computedAt` INTEGER NOT NULL,
+                PRIMARY KEY(`articleId`)
+            )
+            """.trimIndent()
+        )
+        db.execSQL(
+            "CREATE INDEX IF NOT EXISTS `index_article_rank_accountId_admitted_score` " +
+                "ON `article_rank` (`accountId`, `admitted`, `score`)"
+        )
+
+        db.execSQL(
+            """
+            CREATE TABLE IF NOT EXISTS `feed_prior` (
+                `accountId` INTEGER NOT NULL,
+                `feedId` TEXT NOT NULL,
+                `decayedImpressions` REAL NOT NULL,
+                `decayedOpens` REAL NOT NULL,
+                `decayedEngagedOpens` REAL NOT NULL,
+                `decayedLogDwellSum` REAL NOT NULL,
+                `updatedAt` INTEGER NOT NULL,
+                PRIMARY KEY(`accountId`, `feedId`)
+            )
+            """.trimIndent()
+        )
+
+        db.execSQL(
+            """
+            CREATE TABLE IF NOT EXISTS `ranker_model` (
+                `id` INTEGER PRIMARY KEY AUTOINCREMENT NOT NULL,
+                `accountId` INTEGER NOT NULL,
+                `stage` INTEGER NOT NULL,
+                `featureVersion` INTEGER NOT NULL,
+                `weights` BLOB NOT NULL,
+                `trainSamples` INTEGER NOT NULL,
+                `trainedAt` INTEGER NOT NULL
+            )
+            """.trimIndent()
+        )
+        db.execSQL(
+            "CREATE INDEX IF NOT EXISTS `index_ranker_model_accountId_stage` " +
+                "ON `ranker_model` (`accountId`, `stage`)"
         )
     }
 }
