@@ -86,6 +86,7 @@ import me.ash.reader.R
 import me.ash.reader.domain.data.PagerData
 import me.ash.reader.domain.model.article.ArticleFlowItem
 import me.ash.reader.domain.model.article.ArticleWithFeed
+import me.ash.reader.infrastructure.compose.LocalReadingInsights
 import me.ash.reader.infrastructure.preference.LocalFlowArticleListDateStickyHeader
 import me.ash.reader.infrastructure.preference.LocalFlowArticleListFeedIcon
 import me.ash.reader.infrastructure.preference.LocalFlowArticleListFeedName
@@ -154,6 +155,7 @@ fun FlowPage(
 
     val openLink = LocalOpenLink.current
     val openLinkSpecificBrowser = LocalOpenLinkSpecificBrowser.current
+    val insights = LocalReadingInsights.current
 
     val settings = LocalSettings.current
     val pullToSwitchFeed = settings.pullToSwitchFeed
@@ -677,6 +679,22 @@ fun FlowPage(
                         }
                     }
 
+                    // Reading insights: title-card exposure in the unread flow
+                    // (the natural "decide what to read" surface). The recorder
+                    // enforces the >=1s visible-before-counting rule; positions
+                    // feed the position-bias feature at training time.
+                    if (filterState.filter.isUnread()) {
+                        LaunchedEffect(listState) {
+                            snapshotFlow {
+                                listState.layoutInfo.visibleItemsInfo
+                                    .filter { it.contentType == CONTENT_TYPE_ARTICLE }
+                                    .mapNotNull { info ->
+                                        (info.key as? String)?.let { id -> id to info.index }
+                                    }
+                            }.collect { visible -> insights?.noteVisibleArticleIds(visible) }
+                        }
+                    }
+
                     val listState = remember(pager) { listState }
 
                     val isSyncing by rememberUpdatedState(isSyncing)
@@ -801,6 +819,14 @@ fun FlowPage(
                                         viewModel.diffMapHolder.updateDiff(
                                             articleWithFeed,
                                             markRead = true,
+                                        )
+                                        // Reading insights: the article itself opens
+                                        // in the browser — full away-time attribution.
+                                        insights?.onLinkOut(
+                                            url = articleWithFeed.article.link,
+                                            articleId = articleWithFeed.article.id,
+                                            isArticleSelf = true,
+                                            durable = true,
                                         )
                                         context.openURL(
                                             articleWithFeed.article.link,

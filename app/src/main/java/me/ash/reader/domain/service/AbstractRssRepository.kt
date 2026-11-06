@@ -19,6 +19,7 @@ import me.ash.reader.domain.model.article.ArticleWithFeed
 import me.ash.reader.domain.model.feed.Feed
 import me.ash.reader.domain.model.group.Group
 import me.ash.reader.domain.model.group.GroupWithFeed
+import me.ash.reader.domain.model.insights.ReadingEventContext
 import me.ash.reader.domain.repository.ArticleDao
 import me.ash.reader.domain.repository.FeedDao
 import me.ash.reader.domain.repository.GroupDao
@@ -39,6 +40,7 @@ abstract class AbstractRssRepository(
     private val dispatcherIO: CoroutineDispatcher,
     private val dispatcherDefault: CoroutineDispatcher,
     private val accountService: AccountService,
+    private val insightsRecorder: ReadingInsightsRecorder,
 ) {
 
     open val importSubscription: Boolean = true
@@ -168,6 +170,34 @@ abstract class AbstractRssRepository(
                 articleDao.markAllAsRead(accountId, isRead = markRead, before ?: Date(Long.MAX_VALUE))
             }
         }
+        // Reading insights: bulk marks are batch-level evidence (feed priors
+        // only); single marks are per-article events.
+        if (markRead) {
+            when {
+                groupId != null -> insightsRecorder.onMarkReadBulk(
+                    scope = ReadingEventContext.MARK_SCOPE_GROUP,
+                    feedId = null,
+                    groupId = groupId,
+                    affectedCount = affectedIds.size,
+                )
+                feedId != null -> insightsRecorder.onMarkReadBulk(
+                    scope = ReadingEventContext.MARK_SCOPE_FEED,
+                    feedId = feedId,
+                    groupId = null,
+                    affectedCount = affectedIds.size,
+                )
+                articleId != null -> insightsRecorder.onMarkReadSingle(
+                    articleId = articleId,
+                    feedId = null,
+                )
+                else -> insightsRecorder.onMarkReadBulk(
+                    scope = ReadingEventContext.MARK_SCOPE_ALL,
+                    feedId = null,
+                    groupId = null,
+                    affectedCount = affectedIds.size,
+                )
+            }
+        }
         return affectedIds
     }
 
@@ -179,6 +209,14 @@ abstract class AbstractRssRepository(
             ?.forEachIndexed { index, it ->
                 articleDao.markAsReadByIdSet(accountId, it.toSet(), markRead)
             }
+        if (markRead && articleIds.isNotEmpty()) {
+            insightsRecorder.onMarkReadBulk(
+                scope = ReadingEventContext.MARK_SCOPE_BATCH,
+                feedId = null,
+                groupId = null,
+                affectedCount = articleIds.size,
+            )
+        }
     }
 
     open suspend fun syncReadStatus(articleIds: Set<String>, markRead: Boolean): Set<String> {
@@ -189,6 +227,7 @@ abstract class AbstractRssRepository(
     open suspend fun markAsStarred(articleId: String, isStarred: Boolean) {
         val accountId = accountService.getCurrentAccountId()
         articleDao.markAsStarredByArticleId(accountId, articleId, isStarred)
+        insightsRecorder.onToggleStarred(articleId = articleId, feedId = null, isStarred = isStarred)
     }
 
     suspend fun clearKeepArchivedArticles(): List<Article> {

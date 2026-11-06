@@ -22,6 +22,7 @@ import androidx.compose.runtime.setValue
 import androidx.core.app.NotificationManagerCompat
 import androidx.core.util.Consumer
 import androidx.hilt.lifecycle.viewmodel.compose.hiltViewModel
+import androidx.lifecycle.lifecycleScope
 import androidx.navigation3.runtime.NavBackStack
 import androidx.navigation3.runtime.NavKey
 import androidx.navigation3.runtime.rememberNavBackStack
@@ -34,7 +35,9 @@ import javax.inject.Inject
 import kotlinx.coroutines.delay
 import kotlinx.coroutines.launch
 import me.ash.reader.domain.data.FilterStateUseCase
+import me.ash.reader.domain.model.insights.SessionEntryPoint
 import me.ash.reader.domain.service.AccountService
+import me.ash.reader.domain.service.ReadingInsightsRecorder
 import me.ash.reader.domain.service.RssService
 import me.ash.reader.domain.service.SyncWorker
 import me.ash.reader.domain.service.WidgetUpdateWorker
@@ -68,6 +71,10 @@ class MainActivity : AppCompatActivity() {
     @Inject lateinit var filterUseCase: FilterStateUseCase
 
     @Inject lateinit var rssService: RssService
+
+    @Inject lateinit var readingInsightsRecorder: ReadingInsightsRecorder
+
+    private var firstAppStart = true
 
     companion object {
         /** Unique per process. Used to detect process death vs. configuration change. */
@@ -114,7 +121,7 @@ class MainActivity : AppCompatActivity() {
                 settingsProvider.ProvidesSettings {
                     val subscribeViewModel: SubscribeViewModel = hiltViewModel()
 
-                    ProvideCompositionLocals {
+                    ProvideCompositionLocals(insightsRecorder = readingInsightsRecorder) {
                         AppTheme(useDarkTheme = LocalDarkTheme.current.isDarkTheme()) {
                             val isFirstLaunch = remember { isFirstLaunch }
                             val initialPage = remember { initialPage }
@@ -273,6 +280,21 @@ class MainActivity : AppCompatActivity() {
             addOnNewIntentListener(listener)
             onDispose { removeOnNewIntentListener(listener) }
         }
+    }
+
+    override fun onStart() {
+        super.onStart()
+        readingInsightsRecorder.onAppForeground(
+            if (firstAppStart) SessionEntryPoint.COLD_START else SessionEntryPoint.UNKNOWN
+        )
+        firstAppStart = false
+        // Reading insights: credit away time for links opened into the browser.
+        lifecycleScope.launch { readingInsightsRecorder.reconcileLinkOuts() }
+    }
+
+    override fun onStop() {
+        readingInsightsRecorder.onAppBackground()
+        super.onStop()
     }
 
     override fun onResume() {

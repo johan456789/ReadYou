@@ -42,6 +42,7 @@ constructor(
     private val workManager: WorkManager,
     private val accountService: AccountService,
     private val syncLogger: SyncLogger,
+    private val insightsRecorder: ReadingInsightsRecorder,
 ) :
     AbstractRssRepository(
         articleDao,
@@ -53,6 +54,7 @@ constructor(
         ioDispatcher,
         defaultDispatcher,
         accountService,
+        insightsRecorder,
     ) {
 
     override val syncAfterSubscribe: Boolean = false
