@@ -717,9 +717,17 @@ fun FlowPage(
                                         (info.key as? String)?.let { it to info.index }
                                     }
                             }.collect { visible ->
+                                // Resolve feed ids from the snapshot list ONCE —
+                                // LazyPagingItems.peek throws when the snapshot
+                                // resets under a stale layout index, and two
+                                // separate reads (size + peek) can race a paging
+                                // update. getOrNull + id check: never crashes,
+                                // never misattributes.
+                                val items = pagingItems.itemSnapshotList.items
                                 insights?.noteVisibleArticleIds(
                                     visible.mapNotNull { (id, index) ->
-                                        (pagingItems.peek(index) as? ArticleFlowItem.Article)
+                                        (items.getOrNull(index) as? ArticleFlowItem.Article)
+                                            ?.takeIf { it.articleWithFeed.article.id == id }
                                             ?.let {
                                                 VisibleCard(
                                                     articleId = id,

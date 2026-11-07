@@ -4,6 +4,7 @@ import android.Manifest
 import android.content.Intent
 import android.os.SystemClock
 import androidx.datastore.preferences.core.edit
+import androidx.work.WorkManager
 import androidx.test.core.app.ActivityScenario
 import androidx.test.ext.junit.runners.AndroidJUnit4
 import androidx.test.platform.app.InstrumentationRegistry
@@ -21,6 +22,7 @@ import me.ash.reader.domain.model.account.security.GoogleReaderSecurityKey
 import me.ash.reader.domain.model.article.Article
 import me.ash.reader.domain.model.feed.Feed
 import me.ash.reader.domain.model.group.Group
+import me.ash.reader.domain.service.RankWorker
 import me.ash.reader.domain.service.RssService
 import me.ash.reader.infrastructure.android.MainActivity
 import me.ash.reader.infrastructure.db.AndroidDatabase
@@ -70,6 +72,25 @@ class FreshRssSyncE2eTest {
     @Before
     fun setUp() {
         GoogleReaderAPI.clearInstance()
+        // Reading insights workers write in the background (a rank pass is
+        // triggered on session end and runs within seconds of the previous
+        // test closing the activity). Cancel them and wait for in-flight work
+        // to reach a terminal state BEFORE wiping the database, otherwise the
+        // clear/seed races the writer and the freshly seeded article can be
+        // invisible to the flow pager.
+        val workManager = WorkManager.getInstance(targetContext)
+        workManager.cancelAllWorkByTag(RankWorker.INSIGHTS_WORK_TAG)
+        assertTrue(
+            "Insights workers did not quiesce before the test database reset",
+            waitForCondition(10_000) {
+                runBlocking {
+                    workManager
+                        .getWorkInfosByTag(RankWorker.INSIGHTS_WORK_TAG)
+                        .get()
+                        .all { it.state.isFinished }
+                }
+            },
+        )
         database.clearAllTables()
         clearPreferences()
         targetContext.cacheDir.resolve("diff").deleteRecursively()
