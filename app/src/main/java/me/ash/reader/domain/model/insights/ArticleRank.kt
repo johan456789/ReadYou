@@ -67,3 +67,9 @@ data class ArticleFeedRef(
     val id: String,
     val feedId: String,
 )
+
+/** Article-id → publish-date lookup for freshness features at training time. */
+data class ArticleDateRef(
+    val id: String,
+    val date: Date,
+)

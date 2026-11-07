@@ -39,6 +39,7 @@ import me.ash.reader.domain.model.insights.SessionEntryPoint
 import me.ash.reader.domain.service.AccountService
 import me.ash.reader.domain.service.ReadingInsightsRecorder
 import me.ash.reader.domain.service.RssService
+import me.ash.reader.domain.service.TrainWorker
 import me.ash.reader.domain.service.SyncWorker
 import me.ash.reader.domain.service.WidgetUpdateWorker
 import me.ash.reader.infrastructure.compose.ProvideCompositionLocals
@@ -84,6 +85,9 @@ class MainActivity : AppCompatActivity() {
     override fun onCreate(savedInstanceState: Bundle?) {
         super.onCreate(savedInstanceState)
         Timber.tag("RLog").i("onCreate: ${ProfileInstallerInitializer().create(this)}")
+
+        // Reading insights: nightly on-device ranker training (charging+idle).
+        TrainWorker.enqueuePeriodicWork(workManager)
 
         enableEdgeToEdge()
 

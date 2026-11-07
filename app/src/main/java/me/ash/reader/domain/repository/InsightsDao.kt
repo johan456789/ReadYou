@@ -7,6 +7,7 @@ import androidx.room.Transaction
 import androidx.room.Upsert
 import kotlinx.coroutines.flow.Flow
 import me.ash.reader.domain.model.insights.ArticleContent
+import me.ash.reader.domain.model.insights.ArticleDateRef
 import me.ash.reader.domain.model.insights.ArticleFeedRef
 import me.ash.reader.domain.model.insights.ArticleRank
 import me.ash.reader.domain.model.insights.FeedPrior
@@ -79,6 +80,15 @@ interface InsightsDao {
         """
     )
     suspend fun queryFeedIdsForArticles(ids: List<String>): List<ArticleFeedRef>
+
+    /** Publish dates for freshness features at training time. */
+    @Query(
+        """
+        SELECT id, date FROM article
+        WHERE id IN (:ids)
+        """
+    )
+    suspend fun queryArticleDatesForArticles(ids: List<String>): List<ArticleDateRef>
 
     @Query("UPDATE reading_event SET durationMs = :durationMs WHERE id IN (:ids)")
     suspend fun updateEventDurationMs(ids: Set<Long>, durationMs: Long)
@@ -219,6 +229,9 @@ interface InsightsDao {
 
     @Query("DELETE FROM ranker_model WHERE accountId = :accountId")
     suspend fun deleteModelsForAccount(accountId: Int)
+
+    @Query("DELETE FROM ranker_model WHERE accountId = :accountId AND trainedAt < :cutoff")
+    suspend fun deleteModelsBefore(accountId: Int, cutoff: Date)
 
     @Query("DELETE FROM article_vector WHERE accountId = :accountId")
     suspend fun deleteVectorsForAccount(accountId: Int)
