@@ -39,7 +39,7 @@ data class ReadingEvent(
     val position: Int? = null,
     /** Bitmask of [ReadingEventContext] flags; meaning depends on [type]. */
     val context: Int? = null,
-    /** LINK_OUT: target url. */
+    /** LINK_OUT: target url. MARK_READ_BULK: scope payload, e.g. "group:<id>". */
     val url: String? = null,
     /** DWELL truncated by the app leaving foreground (user may have kept reading elsewhere). */
     val censored: Boolean = false,
@@ -74,6 +74,9 @@ object ReadingEventContext {
     const val LINK_SELF = 1
     const val LINK_INLINE = 2
 
+    // Open context
+    const val OPEN_SOURCE_SWIPE = 256
+
     // Bulk mark scope
     const val MARK_SCOPE_FEED = 4
     const val MARK_SCOPE_GROUP = 8
@@ -83,4 +86,5 @@ object ReadingEventContext {
     // Where a mark action came from
     const val MARK_SOURCE_LIST = 64
     const val MARK_SOURCE_READER = 128
+    const val MARK_SOURCE_SCROLL = 512
 }

@@ -52,7 +52,6 @@ internal class AppUriHandler(
                     url = url,
                     articleId = null,
                     isArticleSelf = false,
-                    durable = true,
                 )
                 val uri = url.trim { it.isWhitespace() || it == '\n' }.toUri()
                 val intent = Intent(Intent.ACTION_VIEW, uri)

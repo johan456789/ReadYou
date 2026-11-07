@@ -87,6 +87,8 @@ import me.ash.reader.domain.data.PagerData
 import me.ash.reader.domain.model.article.ArticleFlowItem
 import me.ash.reader.domain.model.article.ArticleWithFeed
 import me.ash.reader.infrastructure.compose.LocalReadingInsights
+import me.ash.reader.domain.model.insights.ReadingEventContext
+import me.ash.reader.domain.service.VisibleCard
 import me.ash.reader.infrastructure.preference.LocalFlowArticleListDateStickyHeader
 import me.ash.reader.infrastructure.preference.LocalFlowArticleListFeedIcon
 import me.ash.reader.infrastructure.preference.LocalFlowArticleListFeedName
@@ -229,7 +231,19 @@ fun FlowPage(
     }
 
     val onToggleRead: (ArticleWithFeed) -> Unit = remember {
-        { articleWithFeed -> viewModel.diffMapHolder.updateDiff(articleWithFeed) }
+        { articleWithFeed ->
+            // Reading insights: an explicit per-card read toggle is the
+            // strongest per-article negative — never logged via the deferred
+            // commit path, which cannot tell intent.
+            if (!viewModel.diffMapHolder.checkIfRead(articleWithFeed)) {
+                insights?.onMarkReadSingle(
+                    articleId = articleWithFeed.article.id,
+                    feedId = articleWithFeed.feed.id,
+                    source = ReadingEventContext.MARK_SOURCE_LIST,
+                )
+            }
+            viewModel.diffMapHolder.updateDiff(articleWithFeed)
+        }
     }
 
     val showUndoSnackbarForItems: (MarkedReadUndoAction) -> Unit =
@@ -664,6 +678,17 @@ fun FlowPage(
                                         articleWithFeed = items.toTypedArray(),
                                         markRead = true,
                                     )
+                                    // Reading insights: swept-past items were
+                                    // already impressed, so the per-article
+                                    // negatives exist via IMPRESSION events —
+                                    // this batch event is the intent marker.
+                                    insights?.onMarkReadBulk(
+                                        scope = ReadingEventContext.MARK_SCOPE_BATCH,
+                                        feedId = null,
+                                        groupId = null,
+                                        affectedCount = items.size,
+                                        source = ReadingEventContext.MARK_SOURCE_SCROLL,
+                                    )
                                 }
                             }
                         }
@@ -689,9 +714,22 @@ fun FlowPage(
                                 listState.layoutInfo.visibleItemsInfo
                                     .filter { it.contentType == CONTENT_TYPE_ARTICLE }
                                     .mapNotNull { info ->
-                                        (info.key as? String)?.let { id -> id to info.index }
+                                        (info.key as? String)?.let { it to info.index }
                                     }
-                            }.collect { visible -> insights?.noteVisibleArticleIds(visible) }
+                            }.collect { visible ->
+                                insights?.noteVisibleArticleIds(
+                                    visible.mapNotNull { (id, index) ->
+                                        (pagingItems.peek(index) as? ArticleFlowItem.Article)
+                                            ?.let {
+                                                VisibleCard(
+                                                    articleId = id,
+                                                    feedId = it.articleWithFeed.feed.id,
+                                                    position = index,
+                                                )
+                                            }
+                                    }
+                                )
+                            }
                         }
                     }
 
@@ -820,13 +858,17 @@ fun FlowPage(
                                             articleWithFeed,
                                             markRead = true,
                                         )
-                                        // Reading insights: the article itself opens
-                                        // in the browser — full away-time attribution.
+                                        // Reading insights: the article itself is
+                                        // consumed in the browser — an OPEN with
+                                        // full attribution, not a silent feed.
+                                        insights?.onOpenExternal(
+                                            articleId = articleWithFeed.article.id,
+                                            feedId = articleWithFeed.feed.id,
+                                        )
                                         insights?.onLinkOut(
                                             url = articleWithFeed.article.link,
                                             articleId = articleWithFeed.article.id,
                                             isArticleSelf = true,
-                                            durable = true,
                                         )
                                         context.openURL(
                                             articleWithFeed.article.link,

@@ -23,6 +23,7 @@ import me.ash.reader.domain.model.insights.ReadingEventContext
 import me.ash.reader.domain.repository.ArticleDao
 import me.ash.reader.domain.repository.FeedDao
 import me.ash.reader.domain.repository.GroupDao
+import me.ash.reader.domain.repository.InsightsDao
 import me.ash.reader.infrastructure.android.NotificationHelper
 import me.ash.reader.infrastructure.preference.KeepArchivedPreference
 import me.ash.reader.infrastructure.preference.SyncIntervalPreference
@@ -41,6 +42,7 @@ abstract class AbstractRssRepository(
     private val dispatcherDefault: CoroutineDispatcher,
     private val accountService: AccountService,
     private val insightsRecorder: ReadingInsightsRecorder,
+    private val insightsDao: InsightsDao,
 ) {
 
     open val importSubscription: Boolean = true
@@ -171,32 +173,46 @@ abstract class AbstractRssRepository(
             }
         }
         // Reading insights: bulk marks are batch-level evidence (feed priors
-        // only); single marks are per-article events.
-        if (markRead) {
-            when {
-                groupId != null -> insightsRecorder.onMarkReadBulk(
-                    scope = ReadingEventContext.MARK_SCOPE_GROUP,
-                    feedId = null,
-                    groupId = groupId,
-                    affectedCount = affectedIds.size,
-                )
-                feedId != null -> insightsRecorder.onMarkReadBulk(
-                    scope = ReadingEventContext.MARK_SCOPE_FEED,
+        // only) — logged once per affected feed. Single marks are per-article
+        // events. The deferred-diff commit path (batchMarkAsRead) does NOT log:
+        // it cannot tell user intent (swipe vs auto-read vs replay), so intent
+        // is captured at the UI sites instead.
+        if (markRead && affectedIds.isNotEmpty()) {
+            val scope =
+                when {
+                    groupId != null -> ReadingEventContext.MARK_SCOPE_GROUP
+                    feedId != null -> ReadingEventContext.MARK_SCOPE_FEED
+                    else -> ReadingEventContext.MARK_SCOPE_ALL
+                }
+            val feedCounts =
+                insightsDao
+                    .queryFeedIdsForArticles(affectedIds.toList())
+                    .groupingBy { it.feedId }
+                    .eachCount()
+            if (scope == ReadingEventContext.MARK_SCOPE_FEED) {
+                insightsRecorder.onMarkReadBulk(
+                    scope = scope,
                     feedId = feedId,
                     groupId = null,
                     affectedCount = affectedIds.size,
                 )
-                articleId != null -> insightsRecorder.onMarkReadSingle(
-                    articleId = articleId,
-                    feedId = null,
-                )
-                else -> insightsRecorder.onMarkReadBulk(
-                    scope = ReadingEventContext.MARK_SCOPE_ALL,
-                    feedId = null,
-                    groupId = null,
-                    affectedCount = affectedIds.size,
-                )
+            } else {
+                for ((perFeedId, count) in feedCounts) {
+                    insightsRecorder.onMarkReadBulk(
+                        scope = scope,
+                        feedId = perFeedId,
+                        groupId = groupId,
+                        affectedCount = count,
+                    )
+                }
             }
+        }
+        if (markRead && articleId != null) {
+            insightsRecorder.onMarkReadSingle(
+                articleId = articleId,
+                feedId = feedId,
+                source = 0, // repository cannot know the surface; training treats as unknown
+            )
         }
         return affectedIds
     }
@@ -209,14 +225,9 @@ abstract class AbstractRssRepository(
             ?.forEachIndexed { index, it ->
                 articleDao.markAsReadByIdSet(accountId, it.toSet(), markRead)
             }
-        if (markRead && articleIds.isNotEmpty()) {
-            insightsRecorder.onMarkReadBulk(
-                scope = ReadingEventContext.MARK_SCOPE_BATCH,
-                feedId = null,
-                groupId = null,
-                affectedCount = articleIds.size,
-            )
-        }
+        // No insight logging here: this path serves deferred diff commits, the
+        // auto-read-on-open, and op replays — none carry user intent. Mark
+        // intent is recorded at the UI sites that produce it.
     }
 
     open suspend fun syncReadStatus(articleIds: Set<String>, markRead: Boolean): Set<String> {

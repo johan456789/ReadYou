@@ -53,6 +53,16 @@ object ExpectedReadTime {
         return ms.toLong().coerceIn(FLOOR_MS, CAP_MS)
     }
 
+    /**
+     * Length-only estimate used to pre-rank candidates without loading their
+     * content (~80 ms/char sits between the alphabetic and CJK rates). The
+     * refine pass replaces it with the content-based [estimateMs] for the
+     * articles that matter; this exists so the cheap scan stays memory-safe
+     * (see RankWorker).
+     */
+    fun estimateFromLengthMs(chars: Int): Long =
+        (chars * 80.0).toLong().coerceIn(FLOOR_MS, CAP_MS)
+
     private fun isCjk(ch: Char): Boolean {
         val c = ch.code
         return c in 0x4E00..0x9FFF || // CJK unified ideographs

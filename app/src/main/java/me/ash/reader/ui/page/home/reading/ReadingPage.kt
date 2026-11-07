@@ -148,22 +148,25 @@ fun ReadingPage(
     val actionsTargetDisplayed =
         readingUiState.articleWithFeed?.article?.id?.let { it == actionArticleId } ?: true
 
-    // Reading insights: per-article dwell and scroll capture. The pager swaps
-    // articles under the same reader, so enter/exit is tracked per visible
-    // article; the recorder flushes the previous article's dwell on switch.
+    // Reading insights: per-article dwell and scroll capture. Tracking keys on
+    // the committed article (readerState), not the drag-start slot — a cancelled
+    // swipe must not log an OPEN for an article the user never landed on.
+    // The recorder flushes the previous article's dwell on switch.
     val insights = LocalReadingInsights.current
     val scrollDepthHolder = remember { floatArrayOf(0f) }
     var lastTrackedArticleId by remember { mutableStateOf<String?>(null) }
-    LaunchedEffect(actionArticleId) {
+    LaunchedEffect(readerState.articleId) {
         val previous = lastTrackedArticleId
-        if (previous != null && previous != actionArticleId) {
+        if (previous != null && previous != readerState.articleId) {
             insights?.onExitReader(scrollDepthHolder[0])
+            scrollDepthHolder[0] = 0f
         }
-        lastTrackedArticleId = actionArticleId
-        actionArticleId?.let { articleId ->
+        lastTrackedArticleId = readerState.articleId
+        readerState.articleId?.let { articleId ->
             insights?.onEnterReader(
                 articleId = articleId,
                 feedId = readingUiState.articleWithFeed?.article?.feedId,
+                isSwipe = previous != null,
             )
         }
     }

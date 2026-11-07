@@ -14,7 +14,7 @@ import me.ash.reader.domain.model.insights.ArticleRank
 import me.ash.reader.domain.model.insights.ExpectedReadTime
 import me.ash.reader.domain.model.insights.FeedPrior
 import me.ash.reader.domain.model.insights.ReadingEventType
-import me.ash.reader.domain.model.insights.UnreadArticleMeta
+import me.ash.reader.domain.model.insights.UnreadArticleShallow
 import me.ash.reader.domain.repository.InsightsDao
 import timber.log.Timber
 import java.util.Date
@@ -47,7 +47,8 @@ constructor(
     override suspend fun doWork(): Result {
         val accountId =
             inputData.getInt("accountId", -1).takeIf { it != -1 }
-                ?: accountService.getCurrentAccountId()
+                ?: accountService.currentAccountIdFlow.value
+                ?: return Result.success() // onboarding: no account yet, nothing to rank
         // A ranking failure must never fail the surrounding sync chain.
         runCatching { rank(accountId) }
             .onFailure { Timber.tag(TAG).e(it, "Ranking failed for account %d", accountId) }
@@ -55,7 +56,7 @@ constructor(
     }
 
     private data class Candidate(
-        val meta: UnreadArticleMeta,
+        val meta: UnreadArticleShallow,
         val rank: ArticleRank,
     )
 
@@ -71,10 +72,7 @@ constructor(
         if (priors.isNotEmpty()) insightsDao.upsertFeedPriors(priors)
         val priorByFeed = priors.associateBy { it.feedId }
 
-        val candidates =
-            insightsDao.queryUnreadArticleMeta(accountId).map { meta ->
-                Candidate(meta, score(meta, priorByFeed[meta.feedId], now, accountId))
-            }
+        val candidates = scanCandidates(accountId, now, priorByFeed)
         if (candidates.isEmpty()) return
 
         val decision = admit(candidates, priorByFeed)
@@ -82,21 +80,83 @@ constructor(
         insightsDao.upsertRanks(
             candidates.map {
                 it.rank.copy(
-                    admitted = it.meta.id in decision.admittedIds,
+                    admitted = it.meta.id in decision.admittedIds || it.meta.id in decision.explorationIds,
                     exploration = it.meta.id in decision.explorationIds,
                 )
             }
         )
         insightsDao.deleteStaleRanks(accountId, Date(now - RANK_RETENTION_MS))
+        insightsDao.deleteEventsBefore(Date(now - EVENT_RETENTION_MS))
     }
 
     //region Tier 0 scoring
 
+    /**
+     * Two-phase scoring that never bulk-loads article content: a shallow,
+     * length-only scan over the scoring window, then a content-based refine of
+     * the most promising slice. Full raw descriptions can exceed the SQLite
+     * cursor window on full-text feeds, which made the old load-everything
+     * query kill ranking silently on exactly those accounts.
+     */
+    private suspend fun scanCandidates(
+        accountId: Int,
+        now: Long,
+        priorByFeed: Map<String, FeedPrior>,
+    ): List<Candidate> {
+        val shallow = ArrayList<UnreadArticleShallow>()
+        var offset = 0
+        while (shallow.size < MAX_SCAN) {
+            val chunk =
+                insightsDao.queryUnreadArticleShallow(
+                    accountId = accountId,
+                    since = Date(now - SCAN_WINDOW_MS),
+                    limit = SCAN_CHUNK,
+                    offset = offset,
+                )
+            shallow += chunk
+            if (chunk.size < SCAN_CHUNK) break
+            offset += SCAN_CHUNK
+        }
+        if (shallow.isEmpty()) return emptyList()
+
+        val provisional =
+            shallow.map {
+                Candidate(
+                    it,
+                    score(
+                        article = it,
+                        prior = priorByFeed[it.feedId],
+                        now = now,
+                        accountId = accountId,
+                        expectedMs = ExpectedReadTime.estimateFromLengthMs(it.contentLength),
+                    ),
+                )
+            }
+
+        val refineIds =
+            provisional.sortedByDescending { it.rank.score }.take(REFINE_COUNT).map { it.meta.id }
+        val refinedExpected = HashMap<String, Long>()
+        for (chunk in refineIds.chunked(REFINE_CHUNK)) {
+            runCatching { insightsDao.queryArticleContent(chunk) }
+                .getOrNull()
+                ?.forEach { refinedExpected[it.id] = ExpectedReadTime.estimateMs(it.rawDescription) }
+        }
+        return provisional.map { candidate ->
+            refinedExpected[candidate.meta.id]?.let { expected ->
+                Candidate(
+                    candidate.meta,
+                    score(candidate.meta, priorByFeed[candidate.meta.feedId], now, accountId, expected),
+                )
+            } ?: candidate
+        }
+    }
+
     private fun score(
-        article: UnreadArticleMeta,
+        article: UnreadArticleShallow,
         prior: FeedPrior?,
         now: Long,
         accountId: Int,
+        expectedMs: Long,
     ): ArticleRank {
         // Beta posterior over the feed's open rate, shrunk toward the global
         // mean (pseudo-counts α=2, β=6 → prior mean 0.25).
@@ -116,7 +176,6 @@ constructor(
         val freshness = exp(-ageHours / FRESHNESS_TAU_HOURS)
 
         val pOpen = (P_OPEN_BASE + P_OPEN_OPEN_RATE * openRate).toFloat().coerceIn(0.02f, 0.9f)
-        val expectedMs = ExpectedReadTime.estimateMs(article.rawDescription)
         val predictedMinutes = (expectedMs / 60_000.0 * dwellMultiplier).toFloat().coerceAtLeast(0.2f)
         val freshnessGate = (FRESHNESS_WEIGHT * freshness + 1.0 - FRESHNESS_WEIGHT).toFloat()
         val scoreValue = pOpen * predictedMinutes * freshnessGate
@@ -202,7 +261,17 @@ constructor(
      * volumes and immune to accumulator drift.
      */
     private suspend fun computeDecayedPriors(accountId: Int, now: Long): List<FeedPrior> {
-        val events = insightsDao.queryEventsSince(accountId, Date(now - PRIOR_WINDOW_MS))
+        val events =
+            insightsDao.queryEngagementEventsSince(
+                accountId = accountId,
+                since = Date(now - PRIOR_WINDOW_MS),
+                types =
+                    listOf(
+                        ReadingEventType.IMPRESSION,
+                        ReadingEventType.OPEN,
+                        ReadingEventType.DWELL,
+                    ),
+            )
         if (events.isEmpty()) return emptyList()
 
         class Acc {
@@ -248,6 +317,13 @@ constructor(
         private const val TAG = "RankWorker"
         const val RANK_WORK_NAME = "RANK_WORK"
 
+        /**
+         * Distinct from the sync tags: rank runs must not appear as sync work
+         * in the troubleshooting page, and must not be cancelled by sync
+         * cancellation paths.
+         */
+        const val INSIGHTS_WORK_TAG = "INSIGHTS_WORK_TAG"
+
         const val DAILY_QUOTA = 20
         const val PER_FEED_CAP = 3
 
@@ -263,6 +339,15 @@ constructor(
         private const val PRIOR_WINDOW_MS = 90L * 86_400_000L
         private const val ENGAGED_DWELL_MS = 30_000L
         private const val RANK_RETENTION_MS = 7L * 86_400_000L
+
+        // Bounded-scan tuning: shallow length-only rows are tiny, content
+        // chunks are not — hence the small refine chunk size.
+        private const val SCAN_WINDOW_MS = 60L * 86_400_000L
+        private const val SCAN_CHUNK = 500
+        private const val MAX_SCAN = 5_000
+        private const val REFINE_COUNT = 200
+        private const val REFINE_CHUNK = 50
+        private const val EVENT_RETENTION_MS = 180L * 86_400_000L
 
         fun enqueueNow(workManager: WorkManager, accountId: Int? = null) {
             val builder = OneTimeWorkRequestBuilder<RankWorker>()

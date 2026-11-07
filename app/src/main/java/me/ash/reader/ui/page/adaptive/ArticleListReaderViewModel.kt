@@ -37,8 +37,10 @@ import me.ash.reader.domain.model.article.ArticleFlowItem
 import me.ash.reader.domain.model.article.ArticleWithFeed
 import me.ash.reader.domain.model.feed.Feed
 import me.ash.reader.domain.model.general.MarkAsReadConditions
+import me.ash.reader.domain.model.insights.ReadingEventContext
 import me.ash.reader.domain.service.GoogleReaderRssService
 import me.ash.reader.domain.service.LocalRssService
+import me.ash.reader.domain.service.ReadingInsightsRecorder
 import me.ash.reader.domain.service.RssService
 import me.ash.reader.domain.service.SyncWorker
 import me.ash.reader.infrastructure.android.AndroidImageDownloader
@@ -69,6 +71,7 @@ constructor(
     private val imageDownloader: AndroidImageDownloader,
     private val articleListUseCase: ArticlePagingListUseCase,
     workManager: WorkManager,
+    private val insightsRecorder: ReadingInsightsRecorder,
 ) : ViewModel() {
 
     val flowUiState: StateFlow<FlowUiState?> =
@@ -209,6 +212,13 @@ constructor(
 
         if (items.isNotEmpty()) {
             diffMapHolder.updateDiff(articleWithFeed = items.toTypedArray(), markRead = true)
+            insightsRecorder.onMarkReadBulk(
+                scope = ReadingEventContext.MARK_SCOPE_BATCH,
+                feedId = null,
+                groupId = null,
+                affectedCount = items.size,
+                source = ReadingEventContext.MARK_SOURCE_LIST,
+            )
         }
         return items
     }
@@ -235,6 +245,13 @@ constructor(
 
         if (items.isNotEmpty()) {
             diffMapHolder.updateDiff(articleWithFeed = items.toTypedArray(), markRead = true)
+            insightsRecorder.onMarkReadBulk(
+                scope = ReadingEventContext.MARK_SCOPE_BATCH,
+                feedId = null,
+                groupId = null,
+                affectedCount = items.size,
+                source = ReadingEventContext.MARK_SOURCE_LIST,
+            )
         }
         return items
     }
@@ -579,6 +596,17 @@ constructor(
         markRead: Boolean,
     ) {
         diffMapHolder.updateDiff(articleWithFeed, markRead = markRead)
+        // Reading insights: this is the manual reader toggle (BottomBar). The
+        // auto-read-on-open in initData goes through updateDiff only and is
+        // deliberately NOT logged as a mark — the OPEN/DWELL events already
+        // carry that positive signal.
+        if (markRead) {
+            insightsRecorder.onMarkReadSingle(
+                articleId = articleId,
+                feedId = articleWithFeed.feed.id,
+                source = ReadingEventContext.MARK_SOURCE_READER,
+            )
+        }
         _readingUiState.update { state ->
             if (state.articleWithFeed?.article?.id != articleId) return@update state
             state.withReadState(diffMapHolder.checkIfRead(articleWithFeed))

@@ -64,15 +64,14 @@ constructor(
                     .then(
                         // Reading insights: embed (Tier 2 pass-through for now),
                         // then re-rank so the For You set reflects new articles.
+                        // Tagged as insights work, not sync work.
                         OneTimeWorkRequestBuilder<EmbedWorker>()
-                            .addTag(READER_TAG)
-                            .addTag(ONETIME_WORK_TAG)
+                            .addTag(RankWorker.INSIGHTS_WORK_TAG)
                             .build()
                     )
                     .then(
                         OneTimeWorkRequestBuilder<RankWorker>()
-                            .addTag(READER_TAG)
-                            .addTag(ONETIME_WORK_TAG)
+                            .addTag(RankWorker.INSIGHTS_WORK_TAG)
                             .setInputData(workDataOf("accountId" to accountId))
                             .build()
                     )

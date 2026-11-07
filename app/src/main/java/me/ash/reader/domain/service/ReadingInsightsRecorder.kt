@@ -14,8 +14,6 @@ import kotlinx.coroutines.channels.Channel
 import kotlinx.coroutines.delay
 import kotlinx.coroutines.flow.first
 import kotlinx.coroutines.launch
-import kotlinx.coroutines.runBlocking
-import kotlinx.coroutines.withContext
 import me.ash.reader.domain.model.insights.ReadingEvent
 import me.ash.reader.domain.model.insights.ReadingEventContext
 import me.ash.reader.domain.model.insights.ReadingEventType
@@ -27,9 +25,11 @@ import me.ash.reader.infrastructure.di.IODispatcher
 import me.ash.reader.ui.ext.LinkOutBridge
 import me.ash.reader.ui.ext.PreferencesKey
 import me.ash.reader.ui.ext.dataStore
+import timber.log.Timber
 import java.util.Date
 import javax.inject.Inject
 import javax.inject.Singleton
+import kotlinx.coroutines.CancellationException
 
 /**
  * Facade for the silent, on-device reading-signal collection feeding the local
@@ -47,6 +47,14 @@ import javax.inject.Singleton
  * Label derivation deliberately happens at training time, not here: this class
  * logs raw signals only (dwell milliseconds, scroll depth, positions, urls).
  */
+
+/** A card rendered in the unread list, seen but not yet counted as exposed. */
+data class VisibleCard(
+    val articleId: String,
+    val feedId: String?,
+    val position: Int,
+)
+
 @Singleton
 class ReadingInsightsRecorder @Inject constructor(
     @ApplicationContext private val context: Context,
@@ -68,9 +76,6 @@ class ReadingInsightsRecorder @Inject constructor(
     private var sessionEntryPoint: Int? = null
     private var sweepJob: Job? = null
 
-    /** Resolved once per session; -1 until known. */
-    private var cachedAccountId: Int = -1
-
     // Reader dwell accumulation (foreground-gated).
     private var readerArticleId: String? = null
     private var readerFeedId: String? = null
@@ -81,9 +86,14 @@ class ReadingInsightsRecorder @Inject constructor(
     private var lastScrollSentElapsed: Long = 0
 
     // Impression tracking (per session).
-    private val visibleSince = HashMap<String, Pair<Long, Int>>() // articleId -> (since, position)
+    private val visibleSince = HashMap<String, PendingImpression>()
     private val impressedThisSession = HashSet<String>()
-    private val openedThisSession = HashSet<String>()
+
+    private data class PendingImpression(
+        val sinceElapsed: Long,
+        val position: Int,
+        val feedId: String?,
+    )
 
     private var lastLinkOutUrl: String? = null
     private var lastLinkOutAtElapsed: Long = 0
@@ -94,7 +104,7 @@ class ReadingInsightsRecorder @Inject constructor(
         // context call [onLinkOut] directly; the de-dupe below absorbs the
         // double emission for the same url.
         LinkOutBridge.listener = { url ->
-            onLinkOut(url = url, articleId = null, isArticleSelf = false, durable = true)
+            onLinkOut(url = url, articleId = null, isArticleSelf = false)
         }
     }
 
@@ -113,34 +123,48 @@ class ReadingInsightsRecorder @Inject constructor(
             true
         }
         if (!startedSweep) return
-        applicationScope.launch(ioDispatcher) {
-            runCatching { cachedAccountId = accountService.getCurrentAccountId() }
-            sweepJob?.cancel()
-            sweepJob = applicationScope.launch(ioDispatcher) { impressionSweepLoop() }
-        }
+        sweepJob?.cancel()
+        sweepJob = applicationScope.launch(ioDispatcher) { impressionSweepLoop() }
     }
 
     fun onAppBackground() {
         val (startedAt, entryPoint, durationMs) = synchronized(lock) {
             if (!sessionActive) return
             sessionActive = false
+            // Checkpoint the open article's dwell before pausing: truncated by
+            // leaving the app, not by finishing. If the process dies here the
+            // pre-background time is already durable (censored events are
+            // discounted at training time); if the user returns, the resumed
+            // span flushes as its own uncensored event on exit.
             if (readerArticleId != null && !readerPaused) {
                 readerAccumulatedMs += SystemClock.elapsedRealtime() - readerEnterElapsed
                 readerPaused = true
+                if (readerAccumulatedMs > 0) {
+                    postEventLocked(
+                        type = ReadingEventType.DWELL,
+                        articleId = readerArticleId,
+                        feedId = readerFeedId,
+                        durationMs = readerAccumulatedMs,
+                        depth = readerLastDepth,
+                        censored = true,
+                    )
+                    readerAccumulatedMs = 0
+                }
             }
             visibleSince.clear()
             impressedThisSession.clear()
-            openedThisSession.clear()
             Triple(sessionStartedWall, sessionEntryPoint, System.currentTimeMillis() - sessionStartedWall)
         }
         sweepJob?.cancel()
         sweepJob = null
         applicationScope.launch(ioDispatcher) {
-            if (isEnabled()) {
+            flushChannel()
+            val accountId = accountService.currentAccountIdFlow.value
+            if (accountId != null && isEnabled()) {
                 runCatching {
                     insightsDao.insertSession(
                         ReadingSession(
-                            accountId = accountService.getCurrentAccountId(),
+                            accountId = accountId,
                             startedAt = Date(startedAt),
                             endedAt = Date(),
                             durationMs = durationMs,
@@ -150,7 +174,7 @@ class ReadingInsightsRecorder @Inject constructor(
                 }
             }
             // A finished session is new evidence; refresh the For You set.
-            RankWorker.enqueueNow(workManager)
+            if (isEnabled()) RankWorker.enqueueNow(workManager)
         }
     }
 
@@ -159,7 +183,7 @@ class ReadingInsightsRecorder @Inject constructor(
     //region Reader (ReadingPage — shared by both surfaces)
 
     /** Called when an article becomes the visible reader page. Flushes the previous article. */
-    fun onEnterReader(articleId: String, feedId: String?) {
+    fun onEnterReader(articleId: String, feedId: String?, isSwipe: Boolean = false) {
         synchronized(lock) {
             if (readerArticleId == articleId) return
             flushReaderDwellLocked()
@@ -169,13 +193,28 @@ class ReadingInsightsRecorder @Inject constructor(
             readerAccumulatedMs = 0
             readerPaused = false
             readerLastDepth = 0f
-            if (openedThisSession.add(articleId)) {
-                postEventLocked(
-                    type = ReadingEventType.OPEN,
-                    articleId = articleId,
-                    feedId = feedId,
-                )
-            }
+            postEventLocked(
+                type = ReadingEventType.OPEN,
+                articleId = articleId,
+                feedId = feedId,
+                context = if (isSwipe) ReadingEventContext.OPEN_SOURCE_SWIPE else null,
+            )
+        }
+    }
+
+    /**
+     * OPEN for articles consumed outside the reader (browser-mode feeds):
+     * the browser IS the reader for those feeds, so the open counts with
+     * full attribution context instead of flooring their open rate.
+     */
+    fun onOpenExternal(articleId: String, feedId: String?) {
+        synchronized(lock) {
+            postEventLocked(
+                type = ReadingEventType.OPEN,
+                articleId = articleId,
+                feedId = feedId,
+                context = ReadingEventContext.LINK_SELF,
+            )
         }
     }
 
@@ -191,11 +230,11 @@ class ReadingInsightsRecorder @Inject constructor(
         }
     }
 
-    /** Throttled scroll-depth notification; the latest depth rides on the flushed DWELL. */
+    /** Throttled scroll-depth notification; the deepest depth rides on the flushed DWELL. */
     fun onReaderScroll(depth: Float) {
         val elapsed = SystemClock.elapsedRealtime()
         synchronized(lock) {
-            readerLastDepth = depth
+            readerLastDepth = maxOf(readerLastDepth, depth)
             if (readerArticleId == null) return
             if (elapsed - lastScrollSentElapsed < SCROLL_MIN_INTERVAL_MS) return
             lastScrollSentElapsed = elapsed
@@ -222,28 +261,40 @@ class ReadingInsightsRecorder @Inject constructor(
         }
     }
 
-    fun onMarkReadSingle(articleId: String, feedId: String?) {
+    fun onMarkReadSingle(articleId: String, feedId: String?, source: Int) {
         synchronized(lock) {
             postEventLocked(
                 type = ReadingEventType.MARK_READ_MANUAL,
                 articleId = articleId,
                 feedId = feedId,
-                context = ReadingEventContext.MARK_SOURCE_LIST,
+                context = source,
             )
         }
     }
 
     /**
      * Bulk marks are batch-level evidence, not per-article negatives: they feed
-     * feed-level priors only. [affectedCount] is stored in [ReadingEvent.position].
+     * feed-level priors only. [affectedCount] is stored in
+     * [ReadingEvent.position]; call once per intent site (swipe-batch, scroll
+     * sweep, scope clear) — the deferred-diff commit path and op replays must
+     * NOT call this or every write would double-count.
      */
-    fun onMarkReadBulk(scope: Int, feedId: String?, groupId: String?, affectedCount: Int) {
+    fun onMarkReadBulk(
+        scope: Int,
+        feedId: String?,
+        groupId: String?,
+        affectedCount: Int,
+        source: Int = 0,
+    ) {
         synchronized(lock) {
+            if (affectedCount <= 0) return
             postEventLocked(
                 type = ReadingEventType.MARK_READ_BULK,
                 feedId = feedId,
-                context = scope,
+                context = scope or source,
                 position = affectedCount,
+                // Bulk-scope payload (e.g. "group:<id>") reuses the url column.
+                url = groupId?.let { "group:$it" },
             )
         }
     }
@@ -253,18 +304,24 @@ class ReadingInsightsRecorder @Inject constructor(
     //region Impressions (FlowPage)
 
     /**
-     * Replaces the current set of visible article ids (id to list position).
-     * Cheap; called from a snapshotFlow collector. A card must stay visible
+     * Replaces the current set of visible article cards. Cheap; called from a
+     * snapshotFlow collector. A card must stay visible
      * [IMPRESSION_MIN_VISIBLE_MS] to become an IMPRESSION — glances don't count.
      */
-    fun noteVisibleArticleIds(visible: List<Pair<String, Int>>) {
+    fun noteVisibleArticleIds(visible: List<VisibleCard>) {
         synchronized(lock) {
             if (!sessionActive) return
             val elapsed = SystemClock.elapsedRealtime()
-            visibleSince.keys.retainAll(visible.mapTo(HashSet()) { it.first })
-            for ((id, position) in visible) {
-                if (impressedThisSession.contains(id)) continue
-                visibleSince[id] = visibleSince[id]?.first?.let { it to position } ?: (elapsed to position)
+            visibleSince.keys.retainAll(visible.mapTo(HashSet()) { it.articleId })
+            for (card in visible) {
+                if (impressedThisSession.contains(card.articleId)) continue
+                val existing = visibleSince[card.articleId]
+                visibleSince[card.articleId] =
+                    if (existing == null) {
+                        PendingImpression(elapsed, card.position, card.feedId)
+                    } else {
+                        existing.copy(position = card.position, feedId = card.feedId ?: existing.feedId)
+                    }
             }
         }
     }
@@ -273,23 +330,27 @@ class ReadingInsightsRecorder @Inject constructor(
         while (true) {
             delay(IMPRESSION_SWEEP_INTERVAL_MS) // cancellation lands here
             val due = ArrayList<ReadingEvent>(8)
+            val accountId = accountService.currentAccountIdFlow.value
             val sessionInactive = synchronized(lock) {
                 if (!sessionActive) return@synchronized true
                 val elapsed = SystemClock.elapsedRealtime()
                 val iterator = visibleSince.entries.iterator()
                 while (iterator.hasNext()) {
                     val entry = iterator.next()
-                    if (elapsed - entry.value.first >= IMPRESSION_MIN_VISIBLE_MS) {
+                    if (elapsed - entry.value.sinceElapsed >= IMPRESSION_MIN_VISIBLE_MS) {
                         impressedThisSession.add(entry.key)
-                        due.add(
-                            ReadingEvent(
-                                accountId = cachedAccountId,
-                                articleId = entry.key,
-                                type = ReadingEventType.IMPRESSION,
-                                createdAt = Date(),
-                                position = entry.value.second,
+                        accountId?.let {
+                            due.add(
+                                ReadingEvent(
+                                    accountId = it,
+                                    articleId = entry.key,
+                                    feedId = entry.value.feedId,
+                                    type = ReadingEventType.IMPRESSION,
+                                    createdAt = Date(),
+                                    position = entry.value.position,
+                                )
                             )
-                        )
+                        }
                         iterator.remove()
                     }
                 }
@@ -307,11 +368,12 @@ class ReadingInsightsRecorder @Inject constructor(
     /**
      * Records that an outbound link was opened. When [articleId] is null, the
      * link is attributed to the article currently open in the reader (inline
-     * body link). [durable] persists synchronously — callers are about to
-     * leave the app and the event must survive process death; the away time is
-     * reconciled on the next foreground ([reconcileLinkOuts]).
+     * body link). The write is async but starts before the caller leaves the
+     * app; away time is reconciled on the next foreground ([reconcileLinkOuts]).
      */
-    fun onLinkOut(url: String, articleId: String?, isArticleSelf: Boolean, durable: Boolean) {
+    fun onLinkOut(url: String, articleId: String?, isArticleSelf: Boolean) {
+        // Only web links; mailto:/tel:/intent: taps are not reading evidence.
+        if (!url.startsWith("http://") && !url.startsWith("https://")) return
         val resolved = synchronized(lock) {
             val elapsed = SystemClock.elapsedRealtime()
             if (url == lastLinkOutUrl && elapsed - lastLinkOutAtElapsed < LINK_OUT_DEDUPE_MS) return
@@ -320,18 +382,12 @@ class ReadingInsightsRecorder @Inject constructor(
             val attributedId = articleId ?: readerArticleId ?: return
             attributedId to (if (isArticleSelf) ReadingEventContext.LINK_SELF else ReadingEventContext.LINK_INLINE)
         }
-        if (durable) {
-            runBlocking {
-                withContext(ioDispatcher) { insertLinkOut(url, resolved.first, resolved.second) }
-            }
-        } else {
-            applicationScope.launch(ioDispatcher) { insertLinkOut(url, resolved.first, resolved.second) }
-        }
+        applicationScope.launch(ioDispatcher) { insertLinkOut(url, resolved.first, resolved.second) }
     }
 
     private suspend fun insertLinkOut(url: String, articleId: String, contextFlag: Int) {
         if (!isEnabled()) return
-        val accountId = accountService.getCurrentAccountId()
+        val accountId = accountService.currentAccountIdFlow.value ?: return
         insightsDao.insertEvent(
             ReadingEvent(
                 accountId = accountId,
@@ -345,31 +401,24 @@ class ReadingInsightsRecorder @Inject constructor(
     }
 
     /**
-     * Reconciles pending link-outs on regaining foreground: away time becomes
-     * the event's durationMs. Elapsed < 3s is noise (0), > 1h expired (-1);
-     * both are dropped at training time.
+     * Reconciles pending link-outs on regaining foreground: the raw elapsed
+     * away time is stored as-is (no noise/expiry sentinels — training-time
+     * policy). Rows never reconciled keep a NULL duration and are treated as
+     * unknown at training time. Scans all accounts: a pending row from a
+     * non-current account would otherwise stay unresolved forever.
      */
     suspend fun reconcileLinkOuts() {
         if (!isEnabled()) return
         runCatching {
-            val accountId = accountService.getCurrentAccountId()
             val now = System.currentTimeMillis()
             val pending =
                 insightsDao.queryEventsOfTypeWithoutDuration(
-                    accountId = accountId,
                     type = ReadingEventType.LINK_OUT,
                     since = Date(now - LINK_OUT_MAX_AWAY_MS),
                     limit = 50,
                 )
             for (event in pending) {
-                val elapsed = now - event.createdAt.time
-                val durationMs =
-                    when {
-                        elapsed < LINK_OUT_MIN_AWAY_MS -> 0L
-                        elapsed > LINK_OUT_MAX_AWAY_MS -> -1L
-                        else -> elapsed
-                    }
-                insightsDao.updateEventDurationMs(setOf(event.id), durationMs)
+                insightsDao.updateEventDurationMs(setOf(event.id), now - event.createdAt.time)
             }
         }
     }
@@ -394,7 +443,9 @@ class ReadingInsightsRecorder @Inject constructor(
         val durationMs = readerAccumulatedMs +
             (if (!readerPaused) SystemClock.elapsedRealtime() - readerEnterElapsed else 0L)
         readerAccumulatedMs = 0
-        if (durationMs < DWELL_MIN_MS) return // open-and-instant-leave noise
+        if (durationMs <= 0) return
+        // Raw dwell is stored as-is — even very short reads are real signal;
+        // bounce thresholds are training-time policy, not logging-time policy.
         postEventLocked(
             type = ReadingEventType.DWELL,
             articleId = articleId,
@@ -405,7 +456,7 @@ class ReadingInsightsRecorder @Inject constructor(
         )
     }
 
-    /** Caller holds [lock]; resolves the account id lazily. */
+    /** Caller holds [lock]; never blocks — events before an account exists are dropped. */
     private fun postEventLocked(
         type: Int,
         articleId: String? = null,
@@ -417,13 +468,10 @@ class ReadingInsightsRecorder @Inject constructor(
         url: String? = null,
         censored: Boolean = false,
     ) {
-        if (cachedAccountId < 0) {
-            cachedAccountId = runCatching { accountService.getCurrentAccountId() }.getOrDefault(-1)
-        }
-        if (cachedAccountId < 0) return
+        val accountId = accountService.currentAccountIdFlow.value ?: return
         eventChannel.trySend(
             ReadingEvent(
-                accountId = cachedAccountId,
+                accountId = accountId,
                 articleId = articleId,
                 feedId = feedId,
                 type = type,
@@ -446,10 +494,50 @@ class ReadingInsightsRecorder @Inject constructor(
                 val next = eventChannel.tryReceive().getOrNull() ?: break
                 batch.add(next)
             }
+            enrichFeedIds(batch)
             if (isEnabled()) {
-                runCatching { insightsDao.insertEvents(batch) }
+                try {
+                    insightsDao.insertEvents(batch)
+                } catch (e: CancellationException) {
+                    throw e
+                } catch (e: Exception) {
+                    Timber.tag(TAG).e(e, "Failed to persist %d insight events", batch.size)
+                }
             }
             batch.clear()
+        }
+    }
+
+    /** Best-effort flush of queued events when the app leaves foreground. */
+    private suspend fun flushChannel() {
+        val batch = ArrayList<ReadingEvent>(32)
+        while (true) {
+            val next = eventChannel.tryReceive().getOrNull() ?: break
+            batch.add(next)
+        }
+        if (batch.isNotEmpty() && isEnabled()) {
+            runCatching { enrichFeedIds(batch); insightsDao.insertEvents(batch) }
+        }
+    }
+
+    /**
+     * Backfills feedId for events logged before the reader committed the
+     * article (pager lag) — feed-level priors would otherwise miss them.
+     */
+    private suspend fun enrichFeedIds(batch: MutableList<ReadingEvent>) {
+        val missing =
+            batch.filter { it.feedId == null && it.articleId != null }.mapNotNull { it.articleId }
+        if (missing.isEmpty()) return
+        val byId =
+            runCatching { insightsDao.queryFeedIdsForArticles(missing) }
+                .getOrNull()
+                ?.associate { it.id to it.feedId }
+                ?: return
+        for (index in batch.indices) {
+            val event = batch[index]
+            if (event.feedId == null) {
+                byId[event.articleId]?.let { batch[index] = event.copy(feedId = it) }
+            }
         }
     }
 
@@ -463,12 +551,11 @@ class ReadingInsightsRecorder @Inject constructor(
     //endregion
 
     private companion object {
+        const val TAG = "ReadingInsightsRecorder"
         const val IMPRESSION_MIN_VISIBLE_MS = 1_000L
         const val IMPRESSION_SWEEP_INTERVAL_MS = 500L
-        const val DWELL_MIN_MS = 500L
         const val SCROLL_MIN_INTERVAL_MS = 1_000L
         const val LINK_OUT_DEDUPE_MS = 2_000L
-        const val LINK_OUT_MIN_AWAY_MS = 3_000L
         const val LINK_OUT_MAX_AWAY_MS = 60 * 60_000L
     }
 }

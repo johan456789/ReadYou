@@ -23,6 +23,7 @@ import me.ash.reader.domain.repository.AccountDao
 import me.ash.reader.domain.repository.ArticleDao
 import me.ash.reader.domain.repository.FeedDao
 import me.ash.reader.domain.repository.GroupDao
+import me.ash.reader.domain.repository.InsightsDao
 import me.ash.reader.infrastructure.di.ApplicationScope
 import me.ash.reader.infrastructure.preference.SettingsProvider
 import me.ash.reader.ui.ext.PreferencesKey
@@ -40,6 +41,7 @@ constructor(
     private val groupDao: GroupDao,
     private val feedDao: FeedDao,
     private val articleDao: ArticleDao,
+    private val insightsDao: InsightsDao,
     @param:ApplicationScope private val coroutineScope: CoroutineScope,
     settingsProvider: SettingsProvider,
 ) {
@@ -141,6 +143,10 @@ constructor(
             articleDao.deleteByAccountId(accountId)
             feedDao.deleteByAccountId(accountId)
             groupDao.deleteByAccountId(accountId)
+            // Reading insights are per-device, per-account private data:
+            // deleting the account deletes its trail (events, sessions,
+            // priors, ranks, models, vectors).
+            insightsDao.deleteAllForAccount(accountId)
             accountDao.delete(it)
             accountDao.queryAll().getOrNull(0)?.let {
                 context.dataStore.put(PreferencesKey.currentAccountId, it.id!!)

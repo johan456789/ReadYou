@@ -47,10 +47,23 @@ data class ArticleRank(
     val computedAt: Date,
 )
 
-/** Minimal projection of unread articles for scoring. */
-data class UnreadArticleMeta(
+/** Minimal projection of unread articles for the cheap (bounded) scoring scan. */
+data class UnreadArticleShallow(
     val id: String,
     val feedId: String,
     val date: Date,
+    /** Character count of the rendered content; never loads the content itself. */
+    val contentLength: Int,
+)
+
+/** Content of selected articles, fetched in small chunks for the refine pass. */
+data class ArticleContent(
+    val id: String,
     val rawDescription: String,
+)
+
+/** Article-id → feed-id lookup for backfilling feed attribution on events. */
+data class ArticleFeedRef(
+    val id: String,
+    val feedId: String,
 )
