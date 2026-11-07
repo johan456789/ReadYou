@@ -64,6 +64,9 @@ fun Context.openURL(
     specificBrowser: OpenLinkSpecificBrowserPreference = OpenLinkSpecificBrowserPreference.default
 ) {
     if (!url.isNullOrBlank()) {
+        // Reading insights: notify before leaving the app so the pending
+        // link-out event is durable even if this process is killed while away.
+        LinkOutBridge.emit(url)
         val uri = url.trim { it.isWhitespace() || it == '\n' }.toUri()
         val intent = Intent(Intent.ACTION_VIEW, uri)
         val customTabsIntent = CustomTabsIntent.Builder().setShowTitle(true).build()

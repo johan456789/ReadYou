@@ -1,0 +1,970 @@
+{
+  "formatVersion": 1,
+  "database": {
+    "version": 14,
+    "identityHash": "ad819631721d73d9154062ac362b692e",
+    "entities": [
+      {
+        "tableName": "account",
+        "createSql": "CREATE TABLE IF NOT EXISTS `${TABLE_NAME}` (`id` INTEGER PRIMARY KEY AUTOINCREMENT, `name` TEXT NOT NULL, `type` INTEGER NOT NULL, `updateAt` INTEGER, `lastArticleId` TEXT, `syncInterval` INTEGER NOT NULL DEFAULT 30, `syncOnStart` INTEGER NOT NULL DEFAULT 0, `syncOnlyOnWiFi` INTEGER NOT NULL DEFAULT 0, `syncOnlyWhenCharging` INTEGER NOT NULL DEFAULT 0, `keepArchived` INTEGER NOT NULL DEFAULT 0, `syncBlockList` TEXT NOT NULL DEFAULT '', `securityKey` TEXT DEFAULT 'CvJ1PKM8EW8=')",
+        "fields": [
+          {
+            "fieldPath": "id",
+            "columnName": "id",
+            "affinity": "INTEGER"
+          },
+          {
+            "fieldPath": "name",
+            "columnName": "name",
+            "affinity": "TEXT",
+            "notNull": true
+          },
+          {
+            "fieldPath": "type",
+            "columnName": "type",
+            "affinity": "INTEGER",
+            "notNull": true
+          },
+          {
+            "fieldPath": "updateAt",
+            "columnName": "updateAt",
+            "affinity": "INTEGER"
+          },
+          {
+            "fieldPath": "lastArticleId",
+            "columnName": "lastArticleId",
+            "affinity": "TEXT"
+          },
+          {
+            "fieldPath": "syncInterval",
+            "columnName": "syncInterval",
+            "affinity": "INTEGER",
+            "notNull": true,
+            "defaultValue": "30"
+          },
+          {
+            "fieldPath": "syncOnStart",
+            "columnName": "syncOnStart",
+            "affinity": "INTEGER",
+            "notNull": true,
+            "defaultValue": "0"
+          },
+          {
+            "fieldPath": "syncOnlyOnWiFi",
+            "columnName": "syncOnlyOnWiFi",
+            "affinity": "INTEGER",
+            "notNull": true,
+            "defaultValue": "0"
+          },
+          {
+            "fieldPath": "syncOnlyWhenCharging",
+            "columnName": "syncOnlyWhenCharging",
+            "affinity": "INTEGER",
+            "notNull": true,
+            "defaultValue": "0"
+          },
+          {
+            "fieldPath": "keepArchived",
+            "columnName": "keepArchived",
+            "affinity": "INTEGER",
+            "notNull": true,
+            "defaultValue": "0"
+          },
+          {
+            "fieldPath": "syncBlockList",
+            "columnName": "syncBlockList",
+            "affinity": "TEXT",
+            "notNull": true,
+            "defaultValue": "''"
+          },
+          {
+            "fieldPath": "securityKey",
+            "columnName": "securityKey",
+            "affinity": "TEXT",
+            "defaultValue": "'CvJ1PKM8EW8='"
+          }
+        ],
+        "primaryKey": {
+          "autoGenerate": true,
+          "columnNames": [
+            "id"
+          ]
+        }
+      },
+      {
+        "tableName": "feed",
+        "createSql": "CREATE TABLE IF NOT EXISTS `${TABLE_NAME}` (`id` TEXT NOT NULL, `name` TEXT NOT NULL, `icon` TEXT, `url` TEXT NOT NULL, `groupId` TEXT NOT NULL, `accountId` INTEGER NOT NULL, `isNotification` INTEGER NOT NULL, `isFullContent` INTEGER NOT NULL, `isBrowser` INTEGER NOT NULL DEFAULT 0, `sortOrder` INTEGER DEFAULT NULL, PRIMARY KEY(`id`), FOREIGN KEY(`groupId`) REFERENCES `group`(`id`) ON UPDATE CASCADE ON DELETE CASCADE )",
+        "fields": [
+          {
+            "fieldPath": "id",
+            "columnName": "id",
+            "affinity": "TEXT",
+            "notNull": true
+          },
+          {
+            "fieldPath": "name",
+            "columnName": "name",
+            "affinity": "TEXT",
+            "notNull": true
+          },
+          {
+            "fieldPath": "icon",
+            "columnName": "icon",
+            "affinity": "TEXT"
+          },
+          {
+            "fieldPath": "url",
+            "columnName": "url",
+            "affinity": "TEXT",
+            "notNull": true
+          },
+          {
+            "fieldPath": "groupId",
+            "columnName": "groupId",
+            "affinity": "TEXT",
+            "notNull": true
+          },
+          {
+            "fieldPath": "accountId",
+            "columnName": "accountId",
+            "affinity": "INTEGER",
+            "notNull": true
+          },
+          {
+            "fieldPath": "isNotification",
+            "columnName": "isNotification",
+            "affinity": "INTEGER",
+            "notNull": true
+          },
+          {
+            "fieldPath": "isFullContent",
+            "columnName": "isFullContent",
+            "affinity": "INTEGER",
+            "notNull": true
+          },
+          {
+            "fieldPath": "isBrowser",
+            "columnName": "isBrowser",
+            "affinity": "INTEGER",
+            "notNull": true,
+            "defaultValue": "0"
+          },
+          {
+            "fieldPath": "sortOrder",
+            "columnName": "sortOrder",
+            "affinity": "INTEGER",
+            "defaultValue": "NULL"
+          }
+        ],
+        "primaryKey": {
+          "autoGenerate": false,
+          "columnNames": [
+            "id"
+          ]
+        },
+        "indices": [
+          {
+            "name": "index_feed_groupId",
+            "unique": false,
+            "columnNames": [
+              "groupId"
+            ],
+            "orders": [],
+            "createSql": "CREATE INDEX IF NOT EXISTS `index_feed_groupId` ON `${TABLE_NAME}` (`groupId`)"
+          },
+          {
+            "name": "index_feed_accountId",
+            "unique": false,
+            "columnNames": [
+              "accountId"
+            ],
+            "orders": [],
+            "createSql": "CREATE INDEX IF NOT EXISTS `index_feed_accountId` ON `${TABLE_NAME}` (`accountId`)"
+          }
+        ],
+        "foreignKeys": [
+          {
+            "table": "group",
+            "onDelete": "CASCADE",
+            "onUpdate": "CASCADE",
+            "columns": [
+              "groupId"
+            ],
+            "referencedColumns": [
+              "id"
+            ]
+          }
+        ]
+      },
+      {
+        "tableName": "article",
+        "createSql": "CREATE TABLE IF NOT EXISTS `${TABLE_NAME}` (`id` TEXT NOT NULL, `date` INTEGER NOT NULL, `title` TEXT NOT NULL, `author` TEXT, `rawDescription` TEXT NOT NULL, `shortDescription` TEXT NOT NULL, `fullContent` TEXT, `img` TEXT, `link` TEXT NOT NULL, `feedId` TEXT NOT NULL, `accountId` INTEGER NOT NULL, `isRead` INTEGER NOT NULL, `isStarred` INTEGER NOT NULL, `isReadLater` INTEGER NOT NULL, `updateAt` INTEGER, PRIMARY KEY(`id`), FOREIGN KEY(`feedId`) REFERENCES `feed`(`id`) ON UPDATE CASCADE ON DELETE CASCADE )",
+        "fields": [
+          {
+            "fieldPath": "id",
+            "columnName": "id",
+            "affinity": "TEXT",
+            "notNull": true
+          },
+          {
+            "fieldPath": "date",
+            "columnName": "date",
+            "affinity": "INTEGER",
+            "notNull": true
+          },
+          {
+            "fieldPath": "title",
+            "columnName": "title",
+            "affinity": "TEXT",
+            "notNull": true
+          },
+          {
+            "fieldPath": "author",
+            "columnName": "author",
+            "affinity": "TEXT"
+          },
+          {
+            "fieldPath": "rawDescription",
+            "columnName": "rawDescription",
+            "affinity": "TEXT",
+            "notNull": true
+          },
+          {
+            "fieldPath": "shortDescription",
+            "columnName": "shortDescription",
+            "affinity": "TEXT",
+            "notNull": true
+          },
+          {
+            "fieldPath": "fullContent",
+            "columnName": "fullContent",
+            "affinity": "TEXT"
+          },
+          {
+            "fieldPath": "img",
+            "columnName": "img",
+            "affinity": "TEXT"
+          },
+          {
+            "fieldPath": "link",
+            "columnName": "link",
+            "affinity": "TEXT",
+            "notNull": true
+          },
+          {
+            "fieldPath": "feedId",
+            "columnName": "feedId",
+            "affinity": "TEXT",
+            "notNull": true
+          },
+          {
+            "fieldPath": "accountId",
+            "columnName": "accountId",
+            "affinity": "INTEGER",
+            "notNull": true
+          },
+          {
+            "fieldPath": "isRead",
+            "columnName": "isRead",
+            "affinity": "INTEGER",
+            "notNull": true
+          },
+          {
+            "fieldPath": "isStarred",
+            "columnName": "isStarred",
+            "affinity": "INTEGER",
+            "notNull": true
+          },
+          {
+            "fieldPath": "isReadLater",
+            "columnName": "isReadLater",
+            "affinity": "INTEGER",
+            "notNull": true
+          },
+          {
+            "fieldPath": "updateAt",
+            "columnName": "updateAt",
+            "affinity": "INTEGER"
+          }
+        ],
+        "primaryKey": {
+          "autoGenerate": false,
+          "columnNames": [
+            "id"
+          ]
+        },
+        "indices": [
+          {
+            "name": "index_article_feedId",
+            "unique": false,
+            "columnNames": [
+              "feedId"
+            ],
+            "orders": [],
+            "createSql": "CREATE INDEX IF NOT EXISTS `index_article_feedId` ON `${TABLE_NAME}` (`feedId`)"
+          },
+          {
+            "name": "index_article_accountId",
+            "unique": false,
+            "columnNames": [
+              "accountId"
+            ],
+            "orders": [],
+            "createSql": "CREATE INDEX IF NOT EXISTS `index_article_accountId` ON `${TABLE_NAME}` (`accountId`)"
+          }
+        ],
+        "foreignKeys": [
+          {
+            "table": "feed",
+            "onDelete": "CASCADE",
+            "onUpdate": "CASCADE",
+            "columns": [
+              "feedId"
+            ],
+            "referencedColumns": [
+              "id"
+            ]
+          }
+        ]
+      },
+      {
+        "tableName": "group",
+        "createSql": "CREATE TABLE IF NOT EXISTS `${TABLE_NAME}` (`id` TEXT NOT NULL, `name` TEXT NOT NULL, `accountId` INTEGER NOT NULL, PRIMARY KEY(`id`))",
+        "fields": [
+          {
+            "fieldPath": "id",
+            "columnName": "id",
+            "affinity": "TEXT",
+            "notNull": true
+          },
+          {
+            "fieldPath": "name",
+            "columnName": "name",
+            "affinity": "TEXT",
+            "notNull": true
+          },
+          {
+            "fieldPath": "accountId",
+            "columnName": "accountId",
+            "affinity": "INTEGER",
+            "notNull": true
+          }
+        ],
+        "primaryKey": {
+          "autoGenerate": false,
+          "columnNames": [
+            "id"
+          ]
+        },
+        "indices": [
+          {
+            "name": "index_group_accountId",
+            "unique": false,
+            "columnNames": [
+              "accountId"
+            ],
+            "orders": [],
+            "createSql": "CREATE INDEX IF NOT EXISTS `index_group_accountId` ON `${TABLE_NAME}` (`accountId`)"
+          }
+        ]
+      },
+      {
+        "tableName": "archived_article",
+        "createSql": "CREATE TABLE IF NOT EXISTS `${TABLE_NAME}` (`id` INTEGER PRIMARY KEY AUTOINCREMENT NOT NULL, `feedId` TEXT NOT NULL, `link` TEXT NOT NULL, FOREIGN KEY(`feedId`) REFERENCES `feed`(`id`) ON UPDATE CASCADE ON DELETE CASCADE )",
+        "fields": [
+          {
+            "fieldPath": "id",
+            "columnName": "id",
+            "affinity": "INTEGER",
+            "notNull": true
+          },
+          {
+            "fieldPath": "feedId",
+            "columnName": "feedId",
+            "affinity": "TEXT",
+            "notNull": true
+          },
+          {
+            "fieldPath": "link",
+            "columnName": "link",
+            "affinity": "TEXT",
+            "notNull": true
+          }
+        ],
+        "primaryKey": {
+          "autoGenerate": true,
+          "columnNames": [
+            "id"
+          ]
+        },
+        "indices": [
+          {
+            "name": "index_archived_article_feedId",
+            "unique": false,
+            "columnNames": [
+              "feedId"
+            ],
+            "orders": [],
+            "createSql": "CREATE INDEX IF NOT EXISTS `index_archived_article_feedId` ON `${TABLE_NAME}` (`feedId`)"
+          }
+        ],
+        "foreignKeys": [
+          {
+            "table": "feed",
+            "onDelete": "CASCADE",
+            "onUpdate": "CASCADE",
+            "columns": [
+              "feedId"
+            ],
+            "referencedColumns": [
+              "id"
+            ]
+          }
+        ]
+      },
+      {
+        "tableName": "pending_read_state_op",
+        "createSql": "CREATE TABLE IF NOT EXISTS `${TABLE_NAME}` (`articleId` TEXT NOT NULL, `accountId` INTEGER NOT NULL, `feedId` TEXT NOT NULL, `isRead` INTEGER NOT NULL, `updatedAt` INTEGER NOT NULL, `localCommitted` INTEGER NOT NULL DEFAULT 0, `remoteSynced` INTEGER NOT NULL DEFAULT 0, PRIMARY KEY(`articleId`))",
+        "fields": [
+          {
+            "fieldPath": "articleId",
+            "columnName": "articleId",
+            "affinity": "TEXT",
+            "notNull": true
+          },
+          {
+            "fieldPath": "accountId",
+            "columnName": "accountId",
+            "affinity": "INTEGER",
+            "notNull": true
+          },
+          {
+            "fieldPath": "feedId",
+            "columnName": "feedId",
+            "affinity": "TEXT",
+            "notNull": true
+          },
+          {
+            "fieldPath": "isRead",
+            "columnName": "isRead",
+            "affinity": "INTEGER",
+            "notNull": true
+          },
+          {
+            "fieldPath": "updatedAt",
+            "columnName": "updatedAt",
+            "affinity": "INTEGER",
+            "notNull": true
+          },
+          {
+            "fieldPath": "localCommitted",
+            "columnName": "localCommitted",
+            "affinity": "INTEGER",
+            "notNull": true,
+            "defaultValue": "0"
+          },
+          {
+            "fieldPath": "remoteSynced",
+            "columnName": "remoteSynced",
+            "affinity": "INTEGER",
+            "notNull": true,
+            "defaultValue": "0"
+          }
+        ],
+        "primaryKey": {
+          "autoGenerate": false,
+          "columnNames": [
+            "articleId"
+          ]
+        },
+        "indices": [
+          {
+            "name": "index_pending_read_state_op_accountId",
+            "unique": false,
+            "columnNames": [
+              "accountId"
+            ],
+            "orders": [],
+            "createSql": "CREATE INDEX IF NOT EXISTS `index_pending_read_state_op_accountId` ON `${TABLE_NAME}` (`accountId`)"
+          },
+          {
+            "name": "index_pending_read_state_op_feedId",
+            "unique": false,
+            "columnNames": [
+              "feedId"
+            ],
+            "orders": [],
+            "createSql": "CREATE INDEX IF NOT EXISTS `index_pending_read_state_op_feedId` ON `${TABLE_NAME}` (`feedId`)"
+          }
+        ]
+      },
+      {
+        "tableName": "reading_event",
+        "createSql": "CREATE TABLE IF NOT EXISTS `${TABLE_NAME}` (`id` INTEGER PRIMARY KEY AUTOINCREMENT NOT NULL, `accountId` INTEGER NOT NULL, `articleId` TEXT, `feedId` TEXT, `type` INTEGER NOT NULL, `createdAt` INTEGER NOT NULL, `durationMs` INTEGER, `depth` REAL, `position` INTEGER, `context` INTEGER, `url` TEXT, `censored` INTEGER NOT NULL)",
+        "fields": [
+          {
+            "fieldPath": "id",
+            "columnName": "id",
+            "affinity": "INTEGER",
+            "notNull": true
+          },
+          {
+            "fieldPath": "accountId",
+            "columnName": "accountId",
+            "affinity": "INTEGER",
+            "notNull": true
+          },
+          {
+            "fieldPath": "articleId",
+            "columnName": "articleId",
+            "affinity": "TEXT"
+          },
+          {
+            "fieldPath": "feedId",
+            "columnName": "feedId",
+            "affinity": "TEXT"
+          },
+          {
+            "fieldPath": "type",
+            "columnName": "type",
+            "affinity": "INTEGER",
+            "notNull": true
+          },
+          {
+            "fieldPath": "createdAt",
+            "columnName": "createdAt",
+            "affinity": "INTEGER",
+            "notNull": true
+          },
+          {
+            "fieldPath": "durationMs",
+            "columnName": "durationMs",
+            "affinity": "INTEGER"
+          },
+          {
+            "fieldPath": "depth",
+            "columnName": "depth",
+            "affinity": "REAL"
+          },
+          {
+            "fieldPath": "position",
+            "columnName": "position",
+            "affinity": "INTEGER"
+          },
+          {
+            "fieldPath": "context",
+            "columnName": "context",
+            "affinity": "INTEGER"
+          },
+          {
+            "fieldPath": "url",
+            "columnName": "url",
+            "affinity": "TEXT"
+          },
+          {
+            "fieldPath": "censored",
+            "columnName": "censored",
+            "affinity": "INTEGER",
+            "notNull": true
+          }
+        ],
+        "primaryKey": {
+          "autoGenerate": true,
+          "columnNames": [
+            "id"
+          ]
+        },
+        "indices": [
+          {
+            "name": "index_reading_event_accountId_createdAt",
+            "unique": false,
+            "columnNames": [
+              "accountId",
+              "createdAt"
+            ],
+            "orders": [],
+            "createSql": "CREATE INDEX IF NOT EXISTS `index_reading_event_accountId_createdAt` ON `${TABLE_NAME}` (`accountId`, `createdAt`)"
+          },
+          {
+            "name": "index_reading_event_articleId",
+            "unique": false,
+            "columnNames": [
+              "articleId"
+            ],
+            "orders": [],
+            "createSql": "CREATE INDEX IF NOT EXISTS `index_reading_event_articleId` ON `${TABLE_NAME}` (`articleId`)"
+          },
+          {
+            "name": "index_reading_event_type",
+            "unique": false,
+            "columnNames": [
+              "type"
+            ],
+            "orders": [],
+            "createSql": "CREATE INDEX IF NOT EXISTS `index_reading_event_type` ON `${TABLE_NAME}` (`type`)"
+          }
+        ]
+      },
+      {
+        "tableName": "reading_session",
+        "createSql": "CREATE TABLE IF NOT EXISTS `${TABLE_NAME}` (`id` INTEGER PRIMARY KEY AUTOINCREMENT NOT NULL, `accountId` INTEGER NOT NULL, `startedAt` INTEGER NOT NULL, `endedAt` INTEGER NOT NULL, `durationMs` INTEGER NOT NULL, `entryPoint` INTEGER)",
+        "fields": [
+          {
+            "fieldPath": "id",
+            "columnName": "id",
+            "affinity": "INTEGER",
+            "notNull": true
+          },
+          {
+            "fieldPath": "accountId",
+            "columnName": "accountId",
+            "affinity": "INTEGER",
+            "notNull": true
+          },
+          {
+            "fieldPath": "startedAt",
+            "columnName": "startedAt",
+            "affinity": "INTEGER",
+            "notNull": true
+          },
+          {
+            "fieldPath": "endedAt",
+            "columnName": "endedAt",
+            "affinity": "INTEGER",
+            "notNull": true
+          },
+          {
+            "fieldPath": "durationMs",
+            "columnName": "durationMs",
+            "affinity": "INTEGER",
+            "notNull": true
+          },
+          {
+            "fieldPath": "entryPoint",
+            "columnName": "entryPoint",
+            "affinity": "INTEGER"
+          }
+        ],
+        "primaryKey": {
+          "autoGenerate": true,
+          "columnNames": [
+            "id"
+          ]
+        },
+        "indices": [
+          {
+            "name": "index_reading_session_accountId_startedAt",
+            "unique": false,
+            "columnNames": [
+              "accountId",
+              "startedAt"
+            ],
+            "orders": [],
+            "createSql": "CREATE INDEX IF NOT EXISTS `index_reading_session_accountId_startedAt` ON `${TABLE_NAME}` (`accountId`, `startedAt`)"
+          }
+        ]
+      },
+      {
+        "tableName": "article_vector",
+        "createSql": "CREATE TABLE IF NOT EXISTS `${TABLE_NAME}` (`articleId` TEXT NOT NULL, `modelId` TEXT NOT NULL, `accountId` INTEGER NOT NULL, `feedId` TEXT NOT NULL, `vector` BLOB NOT NULL, `contentHash` INTEGER NOT NULL, `createdAt` INTEGER NOT NULL, PRIMARY KEY(`articleId`, `modelId`))",
+        "fields": [
+          {
+            "fieldPath": "articleId",
+            "columnName": "articleId",
+            "affinity": "TEXT",
+            "notNull": true
+          },
+          {
+            "fieldPath": "modelId",
+            "columnName": "modelId",
+            "affinity": "TEXT",
+            "notNull": true
+          },
+          {
+            "fieldPath": "accountId",
+            "columnName": "accountId",
+            "affinity": "INTEGER",
+            "notNull": true
+          },
+          {
+            "fieldPath": "feedId",
+            "columnName": "feedId",
+            "affinity": "TEXT",
+            "notNull": true
+          },
+          {
+            "fieldPath": "vector",
+            "columnName": "vector",
+            "affinity": "BLOB",
+            "notNull": true
+          },
+          {
+            "fieldPath": "contentHash",
+            "columnName": "contentHash",
+            "affinity": "INTEGER",
+            "notNull": true
+          },
+          {
+            "fieldPath": "createdAt",
+            "columnName": "createdAt",
+            "affinity": "INTEGER",
+            "notNull": true
+          }
+        ],
+        "primaryKey": {
+          "autoGenerate": false,
+          "columnNames": [
+            "articleId",
+            "modelId"
+          ]
+        },
+        "indices": [
+          {
+            "name": "index_article_vector_accountId",
+            "unique": false,
+            "columnNames": [
+              "accountId"
+            ],
+            "orders": [],
+            "createSql": "CREATE INDEX IF NOT EXISTS `index_article_vector_accountId` ON `${TABLE_NAME}` (`accountId`)"
+          }
+        ]
+      },
+      {
+        "tableName": "article_rank",
+        "createSql": "CREATE TABLE IF NOT EXISTS `${TABLE_NAME}` (`articleId` TEXT NOT NULL, `accountId` INTEGER NOT NULL, `feedId` TEXT NOT NULL, `modelId` TEXT, `pOpen` REAL NOT NULL, `predictedMinutes` REAL NOT NULL, `score` REAL NOT NULL, `sim` REAL, `feedPrior` REAL, `freshness` REAL, `lengthFit` REAL, `exploration` INTEGER NOT NULL, `admitted` INTEGER NOT NULL, `expectedReadMs` INTEGER NOT NULL, `computedAt` INTEGER NOT NULL, PRIMARY KEY(`articleId`))",
+        "fields": [
+          {
+            "fieldPath": "articleId",
+            "columnName": "articleId",
+            "affinity": "TEXT",
+            "notNull": true
+          },
+          {
+            "fieldPath": "accountId",
+            "columnName": "accountId",
+            "affinity": "INTEGER",
+            "notNull": true
+          },
+          {
+            "fieldPath": "feedId",
+            "columnName": "feedId",
+            "affinity": "TEXT",
+            "notNull": true
+          },
+          {
+            "fieldPath": "modelId",
+            "columnName": "modelId",
+            "affinity": "TEXT"
+          },
+          {
+            "fieldPath": "pOpen",
+            "columnName": "pOpen",
+            "affinity": "REAL",
+            "notNull": true
+          },
+          {
+            "fieldPath": "predictedMinutes",
+            "columnName": "predictedMinutes",
+            "affinity": "REAL",
+            "notNull": true
+          },
+          {
+            "fieldPath": "score",
+            "columnName": "score",
+            "affinity": "REAL",
+            "notNull": true
+          },
+          {
+            "fieldPath": "sim",
+            "columnName": "sim",
+            "affinity": "REAL"
+          },
+          {
+            "fieldPath": "feedPrior",
+            "columnName": "feedPrior",
+            "affinity": "REAL"
+          },
+          {
+            "fieldPath": "freshness",
+            "columnName": "freshness",
+            "affinity": "REAL"
+          },
+          {
+            "fieldPath": "lengthFit",
+            "columnName": "lengthFit",
+            "affinity": "REAL"
+          },
+          {
+            "fieldPath": "exploration",
+            "columnName": "exploration",
+            "affinity": "INTEGER",
+            "notNull": true
+          },
+          {
+            "fieldPath": "admitted",
+            "columnName": "admitted",
+            "affinity": "INTEGER",
+            "notNull": true
+          },
+          {
+            "fieldPath": "expectedReadMs",
+            "columnName": "expectedReadMs",
+            "affinity": "INTEGER",
+            "notNull": true
+          },
+          {
+            "fieldPath": "computedAt",
+            "columnName": "computedAt",
+            "affinity": "INTEGER",
+            "notNull": true
+          }
+        ],
+        "primaryKey": {
+          "autoGenerate": false,
+          "columnNames": [
+            "articleId"
+          ]
+        },
+        "indices": [
+          {
+            "name": "index_article_rank_accountId_admitted_score",
+            "unique": false,
+            "columnNames": [
+              "accountId",
+              "admitted",
+              "score"
+            ],
+            "orders": [],
+            "createSql": "CREATE INDEX IF NOT EXISTS `index_article_rank_accountId_admitted_score` ON `${TABLE_NAME}` (`accountId`, `admitted`, `score`)"
+          }
+        ]
+      },
+      {
+        "tableName": "feed_prior",
+        "createSql": "CREATE TABLE IF NOT EXISTS `${TABLE_NAME}` (`accountId` INTEGER NOT NULL, `feedId` TEXT NOT NULL, `decayedImpressions` REAL NOT NULL, `decayedOpens` REAL NOT NULL, `decayedEngagedOpens` REAL NOT NULL, `decayedLogDwellSum` REAL NOT NULL, `updatedAt` INTEGER NOT NULL, PRIMARY KEY(`accountId`, `feedId`))",
+        "fields": [
+          {
+            "fieldPath": "accountId",
+            "columnName": "accountId",
+            "affinity": "INTEGER",
+            "notNull": true
+          },
+          {
+            "fieldPath": "feedId",
+            "columnName": "feedId",
+            "affinity": "TEXT",
+            "notNull": true
+          },
+          {
+            "fieldPath": "decayedImpressions",
+            "columnName": "decayedImpressions",
+            "affinity": "REAL",
+            "notNull": true
+          },
+          {
+            "fieldPath": "decayedOpens",
+            "columnName": "decayedOpens",
+            "affinity": "REAL",
+            "notNull": true
+          },
+          {
+            "fieldPath": "decayedEngagedOpens",
+            "columnName": "decayedEngagedOpens",
+            "affinity": "REAL",
+            "notNull": true
+          },
+          {
+            "fieldPath": "decayedLogDwellSum",
+            "columnName": "decayedLogDwellSum",
+            "affinity": "REAL",
+            "notNull": true
+          },
+          {
+            "fieldPath": "updatedAt",
+            "columnName": "updatedAt",
+            "affinity": "INTEGER",
+            "notNull": true
+          }
+        ],
+        "primaryKey": {
+          "autoGenerate": false,
+          "columnNames": [
+            "accountId",
+            "feedId"
+          ]
+        }
+      },
+      {
+        "tableName": "ranker_model",
+        "createSql": "CREATE TABLE IF NOT EXISTS `${TABLE_NAME}` (`id` INTEGER PRIMARY KEY AUTOINCREMENT NOT NULL, `accountId` INTEGER NOT NULL, `stage` INTEGER NOT NULL, `featureVersion` INTEGER NOT NULL, `weights` BLOB NOT NULL, `trainSamples` INTEGER NOT NULL, `trainedAt` INTEGER NOT NULL)",
+        "fields": [
+          {
+            "fieldPath": "id",
+            "columnName": "id",
+            "affinity": "INTEGER",
+            "notNull": true
+          },
+          {
+            "fieldPath": "accountId",
+            "columnName": "accountId",
+            "affinity": "INTEGER",
+            "notNull": true
+          },
+          {
+            "fieldPath": "stage",
+            "columnName": "stage",
+            "affinity": "INTEGER",
+            "notNull": true
+          },
+          {
+            "fieldPath": "featureVersion",
+            "columnName": "featureVersion",
+            "affinity": "INTEGER",
+            "notNull": true
+          },
+          {
+            "fieldPath": "weights",
+            "columnName": "weights",
+            "affinity": "BLOB",
+            "notNull": true
+          },
+          {
+            "fieldPath": "trainSamples",
+            "columnName": "trainSamples",
+            "affinity": "INTEGER",
+            "notNull": true
+          },
+          {
+            "fieldPath": "trainedAt",
+            "columnName": "trainedAt",
+            "affinity": "INTEGER",
+            "notNull": true
+          }
+        ],
+        "primaryKey": {
+          "autoGenerate": true,
+          "columnNames": [
+            "id"
+          ]
+        },
+        "indices": [
+          {
+            "name": "index_ranker_model_accountId_stage",
+            "unique": false,
+            "columnNames": [
+              "accountId",
+              "stage"
+            ],
+            "orders": [],
+            "createSql": "CREATE INDEX IF NOT EXISTS `index_ranker_model_accountId_stage` ON `${TABLE_NAME}` (`accountId`, `stage`)"
+          }
+        ]
+      }
+    ],
+    "setupQueries": [
+      "CREATE TABLE IF NOT EXISTS room_master_table (id INTEGER PRIMARY KEY,identity_hash TEXT)",
+      "INSERT OR REPLACE INTO room_master_table (id,identity_hash) VALUES(42, 'ad819631721d73d9154062ac362b692e')"
+    ]
+  }
+}

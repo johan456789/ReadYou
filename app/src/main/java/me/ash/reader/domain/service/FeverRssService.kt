@@ -24,6 +24,7 @@ import me.ash.reader.domain.model.group.Group
 import me.ash.reader.domain.repository.ArticleDao
 import me.ash.reader.domain.repository.FeedDao
 import me.ash.reader.domain.repository.GroupDao
+import me.ash.reader.domain.repository.InsightsDao
 import me.ash.reader.infrastructure.android.NotificationHelper
 import me.ash.reader.infrastructure.di.DefaultDispatcher
 import me.ash.reader.infrastructure.di.IODispatcher
@@ -52,6 +53,8 @@ constructor(
     @param:DefaultDispatcher private val defaultDispatcher: CoroutineDispatcher,
     workManager: WorkManager,
     private val accountService: AccountService,
+    private val insightsRecorder: ReadingInsightsRecorder,
+    private val insightsDao: InsightsDao,
 ) :
     AbstractRssRepository(
         articleDao,
@@ -63,6 +66,8 @@ constructor(
         ioDispatcher,
         defaultDispatcher,
         accountService,
+        insightsRecorder,
+        insightsDao,
     ) {
 
     override val importSubscription: Boolean = false

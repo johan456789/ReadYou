@@ -22,9 +22,13 @@ import androidx.compose.runtime.setValue
 import androidx.core.app.NotificationManagerCompat
 import androidx.core.util.Consumer
 import androidx.hilt.lifecycle.viewmodel.compose.hiltViewModel
+import androidx.lifecycle.lifecycleScope
 import androidx.navigation3.runtime.NavBackStack
 import androidx.navigation3.runtime.NavKey
 import androidx.navigation3.runtime.rememberNavBackStack
+import androidx.lifecycle.DefaultLifecycleObserver
+import androidx.lifecycle.LifecycleOwner
+import androidx.lifecycle.ProcessLifecycleOwner
 import androidx.profileinstaller.ProfileInstallerInitializer
 import androidx.work.WorkManager
 import coil.ImageLoader
@@ -35,7 +39,9 @@ import kotlinx.coroutines.delay
 import kotlinx.coroutines.launch
 import me.ash.reader.domain.data.FilterStateUseCase
 import me.ash.reader.domain.service.AccountService
+import me.ash.reader.domain.service.ReadingInsightsRecorder
 import me.ash.reader.domain.service.RssService
+import me.ash.reader.domain.service.TrainWorker
 import me.ash.reader.domain.service.SyncWorker
 import me.ash.reader.domain.service.WidgetUpdateWorker
 import me.ash.reader.infrastructure.compose.ProvideCompositionLocals
@@ -69,6 +75,8 @@ class MainActivity : AppCompatActivity() {
 
     @Inject lateinit var rssService: RssService
 
+    @Inject lateinit var readingInsightsRecorder: ReadingInsightsRecorder
+
     companion object {
         /** Unique per process. Used to detect process death vs. configuration change. */
         private val processToken: String = java.util.UUID.randomUUID().toString()
@@ -77,6 +85,26 @@ class MainActivity : AppCompatActivity() {
     override fun onCreate(savedInstanceState: Bundle?) {
         super.onCreate(savedInstanceState)
         Timber.tag("RLog").i("onCreate: ${ProfileInstallerInitializer().create(this)}")
+
+        // Reading insights: nightly on-device ranker training (charging+idle).
+        TrainWorker.enqueuePeriodicWork(workManager)
+
+        // Reading insights: session boundaries at the PROCESS level. Activity
+        // onStart/onStop would split sessions and censor reads on every
+        // configuration change (rotation is manifest-handled, but dark-mode
+        // toggles and in-app locale changes recreate the activity).
+        ProcessLifecycleOwner.get().lifecycle.addObserver(
+            object : DefaultLifecycleObserver {
+                override fun onStart(owner: LifecycleOwner) {
+                    readingInsightsRecorder.onAppForeground()
+                    lifecycleScope.launch { readingInsightsRecorder.reconcileLinkOuts() }
+                }
+
+                override fun onStop(owner: LifecycleOwner) {
+                    readingInsightsRecorder.onAppBackground()
+                }
+            }
+        )
 
         enableEdgeToEdge()
 
@@ -114,7 +142,7 @@ class MainActivity : AppCompatActivity() {
                 settingsProvider.ProvidesSettings {
                     val subscribeViewModel: SubscribeViewModel = hiltViewModel()
 
-                    ProvideCompositionLocals {
+                    ProvideCompositionLocals(insightsRecorder = readingInsightsRecorder) {
                         AppTheme(useDarkTheme = LocalDarkTheme.current.isDarkTheme()) {
                             val isFirstLaunch = remember { isFirstLaunch }
                             val initialPage = remember { initialPage }

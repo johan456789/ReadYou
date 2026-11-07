@@ -62,6 +62,7 @@ import androidx.compose.runtime.rememberCoroutineScope
 import androidx.compose.runtime.rememberUpdatedState
 import androidx.compose.runtime.saveable.rememberSaveable
 import androidx.compose.runtime.setValue
+import androidx.compose.runtime.DisposableEffect
 import androidx.compose.runtime.snapshotFlow
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
@@ -86,6 +87,9 @@ import me.ash.reader.R
 import me.ash.reader.domain.data.PagerData
 import me.ash.reader.domain.model.article.ArticleFlowItem
 import me.ash.reader.domain.model.article.ArticleWithFeed
+import me.ash.reader.infrastructure.compose.LocalReadingInsights
+import me.ash.reader.domain.model.insights.ReadingEventContext
+import me.ash.reader.domain.service.VisibleCard
 import me.ash.reader.infrastructure.preference.LocalFlowArticleListDateStickyHeader
 import me.ash.reader.infrastructure.preference.LocalFlowArticleListFeedIcon
 import me.ash.reader.infrastructure.preference.LocalFlowArticleListFeedName
@@ -154,6 +158,7 @@ fun FlowPage(
 
     val openLink = LocalOpenLink.current
     val openLinkSpecificBrowser = LocalOpenLinkSpecificBrowser.current
+    val insights = LocalReadingInsights.current
 
     val settings = LocalSettings.current
     val pullToSwitchFeed = settings.pullToSwitchFeed
@@ -227,7 +232,19 @@ fun FlowPage(
     }
 
     val onToggleRead: (ArticleWithFeed) -> Unit = remember {
-        { articleWithFeed -> viewModel.diffMapHolder.updateDiff(articleWithFeed) }
+        { articleWithFeed ->
+            // Reading insights: an explicit per-card read toggle is the
+            // strongest per-article negative — never logged via the deferred
+            // commit path, which cannot tell intent.
+            if (!viewModel.diffMapHolder.checkIfRead(articleWithFeed)) {
+                insights?.onMarkReadSingle(
+                    articleId = articleWithFeed.article.id,
+                    feedId = articleWithFeed.feed.id,
+                    source = ReadingEventContext.MARK_SOURCE_LIST,
+                )
+            }
+            viewModel.diffMapHolder.updateDiff(articleWithFeed)
+        }
     }
 
     val showUndoSnackbarForItems: (MarkedReadUndoAction) -> Unit =
@@ -662,6 +679,22 @@ fun FlowPage(
                                         articleWithFeed = items.toTypedArray(),
                                         markRead = true,
                                     )
+                                    // Reading insights: swept-past items were
+                                    // already impressed, so the per-article
+                                    // negatives exist via IMPRESSION events —
+                                    // per-feed batch events carry the intent.
+                                    items
+                                        .groupingBy { it.feed.id }
+                                        .eachCount()
+                                        .forEach { (feedId, count) ->
+                                            insights?.onMarkReadBulk(
+                                                scope = ReadingEventContext.MARK_SCOPE_BATCH,
+                                                feedId = feedId,
+                                                groupId = null,
+                                                affectedCount = count,
+                                                source = ReadingEventContext.MARK_SOURCE_SCROLL,
+                                            )
+                                        }
                                 }
                             }
                         }
@@ -676,6 +709,50 @@ fun FlowPage(
                             }
                         }
                     }
+
+                    // Reading insights: title-card exposure in the unread flow
+                    // (the natural "decide what to read" surface). The recorder
+                    // enforces the >=1s visible-before-counting rule; positions
+                    // feed the position-bias feature at training time.
+                    if (filterState.filter.isUnread()) {
+                        LaunchedEffect(listState) {
+                            snapshotFlow {
+                                listState.layoutInfo.visibleItemsInfo
+                                    .filter { it.contentType == CONTENT_TYPE_ARTICLE }
+                                    .mapNotNull { info ->
+                                        (info.key as? String)?.let { it to info.index }
+                                    }
+                                    }.collect { visible ->
+                                        // Resolve feed ids from the snapshot list ONCE —
+                                        // LazyPagingItems.peek throws when the snapshot
+                                        // resets under a stale layout index, and two
+                                        // separate reads (size + peek) can race a paging
+                                        // update. getOrNull + id check: never crashes,
+                                        // never misattributes.
+                                        val items = pagingItems.itemSnapshotList.items
+                                        insights?.noteVisibleArticleIds(
+                                            visible.mapNotNull { (id, index) ->
+                                                (items.getOrNull(index) as? ArticleFlowItem.Article)
+                                                    ?.takeIf { it.articleWithFeed.article.id == id }
+                                                    ?.let {
+                                                        VisibleCard(
+                                                            articleId = id,
+                                                            feedId = it.articleWithFeed.feed.id,
+                                                            position = index,
+                                                        )
+                                                    }
+                                            }
+                                        )
+                                    }
+                                }
+                            }
+
+                            // The list leaving composition (single-pane tap into
+                            // the reader) ends its exposure window: cards must not
+                            // age into impressions while the user is elsewhere.
+                            DisposableEffect(Unit) {
+                                onDispose { insights?.noteVisibleArticleIds(emptyList()) }
+                            }
 
                     val listState = remember(pager) { listState }
 
@@ -802,12 +879,26 @@ fun FlowPage(
                                             articleWithFeed,
                                             markRead = true,
                                         )
+                                        // Reading insights: the article itself is
+                                        // consumed in the browser — an OPEN with
+                                        // full attribution, not a silent feed.
+                                        insights?.onListPick(articleWithFeed.article.id)
+                                        insights?.onOpenExternal(
+                                            articleId = articleWithFeed.article.id,
+                                            feedId = articleWithFeed.feed.id,
+                                        )
+                                        insights?.onLinkOut(
+                                            url = articleWithFeed.article.link,
+                                            articleId = articleWithFeed.article.id,
+                                            isArticleSelf = true,
+                                        )
                                         context.openURL(
                                             articleWithFeed.article.link,
                                             openLink,
                                             openLinkSpecificBrowser,
                                         )
                                     } else {
+                                        insights?.onListPick(articleWithFeed.article.id)
                                         navigateToArticle(articleWithFeed.article.id)
                                     }
                                 },

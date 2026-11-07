@@ -8,6 +8,7 @@ import androidx.work.workDataOf
 import com.rometools.rome.feed.synd.SyndFeed
 import java.util.Date
 import java.util.UUID
+import kotlinx.coroutines.CancellationException
 import kotlinx.coroutines.CoroutineDispatcher
 import kotlinx.coroutines.ExperimentalCoroutinesApi
 import kotlinx.coroutines.flow.Flow
@@ -19,9 +20,11 @@ import me.ash.reader.domain.model.article.ArticleWithFeed
 import me.ash.reader.domain.model.feed.Feed
 import me.ash.reader.domain.model.group.Group
 import me.ash.reader.domain.model.group.GroupWithFeed
+import me.ash.reader.domain.model.insights.ReadingEventContext
 import me.ash.reader.domain.repository.ArticleDao
 import me.ash.reader.domain.repository.FeedDao
 import me.ash.reader.domain.repository.GroupDao
+import me.ash.reader.domain.repository.InsightsDao
 import me.ash.reader.infrastructure.android.NotificationHelper
 import me.ash.reader.infrastructure.preference.KeepArchivedPreference
 import me.ash.reader.infrastructure.preference.SyncIntervalPreference
@@ -39,6 +42,8 @@ abstract class AbstractRssRepository(
     private val dispatcherIO: CoroutineDispatcher,
     private val dispatcherDefault: CoroutineDispatcher,
     private val accountService: AccountService,
+    private val insightsRecorder: ReadingInsightsRecorder,
+    private val insightsDao: InsightsDao,
 ) {
 
     open val importSubscription: Boolean = true
@@ -168,6 +173,64 @@ abstract class AbstractRssRepository(
                 articleDao.markAllAsRead(accountId, isRead = markRead, before ?: Date(Long.MAX_VALUE))
             }
         }
+        // Reading insights: bulk marks are batch-level evidence (feed priors
+        // only) — logged once per affected feed. Single marks are per-article
+        // events. The deferred-diff commit path (batchMarkAsRead) does NOT log:
+        // it cannot tell user intent (swipe vs auto-read vs replay), so intent
+        // is captured at the UI sites instead.
+        //
+        // Everything here is best-effort and failure-isolated: insights must
+        // never make a user mark fail, and the caller's server sync must
+        // always run (an exception escaping here desyncs Fever/GReader).
+        if (markRead && affectedIds.isNotEmpty() && articleId == null) {
+            runCatching {
+                when {
+                    // Single-feed scope: no lookup needed, one event.
+                    feedId != null -> insightsRecorder.onMarkReadBulk(
+                        scope = ReadingEventContext.MARK_SCOPE_FEED,
+                        feedId = feedId,
+                        groupId = null,
+                        affectedCount = affectedIds.size,
+                    )
+                    else -> {
+                        val scope =
+                            if (groupId != null) ReadingEventContext.MARK_SCOPE_GROUP
+                            else ReadingEventContext.MARK_SCOPE_ALL
+                        // Chunked: SQLite caps IN-clause parameters (999 on
+                        // older Android), and mark-all can touch thousands.
+                        val feedCounts = HashMap<String, Int>()
+                        for (chunk in affectedIds.chunked(500)) {
+                            val refs =
+                                try {
+                                    insightsDao.queryFeedIdsForArticles(chunk)
+                                } catch (e: CancellationException) {
+                                    throw e
+                                } catch (_: Exception) {
+                                    null
+                                }
+                            refs?.forEach { feedCounts.merge(it.feedId, 1, Int::plus) }
+                        }
+                        for ((perFeedId, count) in feedCounts) {
+                            insightsRecorder.onMarkReadBulk(
+                                scope = scope,
+                                feedId = perFeedId,
+                                groupId = groupId,
+                                affectedCount = count,
+                            )
+                        }
+                    }
+                }
+            }
+        }
+        if (markRead && articleId != null) {
+            runCatching {
+                insightsRecorder.onMarkReadSingle(
+                    articleId = articleId,
+                    feedId = feedId,
+                    source = 0, // repository cannot know the surface; training treats as unknown
+                )
+            }
+        }
         return affectedIds
     }
 
@@ -179,6 +242,9 @@ abstract class AbstractRssRepository(
             ?.forEachIndexed { index, it ->
                 articleDao.markAsReadByIdSet(accountId, it.toSet(), markRead)
             }
+        // No insight logging here: this path serves deferred diff commits, the
+        // auto-read-on-open, and op replays — none carry user intent. Mark
+        // intent is recorded at the UI sites that produce it.
     }
 
     open suspend fun syncReadStatus(articleIds: Set<String>, markRead: Boolean): Set<String> {
@@ -189,6 +255,7 @@ abstract class AbstractRssRepository(
     open suspend fun markAsStarred(articleId: String, isStarred: Boolean) {
         val accountId = accountService.getCurrentAccountId()
         articleDao.markAsStarredByArticleId(accountId, articleId, isStarred)
+        insightsRecorder.onToggleStarred(articleId = articleId, feedId = null, isStarred = isStarred)
     }
 
     suspend fun clearKeepArchivedArticles(): List<Article> {

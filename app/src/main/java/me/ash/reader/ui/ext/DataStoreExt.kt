@@ -194,6 +194,9 @@ sealed interface PreferencesKey {
         const val openLinkAppSpecificBrowser = "openLinkAppSpecificBrowser"
         const val sharedContent = "sharedContent"
 
+        // Reading insights (local recommender): silent on-device collection kill switch
+        const val insightsCollectionEnabled = "insightsCollectionEnabled"
+
         // Transient browsing state (persisted to survive process death for reading resume)
         const val currentFilterFeedId = "currentFilterFeedId"
         const val currentFilterGroupId = "currentFilterGroupId"
@@ -267,6 +270,7 @@ sealed interface PreferencesKey {
                 IntKey(openLink),
                 StringKey(openLinkAppSpecificBrowser),
                 IntKey(sharedContent),
+                BooleanKey(insightsCollectionEnabled),
                 StringKey(currentFilterFeedId),
                 StringKey(currentFilterGroupId),
                 IntKey(currentFilterStatus),
@@ -288,6 +292,9 @@ val ignorePreferencesOnExportAndImport =
         PreferencesKey.currentFilterGroupId,
         PreferencesKey.currentFilterStatus,
         PreferencesKey.currentReadingArticleId,
+        // Device-local consent: importing another device's backup must not
+        // silently flip this device's collection setting.
+        PreferencesKey.insightsCollectionEnabled,
     )
 
 suspend fun Context.fromDataStoreToJSONString(): String {

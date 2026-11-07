@@ -61,6 +61,16 @@ constructor(
                             )
                             .build(),
                     )
+                    .then(
+                        // Reading insights: embed (Tier 2 pass-through for now).
+                        // The rank pass is NOT part of this chain: it must not
+                        // delay the widget refresh, and cancelling sync must not
+                        // cancel ranking. EmbedWorker enqueues it on completion.
+                        OneTimeWorkRequestBuilder<EmbedWorker>()
+                            .addTag(RankWorker.INSIGHTS_WORK_TAG)
+                            .setInputData(workDataOf("accountId" to accountId))
+                            .build()
+                    )
                     .then(OneTimeWorkRequestBuilder<WidgetUpdateWorker>().build())
                     .enqueue()
             }

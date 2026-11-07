@@ -21,6 +21,7 @@ import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.Scaffold
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.CompositionLocalProvider
+import androidx.compose.runtime.DisposableEffect
 import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableStateOf
@@ -45,6 +46,7 @@ import me.ash.reader.ui.component.webview.LinkActionDialog
 import me.ash.reader.ui.component.webview.LinkActionData
 import me.ash.reader.ui.component.webview.WebViewScrollSnapshot
 import me.ash.reader.infrastructure.android.TextToSpeechManager
+import me.ash.reader.infrastructure.compose.LocalReadingInsights
 import me.ash.reader.infrastructure.preference.LocalReadingTextLineHeight
 import me.ash.reader.infrastructure.preference.LocalSharedContent
 import me.ash.reader.ui.ext.collectAsStateValue
@@ -145,6 +147,37 @@ fun ReadingPage(
     // is the targeted one (or nothing is displayed yet on first open).
     val actionsTargetDisplayed =
         readingUiState.articleWithFeed?.article?.id?.let { it == actionArticleId } ?: true
+
+    // Reading insights: per-article dwell and scroll capture. Tracking keys on
+    // the committed article (readerState), not the drag-start slot — a cancelled
+    // swipe must not log an OPEN for an article the user never landed on.
+    // The recorder flushes the previous article's dwell on switch.
+    val insights = LocalReadingInsights.current
+    val scrollDepthHolder = remember { floatArrayOf(0f) }
+    var lastTrackedArticleId by remember { mutableStateOf<String?>(null) }
+    LaunchedEffect(readerState.articleId) {
+        val previous = lastTrackedArticleId
+        if (previous != null && previous != readerState.articleId) {
+            insights?.onExitReader(scrollDepthHolder[0])
+            scrollDepthHolder[0] = 0f
+        }
+        lastTrackedArticleId = readerState.articleId
+        readerState.articleId?.let { articleId ->
+            // feedId deliberately null: readingUiState can lag the pager and a
+            // wrong non-null value would never be corrected (the drain-time
+            // backfill only fills nulls). The recorder resolves it from DB.
+            // Open source (list pick vs swipe) is decided by the recorder from
+            // the registered list pick — inferring it here would mislabel
+            // two-pane list taps as swipes.
+            insights?.onEnterReader(
+                articleId = articleId,
+                feedId = null,
+            )
+        }
+    }
+    DisposableEffect(Unit) {
+        onDispose { insights?.onExitReader(scrollDepthHolder[0]) }
+    }
 
     fun shareArticle(articleId: String) {
         viewModel.shareArticle(articleId) { title, link ->
@@ -259,6 +292,12 @@ fun ReadingPage(
                             onCurrentHeadlineMeasured = { headlineHeightPx = it },
                             onCurrentScrollSnapshotChange = {
                                 webViewScrollSnapshot = it
+                                val depth =
+                                    if (it.maxScrollY > 0) {
+                                        (it.scrollY.toFloat() / it.maxScrollY).coerceIn(0f, 1f)
+                                    } else 0f
+                                scrollDepthHolder[0] = depth
+                                insights?.onReaderScroll(depth)
                             },
                             onTitleLayersChange = { swipeTitleLayers = it },
                             onVisibleArticleChange = { visibleArticleId = it },

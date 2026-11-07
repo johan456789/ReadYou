@@ -13,6 +13,7 @@ import androidx.compose.ui.platform.LocalUriHandler
 import androidx.compose.ui.platform.UriHandler
 import androidx.core.net.toUri
 import me.ash.reader.R
+import me.ash.reader.domain.service.ReadingInsightsRecorder
 import me.ash.reader.infrastructure.preference.LocalSettings
 import me.ash.reader.infrastructure.preference.OpenLinkPreference
 import me.ash.reader.infrastructure.preference.OpenLinkSpecificBrowserPreference
@@ -21,12 +22,15 @@ import me.ash.reader.ui.ext.getDefaultBrowserInfo
 import me.ash.reader.ui.ext.showToast
 
 @Composable
-internal fun ProvideUriHandler(content: @Composable () -> Unit) {
+internal fun ProvideUriHandler(
+    insightsRecorder: ReadingInsightsRecorder?,
+    content: @Composable () -> Unit,
+) {
     val settings = LocalSettings.current
     val context = LocalContext.current
     CompositionLocalProvider(
         LocalUriHandler provides
-            AppUriHandler(context, settings.openLink, settings.openLinkSpecificBrowser),
+            AppUriHandler(context, settings.openLink, settings.openLinkSpecificBrowser, insightsRecorder),
         content = content,
     )
 }
@@ -35,12 +39,20 @@ internal class AppUriHandler(
     private val context: Context,
     private val openLink: OpenLinkPreference,
     private val specificBrowser: OpenLinkSpecificBrowserPreference,
+    private val insightsRecorder: ReadingInsightsRecorder? = null,
 ) : UriHandler {
 
     override fun openUri(uri: String) {
         val url = uri
         with(context) {
             if (url.isNotBlank()) {
+                // Reading insights: attribute to the article open in the reader
+                // (inline body link); durable because we are about to leave.
+                insightsRecorder?.onLinkOut(
+                    url = url,
+                    articleId = null,
+                    isArticleSelf = false,
+                )
                 val uri = url.trim { it.isWhitespace() || it == '\n' }.toUri()
                 val intent = Intent(Intent.ACTION_VIEW, uri)
                 val customTabsIntent = CustomTabsIntent.Builder().setShowTitle(true).build()
