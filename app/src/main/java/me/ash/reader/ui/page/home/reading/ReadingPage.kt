@@ -163,9 +163,12 @@ fun ReadingPage(
         }
         lastTrackedArticleId = readerState.articleId
         readerState.articleId?.let { articleId ->
+            // feedId deliberately null: readingUiState can lag the pager and a
+            // wrong non-null value would never be corrected (the drain-time
+            // backfill only fills nulls). The recorder resolves it from DB.
             insights?.onEnterReader(
                 articleId = articleId,
-                feedId = readingUiState.articleWithFeed?.article?.feedId,
+                feedId = null,
                 isSwipe = previous != null,
             )
         }

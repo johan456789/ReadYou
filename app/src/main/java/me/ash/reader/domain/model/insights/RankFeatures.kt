@@ -24,6 +24,10 @@ object RankFeatures {
 
     const val FEATURE_VERSION = 1
 
+    /** Shared dwell-ratio clamp: training target and serving prediction agree. */
+    const val DWELL_RATIO_MIN = 0.05
+    const val DWELL_RATIO_MAX = 3.0
+
     /**
      * Stage A (open model), dimension 9:
      * [bias, feedOpenRate, freshness, expectedNorm, hourSin, hourCos,
@@ -85,7 +89,14 @@ object RankFeatures {
         return (ln(1.0 + capped) / ln(241.0)).toFloat()
     }
 
-    /** ln(1 + position) / ln(51), capped at position 50 → [0, 1]. */
+    /**
+     * ln(1 + position) / ln(51), capped at position 50 → [0, 1].
+     *
+     * Known approximation: the list position comes from the lazy-list index,
+     * which counts sticky date-header rows too, so the exact value depends on
+     * a display preference. Fine for a bias-absorbing feature; revisit if
+     * position ever gets a user-visible explanation.
+     */
     private fun normalizePosition(position: Int): Float {
         val capped = min(position, 50).coerceAtLeast(0)
         return (ln(1.0 + capped) / ln(51.0)).toFloat()

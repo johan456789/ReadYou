@@ -82,6 +82,12 @@ class ReadingInsightsRecorder @Inject constructor(
     private var readerEnterElapsed: Long = 0
     private var readerAccumulatedMs: Long = 0
     private var readerPaused = false
+    /**
+     * Set when this open was interrupted by leaving the app; every dwell
+     * flushed for the open carries it, including the post-resume span — the
+     * resumed fragment must not present itself to training as a complete read.
+     */
+    private var readerCensored = false
     private var readerLastDepth: Float = 0f
     private var lastScrollSentElapsed: Long = 0
 
@@ -149,6 +155,7 @@ class ReadingInsightsRecorder @Inject constructor(
                         censored = true,
                     )
                     readerAccumulatedMs = 0
+                    readerCensored = true
                 }
             }
             visibleSince.clear()
@@ -192,6 +199,7 @@ class ReadingInsightsRecorder @Inject constructor(
             readerEnterElapsed = SystemClock.elapsedRealtime()
             readerAccumulatedMs = 0
             readerPaused = false
+            readerCensored = false
             readerLastDepth = 0f
             postEventLocked(
                 type = ReadingEventType.OPEN,
@@ -452,7 +460,7 @@ class ReadingInsightsRecorder @Inject constructor(
             feedId = readerFeedId,
             durationMs = durationMs,
             depth = readerLastDepth,
-            censored = readerPaused, // truncated by leaving the app, not by finishing
+            censored = readerPaused || readerCensored, // truncated by leaving the app, not by finishing
         )
     }
 

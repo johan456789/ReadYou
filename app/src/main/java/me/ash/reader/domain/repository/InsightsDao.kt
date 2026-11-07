@@ -230,7 +230,19 @@ interface InsightsDao {
     @Query("DELETE FROM ranker_model WHERE accountId = :accountId")
     suspend fun deleteModelsForAccount(accountId: Int)
 
-    @Query("DELETE FROM ranker_model WHERE accountId = :accountId AND trainedAt < :cutoff")
+    /** Prunes old fits but always keeps each stage's newest model — otherwise
+     * a stage that stops passing its thresholds would silently fall back to
+     * Tier 0 serving after the retention window. */
+    @Query(
+        """
+        DELETE FROM ranker_model
+        WHERE accountId = :accountId
+        AND trainedAt < :cutoff
+        AND id NOT IN (
+            SELECT MAX(id) FROM ranker_model WHERE accountId = :accountId GROUP BY stage
+        )
+        """
+    )
     suspend fun deleteModelsBefore(accountId: Int, cutoff: Date)
 
     @Query("DELETE FROM article_vector WHERE accountId = :accountId")

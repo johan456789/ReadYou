@@ -5,6 +5,7 @@ import androidx.hilt.work.HiltWorker
 import androidx.work.Constraints
 import androidx.work.CoroutineWorker
 import androidx.work.ExistingPeriodicWorkPolicy
+import androidx.work.ExistingWorkPolicy
 import androidx.work.PeriodicWorkRequestBuilder
 import androidx.work.WorkManager
 import androidx.work.WorkerParameters
@@ -12,15 +13,19 @@ import dagger.assisted.Assisted
 import dagger.assisted.AssistedInject
 import kotlinx.coroutines.CancellationException
 import kotlinx.coroutines.ensureActive
+import kotlinx.coroutines.flow.first
 import me.ash.reader.domain.model.insights.ExpectedReadTime
-import me.ash.reader.domain.model.insights.FeedPrior
 import me.ash.reader.domain.model.insights.RankFeatures
 import me.ash.reader.domain.model.insights.RankerModel
 import me.ash.reader.domain.model.insights.RankerStage
 import me.ash.reader.domain.model.insights.ReadingEvent
+import me.ash.reader.domain.model.insights.ReadingEventContext
 import me.ash.reader.domain.model.insights.ReadingEventType
 import me.ash.reader.domain.model.insights.toModelBytes
+import me.ash.reader.domain.repository.AccountDao
 import me.ash.reader.domain.repository.InsightsDao
+import me.ash.reader.ui.ext.PreferencesKey
+import me.ash.reader.ui.ext.dataStore
 import timber.log.Timber
 import java.util.Date
 import java.util.concurrent.TimeUnit
@@ -51,59 +56,174 @@ constructor(
     @Assisted appContext: Context,
     @Assisted workerParams: WorkerParameters,
     private val insightsDao: InsightsDao,
-    private val priorCalculator: InsightsPriorCalculator,
-    private val accountService: AccountService,
+    private val accountDao: AccountDao,
     private val workManager: WorkManager,
 ) : CoroutineWorker(appContext, workerParams) {
 
     override suspend fun doWork(): Result {
-        val accountId =
-            inputData.getInt("accountId", -1).takeIf { it != -1 }
-                ?: accountService.currentAccountIdFlow.value
-                ?: return Result.success()
-        // Cancellation must propagate: a stopped worker must not keep fitting.
-        try {
-            train(accountId)
-        } catch (e: CancellationException) {
-            throw e
-        } catch (e: Exception) {
-            Timber.tag(TAG).e(e, "Training failed for account %d", accountId)
+        // Pause switch: off means no new models are fitted. Existing models
+        // keep serving — serving is not collection.
+        if (!isCollectionEnabled()) return Result.success()
+
+        // Models are per-account: every account gets its nightly fit, not
+        // whichever account happened to be current when the job fired.
+        val specificId = inputData.getInt("accountId", -1).takeIf { it != -1 }
+        val accountIds =
+            specificId?.let { listOf(it) } ?: accountDao.queryAll().mapNotNull { it.id }
+        for (accountId in accountIds) {
+            try {
+                train(accountId)
+            } catch (e: CancellationException) {
+                throw e
+            } catch (e: Exception) {
+                Timber.tag(TAG).e(e, "Training failed for account %d", accountId)
+            }
         }
         return Result.success()
     }
 
-    private suspend fun train(accountId: Int) {
+    private suspend fun isCollectionEnabled(): Boolean =
+        runCatching {
+            applicationContext
+                .dataStore
+                .data
+                .first()[PreferencesKey.booleanKey(PreferencesKey.insightsCollectionEnabled)] ?: true
+        }.getOrDefault(true)
+
+    private suspend fun train(accountId: Int): Boolean {
         val now = System.currentTimeMillis()
+        // Engagement events only: SCROLL/LINK_OUT rows (the bulk of the log)
+        // never participate in training and must not be dragged into memory.
         val events =
-            insightsDao.queryEventsSince(accountId, Date(now - TRAINING_WINDOW_MS))
-                .sortedBy { it.createdAt.time }
-        if (events.isEmpty()) return
+            insightsDao.queryEngagementEventsSince(
+                accountId = accountId,
+                since = Date(now - TRAINING_WINDOW_MS),
+                types =
+                    listOf(
+                        ReadingEventType.IMPRESSION,
+                        ReadingEventType.OPEN,
+                        ReadingEventType.DWELL,
+                    ),
+            ).sortedBy { it.createdAt.time }
+        if (events.isEmpty()) return false
 
-        val priors = priorCalculator.computeDecayed(accountId, now)
-        val priorByFeed = priors.associateBy { it.feedId }
+        // Leak-free prior features: one replay pass over the sorted stream,
+        // snapshotting each sample's feed priors BEFORE the sample's own
+        // outcome enters the accumulators. Otherwise feedOpenRate already
+        // contains the impression's own open and dwellPriorLog contains the
+        // dwell being predicted — the model would learn from an answer it can
+        // never see at serving time.
+        val priors = HashMap<String, RunningPrior>()
+        val snapshots = HashMap<Long, PriorSnapshot>()
+        for (event in events) {
+            val feedId = event.feedId ?: continue
+            val prior = priors.getOrPut(feedId) { RunningPrior() }
+            if (event.type == ReadingEventType.IMPRESSION || event.type == ReadingEventType.DWELL) {
+                snapshots[event.id] = PriorSnapshot(prior.openRate(), prior.dwellPriorLog())
+            }
+            prior.add(event)
+        }
 
-        var trainedStages = 0
-        if (trainOpenModel(accountId, events, priorByFeed, now)) trainedStages++
-        if (trainDwellModel(accountId, events, priorByFeed, now)) trainedStages++
+        // Per-stage isolation: one stage's failure must not skip the other's
+        // fit, the cleanup, or the re-rank.
+        var fitted = false
+        try {
+            if (trainOpenModel(accountId, events, snapshots, now)) fitted = true
+        } catch (e: CancellationException) {
+            throw e
+        } catch (e: Exception) {
+            Timber.tag(TAG).e(e, "Stage A (open) training failed for account %d", accountId)
+        }
+        try {
+            if (trainDwellModel(accountId, events, snapshots, now)) fitted = true
+        } catch (e: CancellationException) {
+            throw e
+        } catch (e: Exception) {
+            Timber.tag(TAG).e(e, "Stage B (dwell) training failed for account %d", accountId)
+        }
 
-        if (trainedStages > 0) {
+        if (fitted) {
             insightsDao.deleteModelsBefore(accountId, Date(now - MODEL_RETENTION_MS))
             // New weights change every score — refresh the For You set now
-            // rather than waiting for the next sync.
-            RankWorker.enqueueNow(workManager, accountId)
+            // rather than waiting for the next sync. APPEND_OR_REPLACE: a
+            // rank pass that started before the new weights existed must not
+            // cause this re-rank to be dropped by KEEP.
+            RankWorker.enqueueNow(workManager, accountId, ExistingWorkPolicy.APPEND_OR_REPLACE)
         }
-        Timber.tag(TAG).i("Training done for account %d: %d stage(s) fitted", accountId, trainedStages)
+        Timber.tag(TAG).i("Training for account %d: fitted=%b", accountId, fitted)
+        return fitted
+    }
+
+    /** Decay-correct prior accumulators as of a point in the replay. */
+    private class PriorSnapshot(val openRate: Float, val dwellPriorLog: Float)
+
+    /**
+     * Running per-feed accumulators replayed in time order; every accumulator
+     * decays as time advances, then the event lands with weight 1. Formulas
+     * come from [InsightsPriorCalculator] so replay and serving never diverge.
+     */
+    private class RunningPrior {
+        var lastAt = -1L
+        var impressions = 0.0
+        var opens = 0.0
+        var engagedOpens = 0.0
+        var logDwellSum = 0.0
+
+        fun advanceTo(at: Long) {
+            if (lastAt < 0) {
+                lastAt = at
+                return
+            }
+            if (at > lastAt) {
+                val factor =
+                    Math.pow(
+                        0.5,
+                        (at - lastAt) / 86_400_000.0 / InsightsPriorCalculator.HALF_LIFE_DAYS,
+                    )
+                impressions *= factor
+                opens *= factor
+                engagedOpens *= factor
+                logDwellSum *= factor
+                lastAt = at
+            }
+        }
+
+        fun add(event: ReadingEvent) {
+            advanceTo(event.createdAt.time)
+            when (event.type) {
+                ReadingEventType.IMPRESSION -> impressions += 1.0
+                ReadingEventType.OPEN -> opens += 1.0
+                ReadingEventType.DWELL -> {
+                    val duration = event.durationMs ?: return
+                    if (event.censored) return
+                    if (duration >= InsightsPriorCalculator.ENGAGED_DWELL_MS) {
+                        engagedOpens += 1.0
+                        logDwellSum += ln((duration / 60_000.0).coerceAtLeast(0.05))
+                    }
+                }
+            }
+        }
+
+        fun openRate(): Float = InsightsPriorCalculator.shrunkOpenRateOf(impressions, opens).toFloat()
+
+        fun dwellPriorLog(): Float =
+            InsightsPriorCalculator.dwellPriorLogOf(engagedOpens, logDwellSum)
     }
 
     private suspend fun trainOpenModel(
         accountId: Int,
         events: List<ReadingEvent>,
-        priorByFeed: Map<String, FeedPrior>,
+        snapshots: Map<Long, PriorSnapshot>,
         now: Long,
     ): Boolean {
+        // Stage A positives are LIST picks only: swipe-opens within the pager
+        // (OPEN_SOURCE_SWIPE) say nothing about title appeal, and there is no
+        // impression to credit them against.
         val openTimesByArticle =
-            events.filter { it.type == ReadingEventType.OPEN && it.articleId != null }
-                .groupBy { it.articleId!! }
+            events.filter {
+                it.type == ReadingEventType.OPEN && it.articleId != null &&
+                    ((it.context ?: 0) and ReadingEventContext.OPEN_SOURCE_SWIPE) == 0
+            }.groupBy { it.articleId!! }
 
         val impressions =
             events.filter {
@@ -111,6 +231,20 @@ constructor(
                     it.feedId != null && it.articleId != null
             }.takeLast(MAX_OPEN_SAMPLES)
         if (impressions.size < MIN_OPEN_SAMPLES) return false
+
+        // Attribution window: an open credits only the impression it followed —
+        // at most OPEN_ATTRIBUTION_MS later, and never past the article's NEXT
+        // impression. Without this, an article shown in many sessions and
+        // opened once marks every exposure positive ("shown often → opened").
+        val impressionsByArticle = impressions.groupBy { it.articleId!! }
+        val windowEndByImpressionId = HashMap<Long, Long>()
+        for (imps in impressionsByArticle.values) {
+            for (i in imps.indices) {
+                val nextAt = imps.getOrNull(i + 1)?.createdAt?.time ?: Long.MAX_VALUE
+                windowEndByImpressionId[imps[i].id] =
+                    min(imps[i].createdAt.time + OPEN_ATTRIBUTION_MS, nextAt)
+            }
+        }
 
         val expectedByArticle =
             fetchContentExpected(impressions.mapNotNull { it.articleId }.toSet())
@@ -122,11 +256,14 @@ constructor(
         for (imp in impressions) {
             val expected = expectedByArticle[imp.articleId] ?: continue
             val articleDate = dateByArticle[imp.articleId] ?: continue
+            val windowEnd = windowEndByImpressionId[imp.id] ?: continue
             val label =
-                if (openTimesByArticle[imp.articleId]?.any { it.createdAt.time >= imp.createdAt.time } == true) 1f else 0f
+                if (openTimesByArticle[imp.articleId]
+                        ?.any { it.createdAt.time >= imp.createdAt.time && it.createdAt.time <= windowEnd } == true
+                ) 1f else 0f
             features.add(
                 RankFeatures.openFeatures(
-                    feedOpenRate = priorCalculator.shrunkOpenRate(priorByFeed[imp.feedId]).toFloat(),
+                    feedOpenRate = snapshots.getValue(imp.id).openRate,
                     freshness = RankFeatures.freshness(articleDate, imp.createdAt.time),
                     expectedMinutes = (expected / 60_000f),
                     atMillis = imp.createdAt.time,
@@ -150,6 +287,10 @@ constructor(
                 sampleWeights = sampleWeights,
                 checkCancelled = { coroutineContext.ensureActive() },
             )
+        // Reweighting lifts log-odds by ln(posWeight); subtract it from the
+        // bias so pOpen stays a calibrated probability — the serving score
+        // reads pOpen x predictedMinutes as expected engaged minutes.
+        weights[0] -= ln(posWeight)
         insightsDao.upsertModel(
             RankerModel(
                 accountId = accountId,
@@ -166,7 +307,7 @@ constructor(
     private suspend fun trainDwellModel(
         accountId: Int,
         events: List<ReadingEvent>,
-        priorByFeed: Map<String, FeedPrior>,
+        snapshots: Map<Long, PriorSnapshot>,
         now: Long,
     ): Boolean {
         val dwells =
@@ -189,10 +330,10 @@ constructor(
             val dwellMinutes = (dwell.durationMs!!) / 60_000.0
             // Target: log dwell ratio, clamped so pathological readings
             // (10x speed-reader or parked screen) can't dominate the fit.
-            val ratio = (dwellMinutes / expectedMinutes).coerceIn(0.05, 3.0)
+            val ratio = (dwellMinutes / expectedMinutes).coerceIn(RankFeatures.DWELL_RATIO_MIN, RankFeatures.DWELL_RATIO_MAX)
             features.add(
                 RankFeatures.dwellFeatures(
-                    feedDwellPriorLog = priorCalculator.dwellPriorLog(priorByFeed[dwell.feedId]),
+                    feedDwellPriorLog = snapshots.getValue(dwell.id).dwellPriorLog,
                     freshness = RankFeatures.freshness(articleDate, dwell.createdAt.time),
                     expectedMinutes = expectedMinutes.toFloat(),
                     atMillis = dwell.createdAt.time,
@@ -252,6 +393,9 @@ constructor(
         private const val MIN_DWELL_SAMPLES = 50
         private const val MAX_DWELL_SAMPLES = 500
 
+        /** An open credits the impression it followed only within this window. */
+        private const val OPEN_ATTRIBUTION_MS = 30L * 60_000L
+
         fun enqueuePeriodicWork(workManager: WorkManager) {
             val constraints =
                 Constraints.Builder()
@@ -263,6 +407,7 @@ constructor(
                 ExistingPeriodicWorkPolicy.KEEP,
                 PeriodicWorkRequestBuilder<TrainWorker>(24, TimeUnit.HOURS)
                     .setConstraints(constraints)
+                    .addTag(RankWorker.INSIGHTS_WORK_TAG)
                     .build(),
             )
         }

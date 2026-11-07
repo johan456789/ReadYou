@@ -6,9 +6,10 @@ import androidx.room.PrimaryKey
 import java.util.Date
 
 /**
- * Trained weights for one stage of the two-stage ranker, per account.
- * Empty in M1 (Tier 0 heuristic weights are constants in RankWorker); rows
- * appear once TrainWorker (M2) fits stage A/B past the minimum-sample threshold.
+ * Trained weights for one stage of the two-stage ranker, per account. Rows
+ * appear once TrainWorker fits a stage past its sample thresholds (before
+ * that, Tier 0 heuristic constants serve); a new fit is a new row, and
+ * retention always keeps each stage's newest.
  */
 @Entity(
     tableName = "ranker_model",

@@ -84,33 +84,39 @@ class InsightsPriorCalculator @Inject constructor(
      * α=2, β=6 → prior mean 0.25). The headline feed-appeal signal.
      */
     fun shrunkOpenRate(prior: FeedPrior?): Double =
-        ((prior?.decayedOpens ?: 0.0) + ALPHA) / ((prior?.decayedImpressions ?: 0.0) + ALPHA + BETA)
+        shrunkOpenRateOf(prior?.decayedImpressions ?: 0.0, prior?.decayedOpens ?: 0.0)
 
     /**
      * Geometric mean dwell of engaged opens, in minutes, as a multiplier on
      * the content-relative expected read time. 1.0 for feeds without history.
-     * The Tier 0 scorer multiplies minutes by this; the trained stage B model
-     * consumes [dwellPriorLog] as a feature instead — which fixes the
-     * unit-mixing the Tier 0 heuristic suffers from.
+     * The Tier 0 scorer multiplies minutes by this.
      */
-    fun dwellMultiplier(prior: FeedPrior?): Double {
-        val engaged = prior?.decayedEngagedOpens ?: 0.0
-        if (prior == null || engaged < 1.0) return 1.0
-        return exp(prior.decayedLogDwellSum / engaged).coerceIn(0.25, 2.5)
-    }
+    fun dwellMultiplier(prior: FeedPrior?): Double =
+        dwellMultiplierOf(prior?.decayedEngagedOpens ?: 0.0, prior?.decayedLogDwellSum ?: 0.0)
 
     /** ln(geometric-mean engaged dwell minutes), clamped; neutral default ln(3). */
-    fun dwellPriorLog(prior: FeedPrior?): Float {
-        val engaged = prior?.decayedEngagedOpens ?: 0.0
-        if (prior == null || engaged < 1.0) return ln(3.0).toFloat()
-        return (prior.decayedLogDwellSum / engaged).toFloat().coerceIn(0f, 3f)
-    }
+    fun dwellPriorLog(prior: FeedPrior?): Float =
+        dwellPriorLogOf(prior?.decayedEngagedOpens ?: 0.0, prior?.decayedLogDwellSum ?: 0.0)
 
-    private companion object {
+    companion object {
         const val ALPHA = 2.0
         const val BETA = 6.0
         const val HALF_LIFE_DAYS = 60.0
-        const val PRIOR_WINDOW_MS = 90L * 86_400_000L
         const val ENGAGED_DWELL_MS = 30_000L
+
+        private const val PRIOR_WINDOW_MS = 90L * 86_400_000L
+
+        fun shrunkOpenRateOf(impressions: Double, opens: Double): Double =
+            (opens + ALPHA) / (impressions + ALPHA + BETA)
+
+        fun dwellMultiplierOf(engagedOpens: Double, logDwellSum: Double): Double =
+            if (engagedOpens >= 1.0) {
+                exp(logDwellSum / engagedOpens).coerceIn(0.25, 2.5)
+            } else 1.0
+
+        fun dwellPriorLogOf(engagedOpens: Double, logDwellSum: Double): Float =
+            if (engagedOpens >= 1.0) {
+                (logDwellSum / engagedOpens).toFloat().coerceIn(0f, 3f)
+            } else ln(3.0).toFloat()
     }
 }

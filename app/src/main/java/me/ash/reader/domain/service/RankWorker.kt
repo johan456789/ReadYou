@@ -14,7 +14,6 @@ import me.ash.reader.domain.model.insights.ArticleRank
 import me.ash.reader.domain.model.insights.ExpectedReadTime
 import me.ash.reader.domain.model.insights.FeedPrior
 import me.ash.reader.domain.model.insights.RankFeatures
-import me.ash.reader.domain.model.insights.RankerModel
 import me.ash.reader.domain.model.insights.RankerStage
 import me.ash.reader.domain.model.insights.UnreadArticleShallow
 import me.ash.reader.domain.model.insights.toModelFloats
@@ -85,24 +84,29 @@ constructor(
 
         // Trained stage A/B models (M2) activate as soon as they exist with a
         // matching feature version; otherwise Tier 0 heuristic constants serve.
-        val openModel =
-            insightsDao.queryLatestModel(accountId, RankerStage.STAGE_OPEN)?.takeIf {
-                it.featureVersion == RankFeatures.FEATURE_VERSION &&
-                    it.weights.size == RankFeatures.OPEN_FEATURE_COUNT * 4
-            }
-        val dwellModel =
-            insightsDao.queryLatestModel(accountId, RankerStage.STAGE_DWELL)?.takeIf {
-                it.featureVersion == RankFeatures.FEATURE_VERSION &&
-                    it.weights.size == RankFeatures.DWELL_FEATURE_COUNT * 4
-            }
+        // Weights are decoded once per pass, not per candidate.
+        val openWeights =
+            insightsDao.queryLatestModel(accountId, RankerStage.STAGE_OPEN)
+                ?.takeIf { it.featureVersion == RankFeatures.FEATURE_VERSION }
+                ?.weights?.toModelFloats()
+                ?.takeIf { it.size == RankFeatures.OPEN_FEATURE_COUNT }
+        val dwellWeights =
+            insightsDao.queryLatestModel(accountId, RankerStage.STAGE_DWELL)
+                ?.takeIf { it.featureVersion == RankFeatures.FEATURE_VERSION }
+                ?.weights?.toModelFloats()
+                ?.takeIf { it.size == RankFeatures.DWELL_FEATURE_COUNT }
 
-        val candidates = scanCandidates(accountId, now, priorByFeed, openModel, dwellModel)
-        if (candidates.isEmpty()) return
+        val candidates = scanCandidates(accountId, now, priorByFeed, openWeights, dwellWeights)
+        if (candidates.second.isEmpty()) return
 
-        val decision = admit(candidates, priorByFeed)
+        // Admission draws ONLY from the refined candidates: the unrefined tail
+        // carries length-based pre-estimates that are not comparable with
+        // content-based ones and would let markup-heavy rows outrank real ones.
+        val (refined, all) = candidates
+        val decision = admit(refined, priorByFeed)
 
         insightsDao.upsertRanks(
-            candidates.map {
+            all.map {
                 it.rank.copy(
                     admitted = it.meta.id in decision.admittedIds || it.meta.id in decision.explorationIds,
                     exploration = it.meta.id in decision.explorationIds,
@@ -126,9 +130,9 @@ constructor(
         accountId: Int,
         now: Long,
         priorByFeed: Map<String, FeedPrior>,
-        openModel: RankerModel?,
-        dwellModel: RankerModel?,
-    ): List<Candidate> {
+        openWeights: FloatArray?,
+        dwellWeights: FloatArray?,
+    ): Pair<List<Candidate>, List<Candidate>> {
         val shallow = ArrayList<UnreadArticleShallow>()
         var offset = 0
         while (shallow.size < MAX_SCAN) {
@@ -143,7 +147,7 @@ constructor(
             if (chunk.size < SCAN_CHUNK) break
             offset += SCAN_CHUNK
         }
-        if (shallow.isEmpty()) return emptyList()
+        if (shallow.isEmpty()) return emptyList<Candidate>() to emptyList()
 
         val provisional =
             shallow.map {
@@ -155,36 +159,45 @@ constructor(
                         now = now,
                         accountId = accountId,
                         expectedMs = ExpectedReadTime.estimateFromLengthMs(it.contentLength),
-                        openModel = openModel,
-                        dwellModel = dwellModel,
+                        openWeights = openWeights,
+                        dwellWeights = dwellWeights,
                     ),
                 )
             }
 
         val refineIds =
             provisional.sortedByDescending { it.rank.score }.take(REFINE_COUNT).map { it.meta.id }
+        val refinedIds = refineIds.toSet()
         val refinedExpected = HashMap<String, Long>()
         for (chunk in refineIds.chunked(REFINE_CHUNK)) {
             runCatching { insightsDao.queryArticleContent(chunk) }
                 .getOrNull()
                 ?.forEach { refinedExpected[it.id] = ExpectedReadTime.estimateMs(it.rawDescription) }
         }
-        return provisional.map { candidate ->
-            refinedExpected[candidate.meta.id]?.let { expected ->
-                Candidate(
-                    candidate.meta,
-                    score(
+        val refined = ArrayList<Candidate>(refineIds.size)
+        val rest = ArrayList<Candidate>()
+        for (candidate in provisional) {
+            val refinedScore = refinedExpected[candidate.meta.id]
+            if (refinedScore != null) {
+                refined.add(
+                    Candidate(
                         candidate.meta,
-                        priorByFeed[candidate.meta.feedId],
-                        now,
-                        accountId,
-                        expected,
-                        openModel,
-                        dwellModel,
-                    ),
+                        score(
+                            candidate.meta,
+                            priorByFeed[candidate.meta.feedId],
+                            now,
+                            accountId,
+                            refinedScore,
+                            openWeights,
+                            dwellWeights,
+                        ),
+                    )
                 )
-            } ?: candidate
+            } else {
+                rest.add(candidate)
+            }
         }
+        return refined to rest
     }
 
     private fun score(
@@ -193,8 +206,8 @@ constructor(
         now: Long,
         accountId: Int,
         expectedMs: Long,
-        openModel: RankerModel?,
-        dwellModel: RankerModel?,
+        openWeights: FloatArray?,
+        dwellWeights: FloatArray?,
     ): ArticleRank {
         val openRate = priorCalculator.shrunkOpenRate(prior).toFloat()
         val freshness = RankFeatures.freshness(article.date.time, now)
@@ -202,7 +215,7 @@ constructor(
 
         val pOpen: Float
         val predictedMinutes: Float
-        val trained = openModel != null && dwellModel != null
+        val trained = openWeights != null && dwellWeights != null
         if (trained) {
             // Two-stage models: the position feature is zeroed at serving
             // (training-only device against position bias). Stage B predicts
@@ -217,7 +230,7 @@ constructor(
                 )
             pOpen =
                 RankFeatures
-                    .sigmoid(dot(openModel.weights.toModelFloats(), xOpen))
+                    .sigmoid(dot(openWeights, xOpen))
                     .coerceIn(0.01f, 0.95f)
             val xDwell =
                 RankFeatures.dwellFeatures(
@@ -227,8 +240,8 @@ constructor(
                     atMillis = now,
                 )
             val ratio =
-                exp(dot(dwellModel.weights.toModelFloats(), xDwell).toDouble())
-                    .coerceIn(0.1, 3.0)
+                exp(dot(dwellWeights, xDwell).toDouble())
+                    .coerceIn(RankFeatures.DWELL_RATIO_MIN, RankFeatures.DWELL_RATIO_MAX)
             predictedMinutes = (expectedMinutes * ratio).toFloat().coerceAtLeast(0.2f)
         } else {
             // Tier 0 heuristic constants (see companion) until models exist.
@@ -355,13 +368,17 @@ constructor(
         private const val REFINE_CHUNK = 50
         private const val EVENT_RETENTION_MS = 180L * 86_400_000L
 
-        fun enqueueNow(workManager: WorkManager, accountId: Int? = null) {
+        fun enqueueNow(
+            workManager: WorkManager,
+            accountId: Int? = null,
+            policy: ExistingWorkPolicy = ExistingWorkPolicy.KEEP,
+        ) {
             val builder = OneTimeWorkRequestBuilder<RankWorker>()
             accountId?.let { builder.setInputData(workDataOf("accountId" to it)) }
             workManager.enqueueUniqueWork(
                 RANK_WORK_NAME,
-                ExistingWorkPolicy.KEEP,
-                builder.build(),
+                policy,
+                builder.addTag(INSIGHTS_WORK_TAG).build(),
             )
         }
     }
