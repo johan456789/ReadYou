@@ -14,6 +14,8 @@ object RankerTrainer {
      * L2-regularized logistic regression via full-batch gradient descent.
      * The bias term (feature index 0) is not regularized. [sampleWeights]
      * rebalances classes (e.g. rare positives) and must align with [labels].
+     * [checkCancelled] is polled every 100 iterations so a WorkManager stop
+     * does not leave the fit burning CPU to completion.
      */
     fun fitLogistic(
         features: List<FloatArray>,
@@ -22,6 +24,7 @@ object RankerTrainer {
         l2: Float = 0.01f,
         iterations: Int = 1500,
         lr: Float = 0.5f,
+        checkCancelled: (() -> Unit)? = null,
     ): FloatArray {
         require(features.isNotEmpty()) { "No training samples" }
         require(features.size == labels.size) { "Feature/label size mismatch" }
@@ -30,7 +33,8 @@ object RankerTrainer {
         val weights = FloatArray(d)
         val totalWeight = sampleWeights?.sum() ?: labels.size.toFloat()
 
-        repeat(iterations) {
+        repeat(iterations) { iteration ->
+            if (iteration % 100 == 0) checkCancelled?.invoke()
             val grad = FloatArray(d)
             for (i in features.indices) {
                 val x = features[i]

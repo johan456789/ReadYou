@@ -10,6 +10,8 @@ import androidx.work.WorkManager
 import androidx.work.WorkerParameters
 import dagger.assisted.Assisted
 import dagger.assisted.AssistedInject
+import kotlinx.coroutines.CancellationException
+import kotlinx.coroutines.ensureActive
 import me.ash.reader.domain.model.insights.ExpectedReadTime
 import me.ash.reader.domain.model.insights.FeedPrior
 import me.ash.reader.domain.model.insights.RankFeatures
@@ -22,6 +24,7 @@ import me.ash.reader.domain.repository.InsightsDao
 import timber.log.Timber
 import java.util.Date
 import java.util.concurrent.TimeUnit
+import kotlin.coroutines.coroutineContext
 import kotlin.math.ln
 import kotlin.math.min
 
@@ -58,8 +61,14 @@ constructor(
             inputData.getInt("accountId", -1).takeIf { it != -1 }
                 ?: accountService.currentAccountIdFlow.value
                 ?: return Result.success()
-        runCatching { train(accountId) }
-            .onFailure { Timber.tag(TAG).e(it, "Training failed for account %d", accountId) }
+        // Cancellation must propagate: a stopped worker must not keep fitting.
+        try {
+            train(accountId)
+        } catch (e: CancellationException) {
+            throw e
+        } catch (e: Exception) {
+            Timber.tag(TAG).e(e, "Training failed for account %d", accountId)
+        }
         return Result.success()
     }
 
@@ -139,6 +148,7 @@ constructor(
                 features = features,
                 labels = labels,
                 sampleWeights = sampleWeights,
+                checkCancelled = { coroutineContext.ensureActive() },
             )
         insightsDao.upsertModel(
             RankerModel(

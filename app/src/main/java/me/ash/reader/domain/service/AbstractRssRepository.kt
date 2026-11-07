@@ -177,42 +177,52 @@ abstract class AbstractRssRepository(
         // events. The deferred-diff commit path (batchMarkAsRead) does NOT log:
         // it cannot tell user intent (swipe vs auto-read vs replay), so intent
         // is captured at the UI sites instead.
-        if (markRead && affectedIds.isNotEmpty()) {
-            val scope =
+        //
+        // Everything here is best-effort and failure-isolated: insights must
+        // never make a user mark fail, and the caller's server sync must
+        // always run (an exception escaping here desyncs Fever/GReader).
+        if (markRead && affectedIds.isNotEmpty() && articleId == null) {
+            runCatching {
                 when {
-                    groupId != null -> ReadingEventContext.MARK_SCOPE_GROUP
-                    feedId != null -> ReadingEventContext.MARK_SCOPE_FEED
-                    else -> ReadingEventContext.MARK_SCOPE_ALL
-                }
-            val feedCounts =
-                insightsDao
-                    .queryFeedIdsForArticles(affectedIds.toList())
-                    .groupingBy { it.feedId }
-                    .eachCount()
-            if (scope == ReadingEventContext.MARK_SCOPE_FEED) {
-                insightsRecorder.onMarkReadBulk(
-                    scope = scope,
-                    feedId = feedId,
-                    groupId = null,
-                    affectedCount = affectedIds.size,
-                )
-            } else {
-                for ((perFeedId, count) in feedCounts) {
-                    insightsRecorder.onMarkReadBulk(
-                        scope = scope,
-                        feedId = perFeedId,
-                        groupId = groupId,
-                        affectedCount = count,
+                    // Single-feed scope: no lookup needed, one event.
+                    feedId != null -> insightsRecorder.onMarkReadBulk(
+                        scope = ReadingEventContext.MARK_SCOPE_FEED,
+                        feedId = feedId,
+                        groupId = null,
+                        affectedCount = affectedIds.size,
                     )
+                    else -> {
+                        val scope =
+                            if (groupId != null) ReadingEventContext.MARK_SCOPE_GROUP
+                            else ReadingEventContext.MARK_SCOPE_ALL
+                        // Chunked: SQLite caps IN-clause parameters (999 on
+                        // older Android), and mark-all can touch thousands.
+                        val feedCounts = HashMap<String, Int>()
+                        for (chunk in affectedIds.chunked(500)) {
+                            runCatching { insightsDao.queryFeedIdsForArticles(chunk) }
+                                .getOrNull()
+                                ?.forEach { feedCounts.merge(it.feedId, 1, Int::plus) }
+                        }
+                        for ((perFeedId, count) in feedCounts) {
+                            insightsRecorder.onMarkReadBulk(
+                                scope = scope,
+                                feedId = perFeedId,
+                                groupId = groupId,
+                                affectedCount = count,
+                            )
+                        }
+                    }
                 }
             }
         }
         if (markRead && articleId != null) {
-            insightsRecorder.onMarkReadSingle(
-                articleId = articleId,
-                feedId = feedId,
-                source = 0, // repository cannot know the surface; training treats as unknown
-            )
+            runCatching {
+                insightsRecorder.onMarkReadSingle(
+                    articleId = articleId,
+                    feedId = feedId,
+                    source = 0, // repository cannot know the surface; training treats as unknown
+                )
+            }
         }
         return affectedIds
     }

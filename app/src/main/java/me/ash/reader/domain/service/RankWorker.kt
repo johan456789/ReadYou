@@ -25,6 +25,7 @@ import kotlin.math.exp
 import kotlin.math.ln
 import kotlin.math.sqrt
 import kotlin.random.Random
+import kotlinx.coroutines.CancellationException
 
 /**
  * Materializes the For You set: recomputes decayed feed priors from the event
@@ -53,9 +54,15 @@ constructor(
             inputData.getInt("accountId", -1).takeIf { it != -1 }
                 ?: accountService.currentAccountIdFlow.value
                 ?: return Result.success() // onboarding: no account yet, nothing to rank
-        // A ranking failure must never fail the surrounding sync chain.
-        runCatching { rank(accountId) }
-            .onFailure { Timber.tag(TAG).e(it, "Ranking failed for account %d", accountId) }
+        // A ranking failure must never fail the surrounding sync chain — but
+        // cancellation must propagate, or a stopped worker keeps burning CPU.
+        try {
+            rank(accountId)
+        } catch (e: CancellationException) {
+            throw e
+        } catch (e: Exception) {
+            Timber.tag(TAG).e(e, "Ranking failed for account %d", accountId)
+        }
         return Result.success()
     }
 
