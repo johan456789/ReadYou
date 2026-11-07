@@ -12,6 +12,7 @@ import androidx.work.WorkerParameters
 import dagger.assisted.Assisted
 import dagger.assisted.AssistedInject
 import kotlinx.coroutines.CancellationException
+import kotlinx.coroutines.currentCoroutineContext
 import kotlinx.coroutines.ensureActive
 import kotlinx.coroutines.flow.first
 import me.ash.reader.domain.model.insights.ExpectedReadTime
@@ -29,7 +30,6 @@ import me.ash.reader.ui.ext.dataStore
 import timber.log.Timber
 import java.util.Date
 import java.util.concurrent.TimeUnit
-import kotlin.coroutines.coroutineContext
 import kotlin.math.ln
 import kotlin.math.min
 
@@ -103,6 +103,7 @@ constructor(
                         ReadingEventType.IMPRESSION,
                         ReadingEventType.OPEN,
                         ReadingEventType.DWELL,
+                        ReadingEventType.MARK_READ_BULK,
                     ),
             ).sortedBy { it.createdAt.time }
         if (events.isEmpty()) return false
@@ -193,6 +194,8 @@ constructor(
             when (event.type) {
                 ReadingEventType.IMPRESSION -> impressions += 1.0
                 ReadingEventType.OPEN -> opens += 1.0
+                // Batch-level negative evidence: dilutes the feed's open rate.
+                ReadingEventType.MARK_READ_BULK -> impressions += (event.position ?: 1).toDouble()
                 ReadingEventType.DWELL -> {
                     val duration = event.durationMs ?: return
                     if (event.censored) return
@@ -280,12 +283,16 @@ constructor(
         val posWeight = (negatives.toFloat() / positives).coerceIn(1f, 10f)
         val sampleWeights = labels.map { if (it == 1f) posWeight else 1f }
 
+        // Capture the coroutine context OUTSIDE the lambda: inside the member
+        // scope the bare name resolves to the inherited, jobless worker
+        // dispatcher, which would make ensureActive() a no-op.
+        val ctx = currentCoroutineContext()
         val weights =
             RankerTrainer.fitLogistic(
                 features = features,
                 labels = labels,
                 sampleWeights = sampleWeights,
-                checkCancelled = { coroutineContext.ensureActive() },
+                checkCancelled = { ctx.ensureActive() },
             )
         // Reweighting lifts log-odds by ln(posWeight); subtract it from the
         // bias so pOpen stays a calibrated probability — the serving score
@@ -361,9 +368,15 @@ constructor(
     private suspend fun fetchContentExpected(articleIds: Set<String>): Map<String, Long> {
         val expected = HashMap<String, Long>()
         for (chunk in articleIds.chunked(CONTENT_CHUNK)) {
-            runCatching { insightsDao.queryArticleContent(chunk) }
-                .getOrNull()
-                ?.forEach { expected[it.id] = ExpectedReadTime.estimateMs(it.rawDescription) }
+            val content =
+                try {
+                    insightsDao.queryArticleContent(chunk)
+                } catch (e: CancellationException) {
+                    throw e
+                } catch (_: Exception) {
+                    null
+                }
+            content?.forEach { expected[it.id] = ExpectedReadTime.estimateMs(it.rawDescription) }
         }
         return expected
     }
@@ -371,9 +384,15 @@ constructor(
     private suspend fun fetchArticleDates(articleIds: Set<String>): Map<String, Long> {
         val dates = HashMap<String, Long>()
         for (chunk in articleIds.chunked(CONTENT_CHUNK)) {
-            runCatching { insightsDao.queryArticleDatesForArticles(chunk) }
-                .getOrNull()
-                ?.forEach { dates[it.id] = it.date.time }
+            val rows =
+                try {
+                    insightsDao.queryArticleDatesForArticles(chunk)
+                } catch (e: CancellationException) {
+                    throw e
+                } catch (_: Exception) {
+                    null
+                }
+            rows?.forEach { dates[it.id] = it.date.time }
         }
         return dates
     }
@@ -382,7 +401,10 @@ constructor(
         private const val TAG = "TrainWorker"
         const val TRAIN_WORK_NAME = "TRAIN_RANKER"
 
-        private const val TRAINING_WINDOW_MS = 180L * 86_400_000L
+        // Must match the serving prior window (InsightsPriorCalculator): the
+        // replay's accumulators start at the window start, so samples see at
+        // most this much history — same horizon, no fit/serve skew.
+        private const val TRAINING_WINDOW_MS = 90L * 86_400_000L
         private const val MODEL_RETENTION_MS = 30L * 86_400_000L
         private const val CONTENT_CHUNK = 50
 
@@ -404,7 +426,7 @@ constructor(
                     .build()
             workManager.enqueueUniquePeriodicWork(
                 TRAIN_WORK_NAME,
-                ExistingPeriodicWorkPolicy.KEEP,
+                ExistingPeriodicWorkPolicy.UPDATE,
                 PeriodicWorkRequestBuilder<TrainWorker>(24, TimeUnit.HOURS)
                     .setConstraints(constraints)
                     .addTag(RankWorker.INSIGHTS_WORK_TAG)

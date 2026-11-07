@@ -36,6 +36,7 @@ class InsightsPriorCalculator @Inject constructor(
                         ReadingEventType.IMPRESSION,
                         ReadingEventType.OPEN,
                         ReadingEventType.DWELL,
+                        ReadingEventType.MARK_READ_BULK,
                     ),
             )
         if (events.isEmpty()) return emptyList()
@@ -56,6 +57,9 @@ class InsightsPriorCalculator @Inject constructor(
             when (event.type) {
                 ReadingEventType.IMPRESSION -> a.impressions += weight
                 ReadingEventType.OPEN -> a.opens += weight
+                // Bulk marks are batch-level NEGATIVE evidence: N unopened
+                // impressions worth of dilution on that feed's open rate.
+                ReadingEventType.MARK_READ_BULK -> a.impressions += weight * (event.position ?: 1)
                 ReadingEventType.DWELL -> {
                     val duration = event.durationMs ?: continue
                     if (event.censored) continue // truncated by exit, not by finishing

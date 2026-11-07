@@ -100,7 +100,8 @@ constructor(
             // content-based ones and would let markup-heavy rows outrank real ones.
             val decision = admit(refined, priorByFeed)
 
-            insightsDao.upsertRanks(
+            insightsDao.replaceRanks(
+                accountId,
                 all.map {
                     it.rank.copy(
                         admitted = it.meta.id in decision.admittedIds || it.meta.id in decision.explorationIds,
@@ -169,9 +170,15 @@ constructor(
         val refinedIds = refineIds.toSet()
         val refinedExpected = HashMap<String, Long>()
         for (chunk in refineIds.chunked(REFINE_CHUNK)) {
-            runCatching { insightsDao.queryArticleContent(chunk) }
-                .getOrNull()
-                ?.forEach { refinedExpected[it.id] = ExpectedReadTime.estimateMs(it.rawDescription) }
+            val content =
+                try {
+                    insightsDao.queryArticleContent(chunk)
+                } catch (e: CancellationException) {
+                    throw e
+                } catch (_: Exception) {
+                    null
+                }
+            content?.forEach { refinedExpected[it.id] = ExpectedReadTime.estimateMs(it.rawDescription) }
         }
         val refined = ArrayList<Candidate>(refineIds.size)
         val rest = ArrayList<Candidate>()

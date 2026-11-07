@@ -75,7 +75,9 @@ object ReadingEventContext {
     const val LINK_INLINE = 2
 
     // Open context
-    const val OPEN_SOURCE_SWIPE = 256
+    const val OPEN_SOURCE_LIST = 256
+    /** Entered the pager without a preceding list pick: swipe or non-list deep link. */
+    const val OPEN_SOURCE_SWIPE = 1024
 
     // Bulk mark scope
     const val MARK_SCOPE_FEED = 4

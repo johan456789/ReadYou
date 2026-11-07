@@ -91,12 +91,16 @@ class ReadingInsightsRecorder @Inject constructor(
     private var readerLastDepth: Float = 0f
     private var lastScrollSentElapsed: Long = 0
 
+    /** Most recent list pick awaiting its reader entry (articleId, atElapsed). */
+    private var pendingListPick: Pair<String, Long>? = null
+
     // Impression tracking (per session).
     private val visibleSince = HashMap<String, PendingImpression>()
     private val impressedThisSession = HashSet<String>()
 
     private data class PendingImpression(
         val sinceElapsed: Long,
+        val sinceWall: Long, // first-visible wall clock: the impression's true createdAt
         val position: Int,
         val feedId: String?,
     )
@@ -114,14 +118,24 @@ class ReadingInsightsRecorder @Inject constructor(
         }
     }
 
-    //region Sessions (MainActivity lifecycle)
+    //region Sessions (process lifecycle via ProcessLifecycleOwner)
 
-    fun onAppForeground(entryPoint: Int? = SessionEntryPoint.UNKNOWN) {
+    /** Process-scoped: the very first foreground of this process is a cold start. */
+    private var everForegrounded = false
+
+    /** Engagement happened this session (impression/open/dwell/mark) — gates the rank pass. */
+    @Volatile
+    private var sessionHadEngagement = false
+
+    fun onAppForeground() {
         val startedSweep = synchronized(lock) {
             if (sessionActive) return
             sessionActive = true
             sessionStartedWall = System.currentTimeMillis()
-            sessionEntryPoint = entryPoint
+            sessionEntryPoint =
+                if (everForegrounded) SessionEntryPoint.UNKNOWN else SessionEntryPoint.COLD_START
+            everForegrounded = true
+            sessionHadEngagement = false
             if (readerArticleId != null && readerPaused) {
                 readerPaused = false
                 readerEnterElapsed = SystemClock.elapsedRealtime()
@@ -141,7 +155,8 @@ class ReadingInsightsRecorder @Inject constructor(
             // leaving the app, not by finishing. If the process dies here the
             // pre-background time is already durable (censored events are
             // discounted at training time); if the user returns, the resumed
-            // span flushes as its own uncensored event on exit.
+            // span flushes as its own event on exit — carrying the open's
+            // censored flag, since it too is a fragment of an interrupted read.
             if (readerArticleId != null && !readerPaused) {
                 readerAccumulatedMs += SystemClock.elapsedRealtime() - readerEnterElapsed
                 readerPaused = true
@@ -180,8 +195,10 @@ class ReadingInsightsRecorder @Inject constructor(
                     )
                 }
             }
-            // A finished session is new evidence; refresh the For You set.
-            if (isEnabled()) RankWorker.enqueueNow(workManager)
+            // A finished session with real engagement is new evidence; refresh
+            // the For You set. Quick non-reading round trips (browser trip,
+            // settings glance — no impressions/opens/dwells/marks) skip it.
+            if (isEnabled() && sessionHadEngagement) RankWorker.enqueueNow(workManager)
         }
     }
 
@@ -190,7 +207,7 @@ class ReadingInsightsRecorder @Inject constructor(
     //region Reader (ReadingPage — shared by both surfaces)
 
     /** Called when an article becomes the visible reader page. Flushes the previous article. */
-    fun onEnterReader(articleId: String, feedId: String?, isSwipe: Boolean = false) {
+    fun onEnterReader(articleId: String, feedId: String?) {
         synchronized(lock) {
             if (readerArticleId == articleId) return
             flushReaderDwellLocked()
@@ -201,12 +218,39 @@ class ReadingInsightsRecorder @Inject constructor(
             readerPaused = false
             readerCensored = false
             readerLastDepth = 0f
+            visibleSince.clear()
+            // Open source, decided by evidence rather than inference: a list
+            // pick registered just before this entry (FlowPage tap) is a LIST
+            // open; entering the pager without one is a swipe. Two-pane layouts
+            // keep the detail pane composed, so inferring from prior state
+            // would mislabel real list picks as swipes and drop them from
+            // stage-A positives.
+            val source =
+                pendingListPick
+                    ?.takeIf { (pickedId, at) ->
+                        pickedId == articleId &&
+                            SystemClock.elapsedRealtime() - at < LIST_PICK_WINDOW_MS
+                    }
+                    ?.let { ReadingEventContext.OPEN_SOURCE_LIST }
+                    ?: ReadingEventContext.OPEN_SOURCE_SWIPE
+            pendingListPick = null
             postEventLocked(
                 type = ReadingEventType.OPEN,
                 articleId = articleId,
                 feedId = feedId,
-                context = if (isSwipe) ReadingEventContext.OPEN_SOURCE_SWIPE else null,
+                context = source,
             )
+        }
+    }
+
+    /**
+     * Registers that the user tapped an article card in the list; the open
+     * event that follows within [LIST_PICK_WINDOW_MS] for the same article is
+     * then sourced as a list pick.
+     */
+    fun onListPick(articleId: String) {
+        synchronized(lock) {
+            pendingListPick = articleId to SystemClock.elapsedRealtime()
         }
     }
 
@@ -217,6 +261,9 @@ class ReadingInsightsRecorder @Inject constructor(
      */
     fun onOpenExternal(articleId: String, feedId: String?) {
         synchronized(lock) {
+            // Opening an article ends the browsing exposure: cards left in the
+            // list must not age into impressions while the user reads.
+            visibleSince.clear()
             postEventLocked(
                 type = ReadingEventType.OPEN,
                 articleId = articleId,
@@ -320,13 +367,14 @@ class ReadingInsightsRecorder @Inject constructor(
         synchronized(lock) {
             if (!sessionActive) return
             val elapsed = SystemClock.elapsedRealtime()
+            val wall = System.currentTimeMillis()
             visibleSince.keys.retainAll(visible.mapTo(HashSet()) { it.articleId })
             for (card in visible) {
                 if (impressedThisSession.contains(card.articleId)) continue
                 val existing = visibleSince[card.articleId]
                 visibleSince[card.articleId] =
                     if (existing == null) {
-                        PendingImpression(elapsed, card.position, card.feedId)
+                        PendingImpression(elapsed, wall, card.position, card.feedId)
                     } else {
                         existing.copy(position = card.position, feedId = card.feedId ?: existing.feedId)
                     }
@@ -354,7 +402,11 @@ class ReadingInsightsRecorder @Inject constructor(
                                     articleId = entry.key,
                                     feedId = entry.value.feedId,
                                     type = ReadingEventType.IMPRESSION,
-                                    createdAt = Date(),
+                                    // First-visible time, not sweep time: a user
+                                    // who taps within the visibility window logs
+                                    // an OPEN at ~first-visible, and the
+                                    // impression must not postdate its own open.
+                                    createdAt = Date(entry.value.sinceWall),
                                     position = entry.value.position,
                                 )
                             )
@@ -477,6 +529,14 @@ class ReadingInsightsRecorder @Inject constructor(
         censored: Boolean = false,
     ) {
         val accountId = accountService.currentAccountIdFlow.value ?: return
+        if (type == ReadingEventType.IMPRESSION ||
+            type == ReadingEventType.OPEN ||
+            type == ReadingEventType.DWELL ||
+            type == ReadingEventType.MARK_READ_MANUAL ||
+            type == ReadingEventType.MARK_READ_BULK
+        ) {
+            sessionHadEngagement = true
+        }
         eventChannel.trySend(
             ReadingEvent(
                 accountId = accountId,
@@ -565,5 +625,6 @@ class ReadingInsightsRecorder @Inject constructor(
         const val SCROLL_MIN_INTERVAL_MS = 1_000L
         const val LINK_OUT_DEDUPE_MS = 2_000L
         const val LINK_OUT_MAX_AWAY_MS = 60 * 60_000L
+        const val LIST_PICK_WINDOW_MS = 2_000L
     }
 }

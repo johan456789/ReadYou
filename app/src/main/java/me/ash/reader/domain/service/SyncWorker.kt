@@ -62,15 +62,11 @@ constructor(
                             .build(),
                     )
                     .then(
-                        // Reading insights: embed (Tier 2 pass-through for now),
-                        // then re-rank so the For You set reflects new articles.
-                        // Tagged as insights work, not sync work.
+                        // Reading insights: embed (Tier 2 pass-through for now).
+                        // The rank pass is NOT part of this chain: it must not
+                        // delay the widget refresh, and cancelling sync must not
+                        // cancel ranking. EmbedWorker enqueues it on completion.
                         OneTimeWorkRequestBuilder<EmbedWorker>()
-                            .addTag(RankWorker.INSIGHTS_WORK_TAG)
-                            .build()
-                    )
-                    .then(
-                        OneTimeWorkRequestBuilder<RankWorker>()
                             .addTag(RankWorker.INSIGHTS_WORK_TAG)
                             .setInputData(workDataOf("accountId" to accountId))
                             .build()

@@ -8,6 +8,7 @@ import androidx.work.workDataOf
 import com.rometools.rome.feed.synd.SyndFeed
 import java.util.Date
 import java.util.UUID
+import kotlinx.coroutines.CancellationException
 import kotlinx.coroutines.CoroutineDispatcher
 import kotlinx.coroutines.ExperimentalCoroutinesApi
 import kotlinx.coroutines.flow.Flow
@@ -199,9 +200,15 @@ abstract class AbstractRssRepository(
                         // older Android), and mark-all can touch thousands.
                         val feedCounts = HashMap<String, Int>()
                         for (chunk in affectedIds.chunked(500)) {
-                            runCatching { insightsDao.queryFeedIdsForArticles(chunk) }
-                                .getOrNull()
-                                ?.forEach { feedCounts.merge(it.feedId, 1, Int::plus) }
+                            val refs =
+                                try {
+                                    insightsDao.queryFeedIdsForArticles(chunk)
+                                } catch (e: CancellationException) {
+                                    throw e
+                                } catch (_: Exception) {
+                                    null
+                                }
+                            refs?.forEach { feedCounts.merge(it.feedId, 1, Int::plus) }
                         }
                         for ((perFeedId, count) in feedCounts) {
                             insightsRecorder.onMarkReadBulk(

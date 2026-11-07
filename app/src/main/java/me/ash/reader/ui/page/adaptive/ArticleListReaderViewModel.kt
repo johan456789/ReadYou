@@ -212,13 +212,18 @@ constructor(
 
         if (items.isNotEmpty()) {
             diffMapHolder.updateDiff(articleWithFeed = items.toTypedArray(), markRead = true)
-            insightsRecorder.onMarkReadBulk(
-                scope = ReadingEventContext.MARK_SCOPE_BATCH,
-                feedId = null,
-                groupId = null,
-                affectedCount = items.size,
-                source = ReadingEventContext.MARK_SOURCE_LIST,
-            )
+            items
+                .groupingBy { it.feed.id }
+                .eachCount()
+                .forEach { (feedId, count) ->
+                    insightsRecorder.onMarkReadBulk(
+                        scope = ReadingEventContext.MARK_SCOPE_BATCH,
+                        feedId = feedId,
+                        groupId = null,
+                        affectedCount = count,
+                        source = ReadingEventContext.MARK_SOURCE_LIST,
+                    )
+                }
         }
         return items
     }
@@ -245,13 +250,20 @@ constructor(
 
         if (items.isNotEmpty()) {
             diffMapHolder.updateDiff(articleWithFeed = items.toTypedArray(), markRead = true)
-            insightsRecorder.onMarkReadBulk(
-                scope = ReadingEventContext.MARK_SCOPE_BATCH,
-                feedId = null,
-                groupId = null,
-                affectedCount = items.size,
-                source = ReadingEventContext.MARK_SOURCE_LIST,
-            )
+            // Per-feed batch evidence: one event per feed with its count, so
+            // the feed priors can actually consume it.
+            items
+                .groupingBy { it.feed.id }
+                .eachCount()
+                .forEach { (feedId, count) ->
+                    insightsRecorder.onMarkReadBulk(
+                        scope = ReadingEventContext.MARK_SCOPE_BATCH,
+                        feedId = feedId,
+                        groupId = null,
+                        affectedCount = count,
+                        source = ReadingEventContext.MARK_SOURCE_LIST,
+                    )
+                }
         }
         return items
     }

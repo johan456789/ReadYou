@@ -26,6 +26,9 @@ import androidx.lifecycle.lifecycleScope
 import androidx.navigation3.runtime.NavBackStack
 import androidx.navigation3.runtime.NavKey
 import androidx.navigation3.runtime.rememberNavBackStack
+import androidx.lifecycle.DefaultLifecycleObserver
+import androidx.lifecycle.LifecycleOwner
+import androidx.lifecycle.ProcessLifecycleOwner
 import androidx.profileinstaller.ProfileInstallerInitializer
 import androidx.work.WorkManager
 import coil.ImageLoader
@@ -35,7 +38,6 @@ import javax.inject.Inject
 import kotlinx.coroutines.delay
 import kotlinx.coroutines.launch
 import me.ash.reader.domain.data.FilterStateUseCase
-import me.ash.reader.domain.model.insights.SessionEntryPoint
 import me.ash.reader.domain.service.AccountService
 import me.ash.reader.domain.service.ReadingInsightsRecorder
 import me.ash.reader.domain.service.RssService
@@ -75,8 +77,6 @@ class MainActivity : AppCompatActivity() {
 
     @Inject lateinit var readingInsightsRecorder: ReadingInsightsRecorder
 
-    private var firstAppStart = true
-
     companion object {
         /** Unique per process. Used to detect process death vs. configuration change. */
         private val processToken: String = java.util.UUID.randomUUID().toString()
@@ -88,6 +88,23 @@ class MainActivity : AppCompatActivity() {
 
         // Reading insights: nightly on-device ranker training (charging+idle).
         TrainWorker.enqueuePeriodicWork(workManager)
+
+        // Reading insights: session boundaries at the PROCESS level. Activity
+        // onStart/onStop would split sessions and censor reads on every
+        // configuration change (rotation is manifest-handled, but dark-mode
+        // toggles and in-app locale changes recreate the activity).
+        ProcessLifecycleOwner.get().lifecycle.addObserver(
+            object : DefaultLifecycleObserver {
+                override fun onStart(owner: LifecycleOwner) {
+                    readingInsightsRecorder.onAppForeground()
+                    lifecycleScope.launch { readingInsightsRecorder.reconcileLinkOuts() }
+                }
+
+                override fun onStop(owner: LifecycleOwner) {
+                    readingInsightsRecorder.onAppBackground()
+                }
+            }
+        )
 
         enableEdgeToEdge()
 
@@ -284,21 +301,6 @@ class MainActivity : AppCompatActivity() {
             addOnNewIntentListener(listener)
             onDispose { removeOnNewIntentListener(listener) }
         }
-    }
-
-    override fun onStart() {
-        super.onStart()
-        readingInsightsRecorder.onAppForeground(
-            if (firstAppStart) SessionEntryPoint.COLD_START else SessionEntryPoint.UNKNOWN
-        )
-        firstAppStart = false
-        // Reading insights: credit away time for links opened into the browser.
-        lifecycleScope.launch { readingInsightsRecorder.reconcileLinkOuts() }
-    }
-
-    override fun onStop() {
-        readingInsightsRecorder.onAppBackground()
-        super.onStop()
     }
 
     override fun onResume() {

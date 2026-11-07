@@ -166,10 +166,12 @@ fun ReadingPage(
             // feedId deliberately null: readingUiState can lag the pager and a
             // wrong non-null value would never be corrected (the drain-time
             // backfill only fills nulls). The recorder resolves it from DB.
+            // Open source (list pick vs swipe) is decided by the recorder from
+            // the registered list pick — inferring it here would mislabel
+            // two-pane list taps as swipes.
             insights?.onEnterReader(
                 articleId = articleId,
                 feedId = null,
-                isSwipe = previous != null,
             )
         }
     }

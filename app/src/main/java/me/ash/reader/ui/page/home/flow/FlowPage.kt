@@ -62,6 +62,7 @@ import androidx.compose.runtime.rememberCoroutineScope
 import androidx.compose.runtime.rememberUpdatedState
 import androidx.compose.runtime.saveable.rememberSaveable
 import androidx.compose.runtime.setValue
+import androidx.compose.runtime.DisposableEffect
 import androidx.compose.runtime.snapshotFlow
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
@@ -681,14 +682,19 @@ fun FlowPage(
                                     // Reading insights: swept-past items were
                                     // already impressed, so the per-article
                                     // negatives exist via IMPRESSION events —
-                                    // this batch event is the intent marker.
-                                    insights?.onMarkReadBulk(
-                                        scope = ReadingEventContext.MARK_SCOPE_BATCH,
-                                        feedId = null,
-                                        groupId = null,
-                                        affectedCount = items.size,
-                                        source = ReadingEventContext.MARK_SOURCE_SCROLL,
-                                    )
+                                    // per-feed batch events carry the intent.
+                                    items
+                                        .groupingBy { it.feed.id }
+                                        .eachCount()
+                                        .forEach { (feedId, count) ->
+                                            insights?.onMarkReadBulk(
+                                                scope = ReadingEventContext.MARK_SCOPE_BATCH,
+                                                feedId = feedId,
+                                                groupId = null,
+                                                affectedCount = count,
+                                                source = ReadingEventContext.MARK_SOURCE_SCROLL,
+                                            )
+                                        }
                                 }
                             }
                         }
@@ -716,30 +722,37 @@ fun FlowPage(
                                     .mapNotNull { info ->
                                         (info.key as? String)?.let { it to info.index }
                                     }
-                            }.collect { visible ->
-                                // Resolve feed ids from the snapshot list ONCE —
-                                // LazyPagingItems.peek throws when the snapshot
-                                // resets under a stale layout index, and two
-                                // separate reads (size + peek) can race a paging
-                                // update. getOrNull + id check: never crashes,
-                                // never misattributes.
-                                val items = pagingItems.itemSnapshotList.items
-                                insights?.noteVisibleArticleIds(
-                                    visible.mapNotNull { (id, index) ->
-                                        (items.getOrNull(index) as? ArticleFlowItem.Article)
-                                            ?.takeIf { it.articleWithFeed.article.id == id }
-                                            ?.let {
-                                                VisibleCard(
-                                                    articleId = id,
-                                                    feedId = it.articleWithFeed.feed.id,
-                                                    position = index,
-                                                )
+                                    }.collect { visible ->
+                                        // Resolve feed ids from the snapshot list ONCE —
+                                        // LazyPagingItems.peek throws when the snapshot
+                                        // resets under a stale layout index, and two
+                                        // separate reads (size + peek) can race a paging
+                                        // update. getOrNull + id check: never crashes,
+                                        // never misattributes.
+                                        val items = pagingItems.itemSnapshotList.items
+                                        insights?.noteVisibleArticleIds(
+                                            visible.mapNotNull { (id, index) ->
+                                                (items.getOrNull(index) as? ArticleFlowItem.Article)
+                                                    ?.takeIf { it.articleWithFeed.article.id == id }
+                                                    ?.let {
+                                                        VisibleCard(
+                                                            articleId = id,
+                                                            feedId = it.articleWithFeed.feed.id,
+                                                            position = index,
+                                                        )
+                                                    }
                                             }
+                                        )
                                     }
-                                )
+                                }
                             }
-                        }
-                    }
+
+                            // The list leaving composition (single-pane tap into
+                            // the reader) ends its exposure window: cards must not
+                            // age into impressions while the user is elsewhere.
+                            DisposableEffect(Unit) {
+                                onDispose { insights?.noteVisibleArticleIds(emptyList()) }
+                            }
 
                     val listState = remember(pager) { listState }
 
@@ -869,6 +882,7 @@ fun FlowPage(
                                         // Reading insights: the article itself is
                                         // consumed in the browser — an OPEN with
                                         // full attribution, not a silent feed.
+                                        insights?.onListPick(articleWithFeed.article.id)
                                         insights?.onOpenExternal(
                                             articleId = articleWithFeed.article.id,
                                             feedId = articleWithFeed.feed.id,
@@ -884,6 +898,7 @@ fun FlowPage(
                                             openLinkSpecificBrowser,
                                         )
                                     } else {
+                                        insights?.onListPick(articleWithFeed.article.id)
                                         navigateToArticle(articleWithFeed.article.id)
                                     }
                                 },

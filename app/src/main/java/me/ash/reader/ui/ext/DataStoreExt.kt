@@ -292,6 +292,9 @@ val ignorePreferencesOnExportAndImport =
         PreferencesKey.currentFilterGroupId,
         PreferencesKey.currentFilterStatus,
         PreferencesKey.currentReadingArticleId,
+        // Device-local consent: importing another device's backup must not
+        // silently flip this device's collection setting.
+        PreferencesKey.insightsCollectionEnabled,
     )
 
 suspend fun Context.fromDataStoreToJSONString(): String {

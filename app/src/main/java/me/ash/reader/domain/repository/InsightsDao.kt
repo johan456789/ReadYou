@@ -117,6 +117,21 @@ interface InsightsDao {
     @Upsert
     suspend fun upsertRanks(ranks: List<ArticleRank>)
 
+    /**
+     * Atomic rank-pass write: resets the account's admission flags first, then
+     * applies the new pass. Without the reset, rows that drop out of the
+     * candidate set keep a stale admitted=1, and concurrent rank passes can
+     * leave a mixed admitted set (over quota, double exploration slots).
+     */
+    @Transaction
+    suspend fun replaceRanks(accountId: Int, ranks: List<ArticleRank>) {
+        resetAdmittedFlags(accountId)
+        upsertRanks(ranks)
+    }
+
+    @Query("UPDATE article_rank SET admitted = 0, exploration = 0 WHERE accountId = :accountId")
+    suspend fun resetAdmittedFlags(accountId: Int)
+
     @Query("DELETE FROM article_rank WHERE accountId = :accountId AND computedAt < :cutoff")
     suspend fun deleteStaleRanks(accountId: Int, cutoff: Date): Int
 
