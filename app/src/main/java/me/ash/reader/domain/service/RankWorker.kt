@@ -65,14 +65,9 @@ constructor(
         return Result.success()
     }
 
-    private data class Candidate(
+    internal data class Candidate(
         val meta: UnreadArticleShallow,
         val rank: ArticleRank,
-    )
-
-    private data class Admission(
-        val admittedIds: Set<String>,
-        val explorationIds: Set<String>,
     )
 
     private suspend fun rank(accountId: Int) {
@@ -96,23 +91,27 @@ constructor(
                 ?.weights?.toModelFloats()
                 ?.takeIf { it.size == RankFeatures.DWELL_FEATURE_COUNT }
 
-        val candidates = scanCandidates(accountId, now, priorByFeed, openWeights, dwellWeights)
-        if (candidates.second.isEmpty()) return
+        val (refined, rest) = scanCandidates(accountId, now, priorByFeed, openWeights, dwellWeights)
+        val all = refined + rest
 
-        // Admission draws ONLY from the refined candidates: the unrefined tail
-        // carries length-based pre-estimates that are not comparable with
-        // content-based ones and would let markup-heavy rows outrank real ones.
-        val (refined, all) = candidates
-        val decision = admit(refined, priorByFeed)
+        if (all.isNotEmpty()) {
+            // Admission draws ONLY from the refined candidates: the unrefined tail
+            // carries length-based pre-estimates that are not comparable with
+            // content-based ones and would let markup-heavy rows outrank real ones.
+            val decision = admit(refined, priorByFeed)
 
-        insightsDao.upsertRanks(
-            all.map {
-                it.rank.copy(
-                    admitted = it.meta.id in decision.admittedIds || it.meta.id in decision.explorationIds,
-                    exploration = it.meta.id in decision.explorationIds,
-                )
-            }
-        )
+            insightsDao.upsertRanks(
+                all.map {
+                    it.rank.copy(
+                        admitted = it.meta.id in decision.admittedIds || it.meta.id in decision.explorationIds,
+                        exploration = it.meta.id in decision.explorationIds,
+                    )
+                }
+            )
+        }
+
+        // Retention runs regardless of candidate count — event-log pruning must
+        // not depend on there being anything to rank this pass.
         insightsDao.deleteStaleRanks(accountId, Date(now - RANK_RETENTION_MS))
         insightsDao.deleteEventsBefore(Date(now - EVENT_RETENTION_MS))
     }
@@ -215,11 +214,15 @@ constructor(
 
         val pOpen: Float
         val predictedMinutes: Float
-        val trained = openWeights != null && dwellWeights != null
-        if (trained) {
-            // Two-stage models: the position feature is zeroed at serving
-            // (training-only device against position bias). Stage B predicts
-            // ln(dwell/expected) — unit-safe by construction.
+        // Per-stage fallback: a stage uses its trained model when present and
+        // falls back to the Tier 0 formula otherwise — an account whose open
+        // model is fitted but whose dwell samples are still under threshold
+        // should keep the fitted stage instead of dropping both to Tier 0.
+        val usedOpenModel = openWeights != null
+        val usedDwellModel = dwellWeights != null
+        if (usedOpenModel) {
+            // The position feature is zeroed at serving (training-only device
+            // against position bias).
             val xOpen =
                 RankFeatures.openFeatures(
                     feedOpenRate = openRate,
@@ -232,6 +235,11 @@ constructor(
                 RankFeatures
                     .sigmoid(dot(openWeights, xOpen))
                     .coerceIn(0.01f, 0.95f)
+        } else {
+            pOpen = (P_OPEN_BASE + P_OPEN_OPEN_RATE * openRate).toFloat().coerceIn(0.02f, 0.9f)
+        }
+        if (usedDwellModel) {
+            // Stage B predicts ln(dwell/expected) — unit-safe by construction.
             val xDwell =
                 RankFeatures.dwellFeatures(
                     feedDwellPriorLog = priorCalculator.dwellPriorLog(prior),
@@ -244,17 +252,17 @@ constructor(
                     .coerceIn(RankFeatures.DWELL_RATIO_MIN, RankFeatures.DWELL_RATIO_MAX)
             predictedMinutes = (expectedMinutes * ratio).toFloat().coerceAtLeast(0.2f)
         } else {
-            // Tier 0 heuristic constants (see companion) until models exist.
-            pOpen = (P_OPEN_BASE + P_OPEN_OPEN_RATE * openRate).toFloat().coerceIn(0.02f, 0.9f)
             predictedMinutes =
                 (expectedMinutes * priorCalculator.dwellMultiplier(prior).toFloat())
                     .coerceAtLeast(0.2f)
         }
-        // Freshness gates Tier 0; the trained models carry freshness as a
-        // fitted feature, so gating again would double-count it.
+        // Freshness gates only when a Tier 0 component is in play; the trained
+        // models carry freshness as a fitted feature, so gating again would
+        // double-count it.
         val freshnessGate = (FRESHNESS_WEIGHT * freshness + 1.0 - FRESHNESS_WEIGHT).toFloat()
         val scoreValue =
-            if (trained) pOpen * predictedMinutes else pOpen * predictedMinutes * freshnessGate
+            if (usedOpenModel && usedDwellModel) pOpen * predictedMinutes
+            else pOpen * predictedMinutes * freshnessGate
 
         return ArticleRank(
             articleId = article.id,
@@ -286,54 +294,23 @@ constructor(
      * posterior (uncertainty shrinks with exposure) so quiet feeds still get
      * surfaced. The exploration slot is quota-exempt by design: without it,
      * long-tail content would never earn the engagement data it needs.
+     *
+     * Pure and dependency-free so the quota/cap/exploration contract is unit
+     * testable ([RankAdmission] holds the logic; this delegates).
      */
     private fun admit(candidates: List<Candidate>, priorByFeed: Map<String, FeedPrior>): Admission {
-        val admittedIds = LinkedHashSet<String>()
-        val perFeedCount = HashMap<String, Int>()
-        for (candidate in candidates.sortedByDescending { it.rank.score }) {
-            if (admittedIds.size >= DAILY_QUOTA) break
-            val count = perFeedCount.getOrDefault(candidate.meta.feedId, 0)
-            if (count >= PER_FEED_CAP) continue
-            perFeedCount[candidate.meta.feedId] = count + 1
-            admittedIds.add(candidate.meta.id)
-        }
-
-        val explorationIds = explore(candidates, admittedIds, priorByFeed)
-        return Admission(admittedIds, explorationIds)
+        val decision =
+            RankAdmission.admit(
+                candidates.map { RankAdmission.Entry(it.meta.id, it.meta.feedId, it.meta.date, it.rank.score) },
+                priorByFeed.mapValues { (_, p) -> p.decayedImpressions to p.decayedOpens },
+            )
+        return Admission(decision.admittedIds, decision.explorationIds)
     }
 
-    private fun explore(
-        candidates: List<Candidate>,
-        admittedIds: Set<String>,
-        priorByFeed: Map<String, FeedPrior>,
-    ): Set<String> {
-        val remaining = candidates.filter { it.meta.id !in admittedIds }
-        if (remaining.isEmpty()) return emptySet()
-
-        val byFeed = remaining.groupBy { it.meta.feedId }
-        var bestScore = Double.NEGATIVE_INFINITY
-        var best: Candidate? = null
-        for ((feedId, articles) in byFeed) {
-            val prior = priorByFeed[feedId]
-            // Sample around the shrunk posterior with spread 1/sqrt(n+2) as a
-            // cheap Thompson stand-in (no gamma sampler at Tier 0).
-            val posteriorMean = priorCalculator.shrunkOpenRate(prior)
-            val impressions = prior?.decayedImpressions ?: 0.0
-            val sample = posteriorMean + gaussian() / sqrt(impressions + 2.0)
-            if (sample > bestScore) {
-                bestScore = sample
-                best = articles.maxBy { it.meta.date } // newest voice of the least-heard feed
-            }
-        }
-        return best?.let { setOf(it.meta.id) } ?: emptySet()
-    }
-
-    /** Box–Muller standard normal; kotlin.random has no nextGaussian. */
-    private fun gaussian(): Double {
-        val u1 = Random.Default.nextDouble().coerceIn(1e-9, 1.0)
-        val u2 = Random.Default.nextDouble()
-        return sqrt(-2.0 * ln(u1)) * kotlin.math.cos(2.0 * Math.PI * u2)
-    }
+    private data class Admission(
+        val admittedIds: Set<String>,
+        val explorationIds: Set<String>,
+    )
 
     //endregion
 
@@ -347,9 +324,6 @@ constructor(
          * cancellation paths.
          */
         const val INSIGHTS_WORK_TAG = "INSIGHTS_WORK_TAG"
-
-        const val DAILY_QUOTA = 20
-        const val PER_FEED_CAP = 3
 
         // Tier 0 model constants — the fallback until TrainWorker has fitted
         // both stages past the sample thresholds.
