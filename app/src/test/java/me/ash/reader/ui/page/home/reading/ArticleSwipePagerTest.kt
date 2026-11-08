@@ -228,6 +228,49 @@ class ArticleSwipePagerTest {
     }
 
     @Test
+    fun `axis undecided while both axes stay under touch slop`() {
+        assertNull(resolveArticleSwipeAxis(totalDx = 10f, totalDy = 10f, touchSlop = 24f))
+    }
+
+    @Test
+    fun `horizontal axis locked when horizontal passes slop alone`() {
+        assertEquals(
+            ArticleSwipeAxis.Horizontal,
+            resolveArticleSwipeAxis(totalDx = 30f, totalDy = 8f, touchSlop = 24f),
+        )
+    }
+
+    @Test
+    fun `vertical axis locked when vertical passes slop alone`() {
+        assertEquals(
+            ArticleSwipeAxis.Vertical,
+            resolveArticleSwipeAxis(totalDx = 8f, totalDy = 30f, touchSlop = 24f),
+        )
+    }
+
+    @Test
+    fun `l shaped scroll locks vertical at the first slop crossing`() {
+        // Vertical first (the WebView already scrolled): at the moment the
+        // first axis passes the slop the decision is vertical, and the gesture
+        // loop never re-asks - so a later sideways curve cannot win the
+        // gesture back for the article swipe.
+        assertEquals(
+            ArticleSwipeAxis.Vertical,
+            resolveArticleSwipeAxis(totalDx = 28f, totalDy = 240f, touchSlop = 24f),
+        )
+    }
+
+    @Test
+    fun `perfect diagonal locks vertical like the webview`() {
+        // The WebView treats dx == dy as a vertical gesture (dx > dy is false),
+        // so the swipe must agree.
+        assertEquals(
+            ArticleSwipeAxis.Vertical,
+            resolveArticleSwipeAxis(totalDx = 30f, totalDy = 30f, touchSlop = 24f),
+        )
+    }
+
+    @Test
     fun `settle to previous pauses outgoing and stale slots, resumes incoming`() {
         val update =
             resolveArticleSwipeMediaUpdate(

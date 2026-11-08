@@ -9,8 +9,6 @@ import androidx.compose.animation.core.spring
 import androidx.compose.animation.core.tween
 import androidx.compose.foundation.gestures.awaitEachGesture
 import androidx.compose.foundation.gestures.awaitFirstDown
-import androidx.compose.foundation.gestures.awaitHorizontalTouchSlopOrCancellation
-import androidx.compose.foundation.gestures.horizontalDrag
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.BoxWithConstraints
 import androidx.compose.foundation.layout.PaddingValues
@@ -29,7 +27,6 @@ import androidx.compose.runtime.rememberCoroutineScope
 import androidx.compose.runtime.setValue
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clipToBounds
-import androidx.compose.ui.geometry.Offset
 import androidx.compose.ui.input.pointer.changedToUpIgnoreConsumed
 import androidx.compose.ui.input.pointer.pointerInput
 import androidx.compose.ui.input.pointer.positionChange
@@ -49,6 +46,35 @@ import kotlin.math.roundToInt
 internal enum class ArticleSwipeDirection {
     Previous,
     Next,
+}
+
+/**
+ * The scroll axis a gesture is locked onto. Decided once - the first time
+ * either axis passes the touch slop - and never revisited for the rest of the
+ * touch sequence.
+ */
+internal enum class ArticleSwipeAxis {
+    Horizontal,
+    Vertical,
+}
+
+/**
+ * Decides which axis owns a gesture with the same test the WebView applies in
+ * dispatchTouchEvent (horizontal iff |dx| > |dy| once either axis passes the
+ * touch slop), so both sides lock onto the same axis on the same event.
+ * Returns null while neither axis has passed the slop yet.
+ */
+internal fun resolveArticleSwipeAxis(
+    totalDx: Float,
+    totalDy: Float,
+    touchSlop: Float,
+): ArticleSwipeAxis? {
+    if (abs(totalDx) <= touchSlop && abs(totalDy) <= touchSlop) return null
+    return if (abs(totalDx) > abs(totalDy)) {
+        ArticleSwipeAxis.Horizontal
+    } else {
+        ArticleSwipeAxis.Vertical
+    }
 }
 
 internal fun resolveArticleSwipeSettleDirection(
@@ -753,6 +779,16 @@ fun ArticleSwipePager(
     }
 }
 
+/**
+ * Horizontal article swipe with a one-shot scroll-axis lock.
+ *
+ * The first time either axis of the gesture passes the touch slop, the axis
+ * is decided for the whole touch sequence and never revisited: horizontal
+ * drags page between articles, everything else belongs to the WebView's
+ * vertical scroll. An L-shaped scroll (vertical first, then curving sideways)
+ * therefore stays a scroll for its entire life instead of claiming the
+ * horizontal swipe mid-gesture after the article has already moved.
+ */
 private fun Modifier.articleSwipePointerInput(
     layoutDirection: LayoutDirection,
     gesturesEnabled: Boolean,
@@ -768,6 +804,7 @@ private fun Modifier.articleSwipePointerInput(
     pointerInput(layoutDirection, gesturesEnabled) {
         if (!gesturesEnabled) return@pointerInput
         val thresholdPx = 96.dp.toPx()
+        val touchSlop = viewConfiguration.touchSlop
         awaitEachGesture {
             val down = awaitFirstDown(requireUnconsumed = false)
             timber.log.Timber.tag("RYSwiper").d("down")
@@ -776,51 +813,86 @@ private fun Modifier.articleSwipePointerInput(
             // pane they are about to reveal is not stuck empty. No-op otherwise.
             onKickNeighbors()
             var dragOffset = 0f
-            var totalDragOffset = 0f
-            var totalOffset = Offset.Zero
-            val drag =
-                awaitHorizontalTouchSlopOrCancellation(down.id) { change, overSlop ->
-                    totalDragOffset += overSlop
-                    totalOffset += change.positionChange()
-                    // Only claim the gesture for clearly horizontal drags (like ViewPager2:
-                    // horizontal must exceed slop AND dominate vertical). Otherwise a
-                    // slightly diagonal vertical scroll would get stolen mid-flight and
-                    // stutter against the WebView's own vertical scroll.
-                    val horizontalDominant = abs(totalOffset.x) > abs(totalOffset.y)
-                    val canDrag =
-                        horizontalDominant &&
-                            canDragInDirection(
-                                offset = totalDragOffset,
-                                layoutDirection = layoutDirection,
-                                canLoadPrevious = getPreviousTarget() != null,
-                                canLoadNext = getNextTarget() != null,
-                            )
-                    dragOffset = if (canDrag) totalDragOffset else 0f
-                    onDragOffsetChange(dragOffset)
-                    if (canDrag) {
-                        change.consume()
-                    }
-                } ?: return@awaitEachGesture
+            var pointerId = down.id
+            var claimed = false
+            var axisLocked = false
+            // Cumulative movement of the gesture so far, in px.
+            var totalDx = 0f
+            var totalDy = 0f
 
-            horizontalDrag(drag.id) { change ->
-                if (change.changedToUpIgnoreConsumed()) return@horizontalDrag
-                totalDragOffset += change.positionChange().x
-                dragOffset =
+            while (true) {
+                val event = awaitPointerEvent()
+                val change = event.changes.firstOrNull { it.id == pointerId } ?: break
+                if (change.changedToUpIgnoreConsumed()) {
+                    // Keep dragging with a replacement finger, like the drag
+                    // gesture detectors this replaces.
+                    val replacement =
+                        event.changes.firstOrNull { it.pressed && it.id != pointerId }
+                    if (replacement == null) break
+                    pointerId = replacement.id
+                    continue
+                }
+                val delta = change.positionChange()
+                totalDx += delta.x
+                totalDy += delta.y
+
+                if (!claimed) {
+                    if (!axisLocked) {
+                        when (resolveArticleSwipeAxis(totalDx, totalDy, touchSlop)) {
+                            null -> continue
+                            ArticleSwipeAxis.Vertical -> {
+                                timber.log.Timber
+                                    .tag("RYSwiper")
+                                    .d("lock vertical dx=%.0f dy=%.0f", totalDx, totalDy)
+                                break
+                            }
+                            ArticleSwipeAxis.Horizontal -> {
+                                timber.log.Timber
+                                    .tag("RYSwiper")
+                                    .d("lock horizontal dx=%.0f dy=%.0f", totalDx, totalDy)
+                                axisLocked = true
+                            }
+                        }
+                    }
+                    // Horizontal is locked in; claim the gesture as soon as the
+                    // drag points at an available neighbor. While it points at a
+                    // side without one, keep tracking without consuming so the
+                    // direction can still be reversed, as before.
                     if (
-                        canDragInDirection(
-                            offset = totalDragOffset,
+                        !canDragInDirection(
+                            offset = totalDx,
                             layoutDirection = layoutDirection,
                             canLoadPrevious = getPreviousTarget() != null,
                             canLoadNext = getNextTarget() != null,
                         )
                     ) {
-                        totalDragOffset
+                        continue
+                    }
+                    claimed = true
+                    dragOffset = totalDx
+                    onDragOffsetChange(dragOffset)
+                    change.consume()
+                    continue
+                }
+
+                dragOffset =
+                    if (
+                        canDragInDirection(
+                            offset = totalDx,
+                            layoutDirection = layoutDirection,
+                            canLoadPrevious = getPreviousTarget() != null,
+                            canLoadNext = getNextTarget() != null,
+                        )
+                    ) {
+                        totalDx
                     } else {
                         0f
                     }
                 onDragOffsetChange(dragOffset)
                 change.consume()
             }
+
+            if (!claimed) return@awaitEachGesture
             timber.log.Timber.tag("RYSwiper").d("up offset=%d", dragOffset.roundToInt())
 
             val hasCurrent = getCurrentState()?.articleId != null
