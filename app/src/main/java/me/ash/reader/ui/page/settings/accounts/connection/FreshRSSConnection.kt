@@ -16,7 +16,7 @@ import androidx.hilt.lifecycle.viewmodel.compose.hiltViewModel
 import me.ash.reader.R
 import me.ash.reader.domain.model.account.Account
 import me.ash.reader.domain.model.account.security.FreshRSSSecurityKey
-import me.ash.reader.infrastructure.rss.provider.greader.GoogleReaderAPI
+import me.ash.reader.infrastructure.rss.provider.greader.normalizeFreshRssServerUrl
 import me.ash.reader.ui.component.base.TextFieldDialog
 import me.ash.reader.ui.ext.mask
 import me.ash.reader.ui.page.settings.SettingItem
@@ -85,7 +85,7 @@ fun LazyItemScope.FreshRSSConnection(
         onDismissRequest = { serverUrlDialogVisible = false },
         onConfirm = {
             if (serverUrlValue.isNotBlank()) {
-                securityKey.serverUrl = GoogleReaderAPI.normalizeServerUrl(serverUrlValue)
+                securityKey.serverUrl = normalizeFreshRssServerUrl(serverUrlValue)
                 save(account, viewModel, securityKey)
                 serverUrlDialogVisible = false
             }

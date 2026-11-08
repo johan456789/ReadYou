@@ -40,6 +40,7 @@ import me.ash.reader.R
 import me.ash.reader.domain.model.account.Account
 import me.ash.reader.domain.model.account.AccountType
 import me.ash.reader.domain.model.account.security.FreshRSSSecurityKey
+import me.ash.reader.infrastructure.rss.provider.greader.normalizeFreshRssServerUrl
 import me.ash.reader.ui.component.base.RYDialog
 import me.ash.reader.ui.component.base.RYOutlineTextField
 import me.ash.reader.ui.ext.collectAsStateValue
@@ -153,15 +154,13 @@ fun AddFreshRSSAccountDialog(
                         && freshRSSPassword.isNotEmpty(),
                 onClick = {
                     focusManager.clearFocus()
-                    if (!freshRSSServerUrl.endsWith("/")) {
-                        freshRSSServerUrl += "/"
-                    }
+                    val normalizedServerUrl = normalizeFreshRssServerUrl(freshRSSServerUrl)
                     accountViewModel.addAccount(
                         Account(
                             type = AccountType.FreshRSS,
                             name = context.getString(R.string.fresh_rss),
                             securityKey = FreshRSSSecurityKey(
-                                serverUrl = freshRSSServerUrl,
+                                serverUrl = normalizedServerUrl,
                                 username = freshRSSUsername,
                                 password = freshRSSPassword,
                                 clientCertificateAlias = freshRSSClientCertificateAlias,
