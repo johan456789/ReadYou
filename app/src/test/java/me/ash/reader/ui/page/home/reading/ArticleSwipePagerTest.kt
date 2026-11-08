@@ -298,4 +298,65 @@ class ArticleSwipePagerTest {
             assert(!update.pauseSlotIndices.contains(newCurrent))
         }
     }
+
+    @Test
+    fun `axis lock stays undecided while both axes stay under slop`() {
+        val lock = SwipeAxisLock(touchSlop = 24f)
+        assertNull(lock.feed(deltaX = 10f, deltaY = 10f))
+        assertNull(lock.decidedAxis)
+    }
+
+    @Test
+    fun `axis lock decides the first time an axis passes slop`() {
+        val lock = SwipeAxisLock(touchSlop = 24f)
+        assertNull(lock.feed(deltaX = 2f, deltaY = -24f)) // |dy| == slop is not past it
+        assertEquals(ArticleSwipeAxis.Vertical, lock.feed(deltaX = 2f, deltaY = -24f))
+        assertEquals(4f, lock.totalDx, 0.001f)
+        assertEquals(-48f, lock.totalDy, 0.001f)
+    }
+
+    @Test
+    fun `vertical lock is final under an adversarial horizontal sweep`() {
+        val lock = SwipeAxisLock(touchSlop = 24f)
+        // The WebView took the gesture: a vertical phase.
+        assertNull(lock.feed(deltaX = 2f, deltaY = -24f))
+        repeat(11) { assertEquals(ArticleSwipeAxis.Vertical, lock.feed(deltaX = 2f, deltaY = -24f)) }
+        // The L-curve afterwards: every later movement must still report
+        // vertical. A per-move re-evaluation would flip to horizontal here -
+        // that is exactly the regression shape this lock exists to prevent.
+        repeat(20) { assertEquals(ArticleSwipeAxis.Vertical, lock.feed(deltaX = -40f, deltaY = -2f)) }
+        assertEquals(-776f, lock.totalDx, 0.001f)
+        assertEquals(-328f, lock.totalDy, 0.001f)
+    }
+
+    @Test
+    fun `horizontal lock is final under vertical drift`() {
+        val lock = SwipeAxisLock(touchSlop = 24f)
+        assertNull(lock.feed(deltaX = -24f, deltaY = 0f))
+        assertEquals(ArticleSwipeAxis.Horizontal, lock.feed(deltaX = -24f, deltaY = 2f))
+        repeat(16) { assertEquals(ArticleSwipeAxis.Horizontal, lock.feed(deltaX = -2f, deltaY = 24f)) }
+    }
+
+    @Test
+    fun `no movement sequence ever flips the decided axis`() {
+        // Monotonicity property: whatever the finger does after the lock, the
+        // decided axis stays put for the rest of the gesture.
+        val random = kotlin.random.Random(seed = 20261109)
+        repeat(100) {
+            val lock = SwipeAxisLock(touchSlop = 24f)
+            var decided: ArticleSwipeAxis? = null
+            repeat(200) {
+                val axis =
+                    lock.feed(
+                        deltaX = random.nextFloat() * 80f - 40f,
+                        deltaY = random.nextFloat() * 80f - 40f,
+                    )
+                if (decided == null) {
+                    decided = axis
+                } else {
+                    assertEquals(decided, axis)
+                }
+            }
+        }
+    }
 }

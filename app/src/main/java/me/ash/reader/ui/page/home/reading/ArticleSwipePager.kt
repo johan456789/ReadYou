@@ -77,6 +77,37 @@ internal fun resolveArticleSwipeAxis(
     }
 }
 
+/**
+ * One-shot scroll-axis decision for a gesture. Feed each movement delta as
+ * it arrives: the first time either cumulative axis passes [touchSlop], the
+ * axis is decided via [resolveArticleSwipeAxis] - the same |dx| > |dy| test
+ * the WebView applies in dispatchTouchEvent - and it never changes again.
+ * The monotone lock makes the axis a property of the whole touch sequence
+ * instead of a per-move vote, so an L-shaped scroll (vertical first, then
+ * curving sideways) can never be claimed by the article swipe after the
+ * WebView has already taken it.
+ */
+internal class SwipeAxisLock(private val touchSlop: Float) {
+    var decidedAxis: ArticleSwipeAxis? = null
+        private set
+
+    /** Cumulative movement since the gesture started, in px. */
+    var totalDx = 0f
+        private set
+    var totalDy = 0f
+        private set
+
+    /** Feeds one movement delta; returns the locked axis, or null while undecided. */
+    fun feed(deltaX: Float, deltaY: Float): ArticleSwipeAxis? {
+        totalDx += deltaX
+        totalDy += deltaY
+        if (decidedAxis == null) {
+            decidedAxis = resolveArticleSwipeAxis(totalDx, totalDy, touchSlop)
+        }
+        return decidedAxis
+    }
+}
+
 internal fun resolveArticleSwipeSettleDirection(
     dragOffset: Float,
     threshold: Float,
@@ -782,12 +813,12 @@ fun ArticleSwipePager(
 /**
  * Horizontal article swipe with a one-shot scroll-axis lock.
  *
- * The first time either axis of the gesture passes the touch slop, the axis
- * is decided for the whole touch sequence and never revisited: horizontal
- * drags page between articles, everything else belongs to the WebView's
- * vertical scroll. An L-shaped scroll (vertical first, then curving sideways)
- * therefore stays a scroll for its entire life instead of claiming the
- * horizontal swipe mid-gesture after the article has already moved.
+ * [SwipeAxisLock] decides the axis the first time either axis of the gesture
+ * passes the touch slop and never revisits it: horizontal drags page between
+ * articles, everything else belongs to the WebView's vertical scroll. An
+ * L-shaped scroll (vertical first, then curving sideways) therefore stays a
+ * scroll for its entire life instead of claiming the horizontal swipe
+ * mid-gesture after the article has already moved.
  */
 private fun Modifier.articleSwipePointerInput(
     layoutDirection: LayoutDirection,
@@ -808,6 +839,9 @@ private fun Modifier.articleSwipePointerInput(
         awaitEachGesture {
             val down = awaitFirstDown(requireUnconsumed = false)
             timber.log.Timber.tag("RYSwiper").d("down")
+            // A fresh lock per gesture: the decision must never leak movement
+            // totals or a locked axis across touch sequences.
+            val axisLock = SwipeAxisLock(touchSlop)
             // Safety net: if a neighbor's preview fetch never completed (failed,
             // cancelled), restart it the moment the user reaches to swipe so the
             // pane they are about to reveal is not stuck empty. No-op otherwise.
@@ -815,10 +849,7 @@ private fun Modifier.articleSwipePointerInput(
             var dragOffset = 0f
             var pointerId = down.id
             var claimed = false
-            var axisLocked = false
-            // Cumulative movement of the gesture so far, in px.
-            var totalDx = 0f
-            var totalDy = 0f
+            var horizontalLockLogged = false
 
             while (true) {
                 val event = awaitPointerEvent()
@@ -833,24 +864,23 @@ private fun Modifier.articleSwipePointerInput(
                     continue
                 }
                 val delta = change.positionChange()
-                totalDx += delta.x
-                totalDy += delta.y
+                val axis = axisLock.feed(delta.x, delta.y)
 
                 if (!claimed) {
-                    if (!axisLocked) {
-                        when (resolveArticleSwipeAxis(totalDx, totalDy, touchSlop)) {
-                            null -> continue
-                            ArticleSwipeAxis.Vertical -> {
+                    when (axis) {
+                        null -> continue
+                        ArticleSwipeAxis.Vertical -> {
+                            timber.log.Timber
+                                .tag("RYSwiper")
+                                .d("lock vertical dx=%.0f dy=%.0f", axisLock.totalDx, axisLock.totalDy)
+                            break
+                        }
+                        ArticleSwipeAxis.Horizontal -> {
+                            if (!horizontalLockLogged) {
                                 timber.log.Timber
                                     .tag("RYSwiper")
-                                    .d("lock vertical dx=%.0f dy=%.0f", totalDx, totalDy)
-                                break
-                            }
-                            ArticleSwipeAxis.Horizontal -> {
-                                timber.log.Timber
-                                    .tag("RYSwiper")
-                                    .d("lock horizontal dx=%.0f dy=%.0f", totalDx, totalDy)
-                                axisLocked = true
+                                    .d("lock horizontal dx=%.0f dy=%.0f", axisLock.totalDx, axisLock.totalDy)
+                                horizontalLockLogged = true
                             }
                         }
                     }
@@ -860,7 +890,7 @@ private fun Modifier.articleSwipePointerInput(
                     // direction can still be reversed, as before.
                     if (
                         !canDragInDirection(
-                            offset = totalDx,
+                            offset = axisLock.totalDx,
                             layoutDirection = layoutDirection,
                             canLoadPrevious = getPreviousTarget() != null,
                             canLoadNext = getNextTarget() != null,
@@ -869,7 +899,7 @@ private fun Modifier.articleSwipePointerInput(
                         continue
                     }
                     claimed = true
-                    dragOffset = totalDx
+                    dragOffset = axisLock.totalDx
                     onDragOffsetChange(dragOffset)
                     change.consume()
                     continue
@@ -878,13 +908,13 @@ private fun Modifier.articleSwipePointerInput(
                 dragOffset =
                     if (
                         canDragInDirection(
-                            offset = totalDx,
+                            offset = axisLock.totalDx,
                             layoutDirection = layoutDirection,
                             canLoadPrevious = getPreviousTarget() != null,
                             canLoadNext = getNextTarget() != null,
                         )
                     ) {
-                        totalDx
+                        axisLock.totalDx
                     } else {
                         0f
                     }
