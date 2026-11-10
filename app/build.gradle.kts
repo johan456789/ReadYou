@@ -94,6 +94,8 @@ android {
             storePassword = keyProps["storePassword"] as String?
         }
     }
+    // CI has no keystore: build unsigned and let the ci-templates release job sign.
+    val releaseSigning = signingConfigs.getByName("release").takeIf { keyProps.containsKey("storeFile") }
     lint { disable.addAll(listOf("MissingTranslation", "ExtraTranslation")) }
     buildTypes {
         getByName("debug") {
@@ -106,9 +108,9 @@ android {
                 getDefaultProguardFile("proguard-android-optimize.txt"),
                 "proguard-rules.pro",
             )
-            signingConfig = signingConfigs.getByName("release")
+            signingConfig = releaseSigning
         }
-        all { signingConfig = signingConfigs.getByName("release") }
+        all { signingConfig = releaseSigning }
     }
     applicationVariants.all {
         outputs.all {

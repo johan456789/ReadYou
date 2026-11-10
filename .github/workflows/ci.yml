@@ -10,12 +10,17 @@ on:
 # Referencing @main until the template repo cuts a v1 tag; switch to @v1 then.
 jobs:
   android:
+    permissions:
+      contents: write  # release job publishes the GitHub Release
     uses: johan456789/ci-templates/.github/workflows/app-android.yml@main
     with:
       # Build only the github flavor so a single, installable APK is produced.
       # Qualified with :app: because ReadYou's app is a subproject (root has no Android tasks).
       gradle_task: :app:assembleGithubRelease
-      # ReadYou reads release signing from signature/keystore_release.properties
-      properties_file: signature/keystore_release.properties
-      keystore_file: signature/upload-keystore.jks
-    secrets: inherit
+    # Signing secrets live in the `release` environment; the template's release
+    # job signs the unsigned APK, so the build itself never sees the key.
+    secrets:
+      ANDROID_KEYSTORE_BASE64: ${{ secrets.ANDROID_KEYSTORE_BASE64 }}
+      ANDROID_KEYSTORE_PASSWORD: ${{ secrets.ANDROID_KEYSTORE_PASSWORD }}
+      ANDROID_KEY_ALIAS: ${{ secrets.ANDROID_KEY_ALIAS }}
+      ANDROID_KEY_PASSWORD: ${{ secrets.ANDROID_KEY_PASSWORD }}
