@@ -5,7 +5,11 @@ import android.content.pm.PackageManager
 import android.os.Build
 import androidx.activity.compose.rememberLauncherForActivityResult
 import androidx.activity.result.contract.ActivityResultContracts
+import androidx.compose.animation.core.Animatable
+import androidx.compose.animation.core.FastOutSlowInEasing
 import androidx.compose.animation.core.animateFloatAsState
+import androidx.compose.animation.core.tween
+import androidx.compose.foundation.Canvas
 import androidx.compose.foundation.Image
 import androidx.compose.foundation.background
 import androidx.compose.foundation.layout.Box
@@ -35,6 +39,8 @@ import androidx.compose.runtime.remember
 import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
+import androidx.compose.ui.geometry.Rect
+import androidx.compose.ui.geometry.Size
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.graphics.Shadow
 import androidx.compose.ui.graphics.graphicsLayer
@@ -45,16 +51,21 @@ import androidx.compose.ui.platform.LocalView
 import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.text.style.TextAlign
 import androidx.compose.ui.text.style.TextOverflow
+import androidx.compose.ui.unit.IntOffset
+import androidx.compose.ui.unit.IntSize
 import androidx.compose.ui.unit.dp
+import androidx.compose.ui.util.lerp
 import androidx.compose.ui.window.Dialog
 import androidx.compose.ui.window.DialogProperties
 import androidx.compose.ui.window.DialogWindowProvider
 import androidx.core.content.ContextCompat
 import androidx.core.view.HapticFeedbackConstantsCompat
+import coil.compose.AsyncImagePainter
 import coil.compose.rememberAsyncImagePainter
 import coil.request.ImageRequest
 import kotlinx.coroutines.delay
 import me.ash.reader.R
+import me.ash.reader.ui.component.webview.ImageSnapshot
 import me.ash.reader.ui.ext.originReferer
 import me.ash.reader.ui.ext.showToast
 import me.saket.telephoto.flick.FlickToDismiss
@@ -64,12 +75,15 @@ import me.saket.telephoto.zoomable.ZoomSpec
 import me.saket.telephoto.zoomable.ZoomableContentLocation
 import me.saket.telephoto.zoomable.rememberZoomableState
 import me.saket.telephoto.zoomable.zoomable
+import kotlin.math.min
+import kotlin.math.roundToInt
 
 data class ImageData(val imageUrl: String = "", val altText: String = "", val caption: String = "")
 
 @Composable
 fun ReaderImageViewer(
     imageData: ImageData,
+    snapshot: ImageSnapshot?,
     onDownloadImage: (String) -> Unit,
     onDismissRequest: () -> Unit = {},
 ) {
@@ -85,6 +99,13 @@ fun ReaderImageViewer(
         // Fully transparent window dim: the content below draws its own fading
         // black background so the article underneath is revealed while dragging.
         dialogWindowProvider?.window?.setDimAmount(0f)
+        // No platform window enter/exit animation either: the stock fade blends
+        // the article (its inline image included) with the viewer's already
+        // rendered image for ~250ms - a stretched double-image flash whenever
+        // the inline rect differs from the fitted rect. The dialog's first
+        // frame already seats the fly-in slice exactly over the article image,
+        // so an instant cut is seamless, and the fly-in carries the motion.
+        dialogWindowProvider?.window?.setWindowAnimations(0)
 
         val zoomableState = rememberZoomableState(zoomSpec = ZoomSpec(maxZoomFactor = 4f))
         val flickState = rememberFlickToDismissState()
@@ -107,8 +128,67 @@ fun ReaderImageViewer(
             }
         }
 
-        // Background fades out continuously as the photo follows the finger.
-        val backgroundAlpha = (1f - flickState.offsetFraction).coerceIn(0f, 1f)
+        val painter =
+            rememberAsyncImagePainter(
+                ImageRequest.Builder(LocalContext.current)
+                    .apply {
+                        imageData.imageUrl.originReferer()?.let { addHeader("Referer", it) }
+                    }
+                    .data(data = imageData.imageUrl)
+                    .build()
+            )
+        val painterState = painter.state
+
+        // The full image's pixel size. The DOM reports it for any loaded <img>,
+        // so it is known before the viewer's own download finishes - which is
+        // what lets the fly-in land on the exact rect the full-res image will
+        // occupy. The painter's intrinsic size is the fallback (and covers the
+        // no-snapshot path).
+        val contentSize =
+            snapshot?.naturalSize?.takeIf { it[0] > 0 && it[1] > 0 }
+                ?.let { Size(it[0].toFloat(), it[1].toFloat()) }
+                ?: painter.intrinsicSize.takeIf {
+                    it != Size.Unspecified && it.width > 0f && it.height > 0f
+                }
+        LaunchedEffect(contentSize) {
+            contentSize?.let {
+                zoomableState.setContentLocation(
+                    ZoomableContentLocation.scaledInsideAndCenterAligned(it)
+                )
+            }
+        }
+
+        // Where the captured slice sits inside the full image, as fractions of
+        // the element rect. The element lays out the whole image, so these map
+        // the on-screen crop onto any rect the full image occupies - the slice
+        // flies in at its true position and the swap never shifts framing.
+        val slice = snapshot?.let { sliceFractions(it) }
+
+        // Open animation: the scrim fades in while the captured slice flies
+        // from its article rect to the fitted fullscreen rect. Without a
+        // snapshot (capture failure) there is nothing to fly, so settle
+        // immediately and keep the plain async-load behavior.
+        var settled by remember {
+            mutableStateOf(snapshot == null || contentSize == null || slice == null)
+        }
+        val openProgress = remember { Animatable(if (settled) 1f else 0f) }
+        LaunchedEffect(Unit) {
+            if (!settled) {
+                openProgress.animateTo(
+                    1f,
+                    tween(durationMillis = 250, easing = FastOutSlowInEasing),
+                )
+                settled = true
+            }
+        }
+
+        // Background fades in during the first ~100ms of the fly-in - much
+        // faster than the rect animation. A slower fade would leave the
+        // article's own copy of the image visible under the semi-transparent
+        // scrim while the slice travels, reading as a double exposure. It then
+        // fades out continuously as the photo follows the finger.
+        val backgroundAlpha =
+            min(openProgress.value / 0.4f, 1f) * (1f - flickState.offsetFraction)
 
         var expanded by remember { mutableStateOf(false) }
 
@@ -121,52 +201,108 @@ fun ReaderImageViewer(
                 label = "chromeAlpha",
             )
 
+        // Surface the failure once; the snapshot (if any) stays visible.
+        var loadErrorToasted by remember { mutableStateOf(false) }
+        LaunchedEffect(painterState) {
+            if (painterState is AsyncImagePainter.State.Error && !loadErrorToasted) {
+                loadErrorToasted = true
+                context.showToast(context.getString(R.string.image_load_failed))
+            }
+        }
+
         Box(
             modifier =
                 Modifier.fillMaxSize().background(Color.Black.copy(alpha = backgroundAlpha))
         ) {
-            // Only the photo lives inside FlickToDismiss so that only it follows
-            // the finger. The top bar below stays pinned in place.
-            FlickToDismiss(
-                state = flickState,
-                modifier = Modifier.fillMaxSize(),
-            ) {
-                val painter =
-                    rememberAsyncImagePainter(
-                        ImageRequest.Builder(LocalContext.current)
-                            .apply {
-                                imageData.imageUrl.originReferer()?.let { addHeader("Referer", it) }
+            if (settled) {
+                // Only the photo lives inside FlickToDismiss so that only it follows
+                // the finger. The top bar below stays pinned in place.
+                FlickToDismiss(
+                    state = flickState,
+                    modifier = Modifier.fillMaxSize(),
+                ) {
+                    Box(
+                        modifier =
+                            Modifier
+                                .fillMaxSize()
+                                .zoomable(
+                                    state = zoomableState,
+                                    clipToBounds = true,
+                                    onClick = {
+                                        chromeVisible = !chromeVisible
+                                        if (!chromeVisible) expanded = false
+                                    },
+                                    onLongClick = {
+                                        chromeVisible = true
+                                        expanded = true
+                                    },
+                                )
+                    ) {
+                        // ContentScale.Inside + center draws the full image at the
+                        // same fitted rect the fly-in computed, so the swap is
+                        // pixel-aligned: sharpness changes, framing does not.
+                        Image(
+                            painter = painter,
+                            contentDescription = imageData.altText,
+                            modifier = Modifier.fillMaxSize(),
+                            alignment = Alignment.Center,
+                            contentScale = ContentScale.Inside,
+                        )
+                        val currentSnapshot = snapshot
+                        val currentSlice = slice
+                        if (painterState !is AsyncImagePainter.State.Success &&
+                                currentSnapshot != null &&
+                                currentSlice != null
+                        ) {
+                            // Until the full-res image lands, paint the captured
+                            // slice at its position inside the fitted rect; the
+                            // never-on-screen remainder stays the dark scrim.
+                            Canvas(Modifier.fillMaxSize()) {
+                                val fit = fittedRect(contentSize ?: return@Canvas, size)
+                                val dst = currentSlice.applyTo(fit)
+                                drawImage(
+                                    image = currentSnapshot.image,
+                                    dstOffset =
+                                        IntOffset(
+                                            dst.left.roundToInt(),
+                                            dst.top.roundToInt(),
+                                        ),
+                                    dstSize =
+                                        IntSize(
+                                            dst.width.roundToInt(),
+                                            dst.height.roundToInt(),
+                                        ),
+                                )
                             }
-                            .data(data = imageData.imageUrl)
-                            .build()
-                    )
-
-                LaunchedEffect(painter.intrinsicSize) {
-                    zoomableState.setContentLocation(
-                        ZoomableContentLocation.scaledInsideAndCenterAligned(painter.intrinsicSize)
-                    )
+                        }
+                    }
                 }
-
-                Image(
-                    painter = painter,
-                    contentDescription = imageData.altText,
-                    modifier =
-                        Modifier.zoomable(
-                                state = zoomableState,
-                                clipToBounds = true,
-                                onClick = {
-                                    chromeVisible = !chromeVisible
-                                    if (!chromeVisible) expanded = false
-                                },
-                                onLongClick = {
-                                    chromeVisible = true
-                                    expanded = true
-                                },
+            } else {
+                // Fly-in: the captured slice rides inside the interpolating
+                // full-image rect. The element rect (possibly extending past the
+                // screen edges) shrinks/moves onto the fitted rect; the slice's
+                // viewport-relative crop lands exactly where the article showed it.
+                val currentSnapshot = snapshot
+                val currentSize = contentSize
+                val currentSlice = slice
+                if (currentSnapshot != null && currentSize != null && currentSlice != null) {
+                    Canvas(Modifier.fillMaxSize()) {
+                        val full =
+                            lerpRect(
+                                currentSnapshot.elementRect.toComposeRect(),
+                                fittedRect(currentSize, size),
+                                openProgress.value,
                             )
-                            .fillMaxSize(),
-                    alignment = Alignment.Center,
-                    contentScale = ContentScale.Inside,
-                )
+                        val dst = currentSlice.applyTo(full)
+                        drawImage(
+                            image = currentSnapshot.image,
+                            dstOffset =
+                                IntOffset(dst.left.roundToInt(), dst.top.roundToInt()),
+                            dstSize =
+                                IntSize(dst.width.roundToInt(), dst.height.roundToInt()),
+                        )
+                    }
+                }
             }
 
             val launcher =
@@ -275,3 +411,60 @@ fun ReaderImageViewer(
         }
     }
 }
+
+/** Where the captured slice sits inside the full image, as fractions of the element rect. */
+private data class SliceFractions(
+    val left: Float,
+    val top: Float,
+    val right: Float,
+    val bottom: Float,
+) {
+    /** Maps [full] (the rect the full image currently occupies) onto the slice's sub-rect. */
+    fun applyTo(full: Rect): Rect =
+        Rect(
+            full.left + (full.right - full.left) * left,
+            full.top + (full.bottom - full.top) * top,
+            full.left + (full.right - full.left) * right,
+            full.top + (full.bottom - full.top) * bottom,
+        )
+}
+
+private fun sliceFractions(snapshot: ImageSnapshot): SliceFractions? {
+    val element = snapshot.elementRect
+    val visible = snapshot.visibleRect
+    if (element.width() <= 0 || element.height() <= 0 || visible.width() <= 0 || visible.height() <= 0) {
+        return null
+    }
+    return SliceFractions(
+        left = (visible.left - element.left).toFloat() / element.width(),
+        top = (visible.top - element.top).toFloat() / element.height(),
+        right = (visible.right - element.left).toFloat() / element.width(),
+        bottom = (visible.bottom - element.top).toFloat() / element.height(),
+    )
+}
+
+/** Fit [content] inside [bounds], centered, never upscaling - the same semantics
+ *  as ContentScale.Inside and telephoto's scaledInsideAndCenterAligned, so the
+ *  fly-in lands exactly where the full-res Image will draw. */
+private fun fittedRect(content: Size, bounds: Size): Rect {
+    if (bounds.width <= 0f || bounds.height <= 0f || content.width <= 0f || content.height <= 0f) {
+        return Rect.Zero
+    }
+    val scale = min(bounds.width / content.width, bounds.height / content.height).coerceAtMost(1f)
+    val width = content.width * scale
+    val height = content.height * scale
+    val left = (bounds.width - width) / 2f
+    val top = (bounds.height - height) / 2f
+    return Rect(left, top, left + width, top + height)
+}
+
+private fun lerpRect(start: Rect, stop: Rect, fraction: Float): Rect =
+    Rect(
+        lerp(start.left, stop.left, fraction),
+        lerp(start.top, stop.top, fraction),
+        lerp(start.right, stop.right, fraction),
+        lerp(start.bottom, stop.bottom, fraction),
+    )
+
+private fun android.graphics.Rect.toComposeRect(): Rect =
+    Rect(left.toFloat(), top.toFloat(), right.toFloat(), bottom.toFloat())

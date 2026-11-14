@@ -2,6 +2,8 @@ package me.ash.reader.ui.component.webview
 
 import android.annotation.SuppressLint
 import android.content.Context
+import android.graphics.Rect
+import android.graphics.RectF
 import android.os.Handler
 import android.os.Looper
 import android.os.Message
@@ -13,6 +15,7 @@ import android.view.ViewConfiguration
 import android.webkit.WebChromeClient
 import android.webkit.WebView
 import androidx.compose.material3.MaterialTheme
+import androidx.compose.ui.graphics.asImageBitmap
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.DisposableEffect
 import androidx.compose.runtime.compositionLocalOf
@@ -33,6 +36,7 @@ import org.json.JSONObject
 import org.json.JSONTokener
 import java.util.concurrent.atomic.AtomicBoolean
 import kotlin.math.abs
+import kotlin.math.roundToInt
 import me.ash.reader.infrastructure.preference.LocalOpenLink
 import me.ash.reader.infrastructure.preference.LocalOpenLinkSpecificBrowser
 import me.ash.reader.infrastructure.preference.LocalReadingBoldCharacters
@@ -83,7 +87,15 @@ class HorizontalScrollAwareWebView(context: Context) : WebView(context) {
     var loadedContentKey: WebViewContentKey? = null
     var onScrollSnapshotChanged: ((WebViewScrollSnapshot) -> Unit)? = null
     var onHeadlineMeasured: ((Int) -> Unit)? = null
-    var onImageClick: ((imgUrl: String, altText: String, caption: String) -> Unit)? = null
+    var onImageClick:
+        (
+            (
+                imgUrl: String,
+                altText: String,
+                caption: String,
+                snapshot: ImageSnapshot?,
+            ) -> Unit
+        )? = null
     var onLinkLongPress: ((url: String, text: String) -> Unit)? = null
     var handledScrollToTopRequest: Int = 0
     private val touchStartsInHorizontalScrollableContent = AtomicBoolean(false)
@@ -232,9 +244,10 @@ class HorizontalScrollAwareWebView(context: Context) : WebView(context) {
      * Fills in what hit testing cannot know: which element among same-URL
      * twins was tapped, the un-rewritten image URL (images retried with a
      * referer marker keep the original in `dataset.rySrc`, see
-     * [ImageRefererRetry]), plus the alt text and figcaption. Kotlin initiates
-     * the pull, so the page only answers with data - the returned string is
-     * decoded, never executed.
+     * [ImageRefererRetry]), plus the alt text, figcaption, the element's
+     * viewport rect and the image's natural size. Kotlin initiates the pull,
+     * so the page only answers with data - the returned string is decoded,
+     * never executed.
      *
      * Identity stays anchored to the engine: the page may only annotate an
      * image whose URL the engine reported, and `rySrc` is accepted solely when
@@ -262,11 +275,15 @@ class HorizontalScrollAwareWebView(context: Context) : WebView(context) {
                     hit = Array.from(document.images).find(function(i) {
                         return i.currentSrc === u || i.src === u; });
                 }
-                if (!hit) return JSON.stringify({rySrc: null, alt: '', caption: ''});
+                if (!hit) return JSON.stringify({rySrc: null, alt: '', caption: '', rect: null, naturalWidth: 0, naturalHeight: 0});
                 var fig = hit.closest('figure');
                 var cap = fig ? fig.querySelector('figcaption') : null;
+                var r = hit.getBoundingClientRect();
                 return JSON.stringify({rySrc: hit.dataset.rySrc || null,
-                                       alt: hit.alt || '', caption: cap ? cap.innerText : ''});
+                                       alt: hit.alt || '', caption: cap ? cap.innerText : '',
+                                       rect: {l: r.left, t: r.top, r: r.right, b: r.bottom},
+                                       naturalWidth: hit.naturalWidth || 0,
+                                       naturalHeight: hit.naturalHeight || 0});
             })()
         """.trimIndent()
         runCatching {
@@ -278,22 +295,112 @@ class HorizontalScrollAwareWebView(context: Context) : WebView(context) {
                 if (gesture != touchSequence || contentKey != loadedContentKey) {
                     return@evaluateJavascript
                 }
-                val (pageRySrc, altText, caption) = parseImageMetadata(result)
-                val rySrc = pageRySrc
+                val metadata = parseImageMetadata(result)
+                val rySrc = metadata.rySrc
                     ?.takeIf { ImageRefererRetry.unmark(imgUrl) == it }
-                onImageClick?.invoke(rySrc ?: imgUrl, altText, caption)
+                deliverImageTap(rySrc ?: imgUrl, metadata)
             }
         }
     }
 
+    /**
+     * Snapshots the tapped element's on-screen pixels and hands everything to
+     * the app. The snapshot lets the viewer paint the exact pixels the user
+     * was looking at while the full-resolution copy downloads; a failed
+     * capture delivers null and the viewer falls back to the plain async load.
+     */
+    private fun deliverImageTap(imgUrl: String, metadata: TappedImageMetadata) {
+        val cssRect = metadata.elementRectCss
+        if (cssRect == null) {
+            onImageClick?.invoke(imgUrl, metadata.altText, metadata.caption, null)
+            return
+        }
+        val density = resources.displayMetrics.density
+        // PixelCopy takes window coordinates, and the viewer dialog draws in the
+        // same space (the windows coincide in fullscreen; in multi-window the
+        // in-window form stays correct while on-screen coordinates would drift).
+        val locationInWindow = IntArray(2).also(::getLocationInWindow)
+        val elementRect =
+            Rect(
+                (cssRect.left * density).roundToInt() + locationInWindow[0],
+                (cssRect.top * density).roundToInt() + locationInWindow[1],
+                (cssRect.right * density).roundToInt() + locationInWindow[0],
+                (cssRect.bottom * density).roundToInt() + locationInWindow[1],
+            )
+        val naturalSize =
+            if (metadata.naturalWidth > 0 && metadata.naturalHeight > 0) {
+                intArrayOf(metadata.naturalWidth, metadata.naturalHeight)
+            } else {
+                null
+            }
+        val viewInWindow =
+            Rect(
+                locationInWindow[0],
+                locationInWindow[1],
+                locationInWindow[0] + width,
+                locationInWindow[1] + height,
+            )
+        val visibleRect = Rect(elementRect)
+        if (!visibleRect.intersect(viewInWindow)) {
+            // Nothing of the element is on screen; there is nothing to capture.
+            onImageClick?.invoke(imgUrl, metadata.altText, metadata.caption, null)
+            return
+        }
+        captureWindowRegion(visibleRect) { bitmap ->
+            val snapshot =
+                bitmap?.asImageBitmap()?.let {
+                    ImageSnapshot(
+                        image = it,
+                        elementRect = elementRect,
+                        visibleRect = visibleRect,
+                        naturalSize = naturalSize,
+                    )
+                }
+            onImageClick?.invoke(imgUrl, metadata.altText, metadata.caption, snapshot)
+        }
+    }
+
+    /** The page's metadata reply for one tapped image, decoded. */
+    private data class TappedImageMetadata(
+        val rySrc: String?,
+        val altText: String,
+        val caption: String,
+        /** Viewport-relative element rect in CSS pixels, when the page saw the element. */
+        val elementRectCss: RectF?,
+        val naturalWidth: Int,
+        val naturalHeight: Int,
+    )
+
     /** evaluateJavascript delivers the JSON string double-encoded; unwrap both layers. */
-    private fun parseImageMetadata(raw: String?): Triple<String?, String, String> {
+    private fun parseImageMetadata(raw: String?): TappedImageMetadata {
+        val fallback = TappedImageMetadata(null, "", "", null, 0, 0)
         val json = runCatching {
             JSONTokener(raw.orEmpty().trim()).nextValue() as? String
-        }.getOrNull() ?: return Triple(null, "", "")
-        val obj = runCatching { JSONObject(json) }.getOrNull() ?: return Triple(null, "", "")
+        }.getOrNull() ?: return fallback
+        val obj = runCatching { JSONObject(json) }.getOrNull() ?: return fallback
         val rySrc = if (obj.isNull("rySrc")) null else obj.optString("rySrc").takeIf { it.isNotEmpty() }
-        return Triple(rySrc, obj.optString("alt"), obj.optString("caption"))
+        val rect =
+            obj.optJSONObject("rect")?.let { r ->
+                val left = r.optDouble("l", Double.NaN).toFloat()
+                val top = r.optDouble("t", Double.NaN).toFloat()
+                val right = r.optDouble("r", Double.NaN).toFloat()
+                val bottom = r.optDouble("b", Double.NaN).toFloat()
+                if (left.isFinite() && top.isFinite() && right.isFinite() && bottom.isFinite() &&
+                        right > left && bottom > top
+                ) {
+                    RectF(left, top, right, bottom)
+                } else {
+                    null
+                }
+            }
+        return TappedImageMetadata(
+            rySrc = rySrc,
+            altText = obj.optString("alt"),
+            caption = obj.optString("caption"),
+            elementRectCss = rect,
+            naturalWidth = obj.optInt("naturalWidth", 0),
+            naturalHeight = obj.optInt("naturalHeight", 0),
+        )
     }
 
     fun setTouchStartsInHorizontalScrollableContent(isScrollable: Boolean) {
@@ -651,7 +758,7 @@ fun RYWebView(
     headlineAuthor: String? = null,
     publishedDate: java.util.Date? = null,
     scrollToTopRequest: Int = 0,
-    onImageClick: ((imgUrl: String, altText: String, caption: String) -> Unit)? = null,
+    onImageClick: ((imgUrl: String, altText: String, caption: String, snapshot: ImageSnapshot?) -> Unit)? = null,
     onLinkLongPress: ((url: String, text: String) -> Unit)? = null,
     onHeadlineMeasured: ((Int) -> Unit)? = null,
     onShowCustomView: ((View, WebChromeClient.CustomViewCallback) -> Unit)? = null,

@@ -38,6 +38,7 @@ import androidx.compose.ui.unit.dp
 import kotlinx.coroutines.Job
 import kotlinx.coroutines.launch
 import me.ash.reader.ui.component.webview.HorizontalScrollAwareWebView
+import me.ash.reader.ui.component.webview.ImageSnapshot
 import me.ash.reader.ui.component.webview.WebViewScrollSnapshot
 import me.ash.reader.ui.page.adaptive.ReaderState
 import kotlin.math.abs
@@ -225,7 +226,7 @@ fun ArticleSwipePager(
     onCurrentScrollSnapshotChange: (WebViewScrollSnapshot) -> Unit,
     onTitleLayersChange: (List<TopBarTitleLayer>) -> Unit,
     onVisibleArticleChange: (String?) -> Unit,
-    onImageClick: (String, String, String) -> Unit,
+    onImageClick: (String, String, String, ImageSnapshot?) -> Unit,
     onLinkLongPress: (String, String) -> Unit,
     onShowCustomView: (View, WebChromeClient.CustomViewCallback) -> Unit,
     onHideCustomView: () -> Unit,
@@ -975,7 +976,7 @@ private fun ArticleSwipePageContent(
     onWebViewCreated: ((HorizontalScrollAwareWebView?) -> Unit)? = null,
     onHeadlineMeasured: (Int) -> Unit,
     onScrollSnapshotChange: (WebViewScrollSnapshot) -> Unit,
-    onImageClick: (String, String, String) -> Unit,
+    onImageClick: (String, String, String, ImageSnapshot?) -> Unit,
     onLinkLongPress: (String, String) -> Unit,
     onShowCustomView: (View, WebChromeClient.CustomViewCallback) -> Unit,
     onHideCustomView: () -> Unit,

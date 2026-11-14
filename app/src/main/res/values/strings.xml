@@ -318,6 +318,7 @@
     <string name="undo">Undo</string>
     <string name="save">Save</string>
     <string name="image_saved">Image saved</string>
+    <string name="image_load_failed">Couldn\'t load the full image</string>
     <string name="permission_denied">Permission denied</string>
     <string name="shared_content">Shared content</string>
     <string name="only_link">Only link</string>

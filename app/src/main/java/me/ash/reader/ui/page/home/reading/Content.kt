@@ -18,6 +18,7 @@ import androidx.compose.ui.Modifier
 import androidx.compose.ui.unit.dp
 import java.util.Date
 import me.ash.reader.ui.component.scrollbar.drawWebViewScrollIndicator
+import me.ash.reader.ui.component.webview.ImageSnapshot
 import me.ash.reader.ui.component.webview.RYWebView
 import me.ash.reader.ui.component.webview.HorizontalScrollAwareWebView
 import me.ash.reader.ui.component.webview.WebViewScrollSnapshot
@@ -36,7 +37,7 @@ fun Content(
     contentPadding: PaddingValues = PaddingValues(),
     scrollToTopRequest: Int = 0,
     onHeadlineMeasured: ((Int) -> Unit)? = null,
-    onImageClick: ((imgUrl: String, altText: String, caption: String) -> Unit)? = null,
+    onImageClick: ((imgUrl: String, altText: String, caption: String, snapshot: ImageSnapshot?) -> Unit)? = null,
     onLinkLongPress: ((url: String, text: String) -> Unit)? = null,
     onScrollSnapshotChange: ((WebViewScrollSnapshot) -> Unit)? = null,
     onShowCustomView: ((View, WebChromeClient.CustomViewCallback) -> Unit)? = null,

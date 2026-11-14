@@ -42,6 +42,7 @@ import android.widget.FrameLayout
 import androidx.core.view.HapticFeedbackConstantsCompat
 import timber.log.Timber
 import me.ash.reader.R
+import me.ash.reader.ui.component.webview.ImageSnapshot
 import me.ash.reader.ui.component.webview.LinkActionDialog
 import me.ash.reader.ui.component.webview.LinkActionData
 import me.ash.reader.ui.component.webview.WebViewScrollSnapshot
@@ -96,6 +97,7 @@ fun ReadingPage(
     var scrollToTopRequest by remember(contentStateKey, readerState.articleId) { mutableStateOf(0) }
 
     var currentImageData by remember { mutableStateOf(ImageData()) }
+    var currentImageSnapshot by remember { mutableStateOf<ImageSnapshot?>(null) }
 
     // Video fullscreen state
     var fullscreenVideoView by remember { mutableStateOf<View?>(null) }
@@ -301,8 +303,9 @@ fun ReadingPage(
                             },
                             onTitleLayersChange = { swipeTitleLayers = it },
                             onVisibleArticleChange = { visibleArticleId = it },
-                            onImageClick = { imgUrl, altText, caption ->
+                            onImageClick = { imgUrl, altText, caption, snapshot ->
                                 currentImageData = ImageData(imgUrl, altText, caption.trim())
+                                currentImageSnapshot = snapshot
                                 showFullScreenImageViewer = true
                             },
                             onLinkLongPress = { url, text ->
@@ -332,6 +335,7 @@ fun ReadingPage(
         if (showFullScreenImageViewer) {
             ReaderImageViewer(
                 imageData = currentImageData,
+                snapshot = currentImageSnapshot,
                 onDownloadImage = {
                     viewModel.downloadImage(
                         it,
@@ -343,7 +347,10 @@ fun ReadingPage(
                         },
                     )
                 },
-                onDismissRequest = { showFullScreenImageViewer = false },
+                onDismissRequest = {
+                    currentImageSnapshot = null
+                    showFullScreenImageViewer = false
+                },
             )
         }
 

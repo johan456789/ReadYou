@@ -39,7 +39,7 @@ object WebViewLayout {
         readingFontsPreference: ReadingFontsPreference,
         webViewClient: WebViewClient,
         webChromeClient: RYWebChromeClient? = null,
-        onImageClick: ((imgUrl: String, altText: String, caption: String) -> Unit)? = null,
+        onImageClick: ((imgUrl: String, altText: String, caption: String, snapshot: ImageSnapshot?) -> Unit)? = null,
         onLinkLongPress: ((url: String, text: String) -> Unit)? = null,
     ): HorizontalScrollAwareWebView {
         val retained = retainedWebView
@@ -102,7 +102,7 @@ object WebViewLayout {
         readingFontsPreference: ReadingFontsPreference,
         webViewClient: WebViewClient,
         webChromeClient: RYWebChromeClient? = null,
-        onImageClick: ((imgUrl: String, altText: String, caption: String) -> Unit)? = null,
+        onImageClick: ((imgUrl: String, altText: String, caption: String, snapshot: ImageSnapshot?) -> Unit)? = null,
         onLinkLongPress: ((url: String, text: String) -> Unit)? = null,
     ): HorizontalScrollAwareWebView =
         obtain(
@@ -141,7 +141,7 @@ object WebViewLayout {
         readingFontsPreference: ReadingFontsPreference,
         webViewClient: android.webkit.WebViewClient,
         webChromeClient: RYWebChromeClient?,
-        onImageClick: ((imgUrl: String, altText: String, caption: String) -> Unit)?,
+        onImageClick: ((imgUrl: String, altText: String, caption: String, snapshot: ImageSnapshot?) -> Unit)?,
         onLinkLongPress: ((url: String, text: String) -> Unit)?,
     ): HorizontalScrollAwareWebView =
         HorizontalScrollAwareWebView(context).apply {
@@ -179,7 +179,7 @@ object WebViewLayout {
         readingFontsPreference: ReadingFontsPreference,
         webViewClient: android.webkit.WebViewClient,
         webChromeClient: RYWebChromeClient?,
-        onImageClick: ((imgUrl: String, altText: String, caption: String) -> Unit)?,
+        onImageClick: ((imgUrl: String, altText: String, caption: String, snapshot: ImageSnapshot?) -> Unit)?,
         onLinkLongPress: ((url: String, text: String) -> Unit)?,
     ) {
         webView.onImageClick = onImageClick
