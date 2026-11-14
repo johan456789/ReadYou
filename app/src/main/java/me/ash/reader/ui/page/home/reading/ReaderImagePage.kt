@@ -214,70 +214,77 @@ fun ReaderImageViewer(
             modifier =
                 Modifier.fillMaxSize().background(Color.Black.copy(alpha = backgroundAlpha))
         ) {
-            if (settled) {
-                // Only the photo lives inside FlickToDismiss so that only it follows
-                // the finger. The top bar below stays pinned in place.
-                FlickToDismiss(
-                    state = flickState,
-                    modifier = Modifier.fillMaxSize(),
+            // The zoomable photo is composed from the very first frame, hidden
+            // until the fly-in lands. Mounting it only at the hand-off left its
+            // first frame to a fresh FlickToDismiss/zoomable layout whose
+            // transform was not yet settled: the photo drew stretched to the
+            // screen height for one frame - the "stretched image" flash, most
+            // visible when the full-res image had already loaded. Laid out
+            // behind the fly-in, it is stable by the time it is revealed.
+            // Only the photo lives inside FlickToDismiss so that only it follows
+            // the finger. The top bar below stays pinned in place.
+            FlickToDismiss(
+                state = flickState,
+                modifier =
+                    Modifier.fillMaxSize().graphicsLayer { alpha = if (settled) 1f else 0f },
+            ) {
+                Box(
+                    modifier =
+                        Modifier
+                            .fillMaxSize()
+                            .zoomable(
+                                state = zoomableState,
+                                clipToBounds = true,
+                                onClick = {
+                                    chromeVisible = !chromeVisible
+                                    if (!chromeVisible) expanded = false
+                                },
+                                onLongClick = {
+                                    chromeVisible = true
+                                    expanded = true
+                                },
+                            )
                 ) {
-                    Box(
-                        modifier =
-                            Modifier
-                                .fillMaxSize()
-                                .zoomable(
-                                    state = zoomableState,
-                                    clipToBounds = true,
-                                    onClick = {
-                                        chromeVisible = !chromeVisible
-                                        if (!chromeVisible) expanded = false
-                                    },
-                                    onLongClick = {
-                                        chromeVisible = true
-                                        expanded = true
-                                    },
-                                )
+                    // ContentScale.Inside + center draws the full image at the
+                    // same fitted rect the fly-in computed, so the swap is
+                    // pixel-aligned: sharpness changes, framing does not.
+                    Image(
+                        painter = painter,
+                        contentDescription = imageData.altText,
+                        modifier = Modifier.fillMaxSize(),
+                        alignment = Alignment.Center,
+                        contentScale = ContentScale.Inside,
+                    )
+                    val currentSnapshot = snapshot
+                    val currentSlice = slice
+                    if (painterState !is AsyncImagePainter.State.Success &&
+                            currentSnapshot != null &&
+                            currentSlice != null
                     ) {
-                        // ContentScale.Inside + center draws the full image at the
-                        // same fitted rect the fly-in computed, so the swap is
-                        // pixel-aligned: sharpness changes, framing does not.
-                        Image(
-                            painter = painter,
-                            contentDescription = imageData.altText,
-                            modifier = Modifier.fillMaxSize(),
-                            alignment = Alignment.Center,
-                            contentScale = ContentScale.Inside,
-                        )
-                        val currentSnapshot = snapshot
-                        val currentSlice = slice
-                        if (painterState !is AsyncImagePainter.State.Success &&
-                                currentSnapshot != null &&
-                                currentSlice != null
-                        ) {
-                            // Until the full-res image lands, paint the captured
-                            // slice at its position inside the fitted rect; the
-                            // never-on-screen remainder stays the dark scrim.
-                            Canvas(Modifier.fillMaxSize()) {
-                                val fit = fittedRect(contentSize ?: return@Canvas, size)
-                                val dst = currentSlice.applyTo(fit)
-                                drawImage(
-                                    image = currentSnapshot.image,
-                                    dstOffset =
-                                        IntOffset(
-                                            dst.left.roundToInt(),
-                                            dst.top.roundToInt(),
-                                        ),
-                                    dstSize =
-                                        IntSize(
-                                            dst.width.roundToInt(),
-                                            dst.height.roundToInt(),
-                                        ),
-                                )
-                            }
+                        // Until the full-res image lands, paint the captured
+                        // slice at its position inside the fitted rect; the
+                        // never-on-screen remainder stays the dark scrim.
+                        Canvas(Modifier.fillMaxSize()) {
+                            val fit = fittedRect(contentSize ?: return@Canvas, size)
+                            val dst = currentSlice.applyTo(fit)
+                            drawImage(
+                                image = currentSnapshot.image,
+                                dstOffset =
+                                    IntOffset(
+                                        dst.left.roundToInt(),
+                                        dst.top.roundToInt(),
+                                    ),
+                                dstSize =
+                                    IntSize(
+                                        dst.width.roundToInt(),
+                                        dst.height.roundToInt(),
+                                    ),
+                            )
                         }
                     }
                 }
-            } else {
+            }
+            if (!settled) {
                 // Fly-in: the captured slice rides inside the interpolating
                 // full-image rect. The element rect (possibly extending past the
                 // screen edges) shrinks/moves onto the fitted rect; the slice's
