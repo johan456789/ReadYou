@@ -288,7 +288,9 @@ fun ReaderImageViewer(
             if (!settled) {
                 // Fly-in: the captured slice rides inside the interpolating
                 // full-image rect. The element rect (possibly extending past the
-                // screen edges) shrinks/moves onto the fitted rect; the slice's
+                // screen edges) shrinks/moves onto the on-screen fitted rect -
+                // upscaled like telephoto's ContentScale.Fit base zoom, unlike the
+                // pre-zoom rect used inside the zoomable - so the slice's
                 // viewport-relative crop lands exactly where the article showed it.
                 val currentSnapshot = snapshot
                 val currentSize = contentSize
@@ -298,7 +300,7 @@ fun ReaderImageViewer(
                         val full =
                             lerpRect(
                                 currentSnapshot.elementRect.toComposeRect(),
-                                fittedRect(currentSize, size),
+                                fittedRect(currentSize, size, allowUpscale = true),
                                 openProgress.value,
                             )
                         drawSlice(currentSnapshot, currentSlice.applyTo(full))
@@ -460,14 +462,17 @@ private fun sliceFractions(snapshot: ImageSnapshot): SliceFractions? {
     )
 }
 
-/** Fit [content] inside [bounds], centered, never upscaling - the same semantics
- *  as ContentScale.Inside and telephoto's scaledInsideAndCenterAligned, so the
- *  fly-in lands exactly where the full-res Image will draw. */
-private fun fittedRect(content: Size, bounds: Size): Rect {
+/** Fit [content] inside [bounds], centered. By default it never upscales - the
+ *  same semantics as ContentScale.Inside and telephoto's
+ *  scaledInsideAndCenterAligned, i.e. where content sits inside the zoomable
+ *  before its base zoom. With [allowUpscale] it matches ContentScale.Fit, the
+ *  zoomable's default base zoom, i.e. where the photo actually lands on screen. */
+private fun fittedRect(content: Size, bounds: Size, allowUpscale: Boolean = false): Rect {
     if (bounds.width <= 0f || bounds.height <= 0f || content.width <= 0f || content.height <= 0f) {
         return Rect.Zero
     }
-    val scale = min(bounds.width / content.width, bounds.height / content.height).coerceAtMost(1f)
+    val fitScale = min(bounds.width / content.width, bounds.height / content.height)
+    val scale = if (allowUpscale) fitScale else fitScale.coerceAtMost(1f)
     val width = content.width * scale
     val height = content.height * scale
     val left = (bounds.width - width) / 2f
