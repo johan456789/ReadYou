@@ -33,8 +33,15 @@ class RYWebViewHitTestTest {
     private var scenario: ActivityScenario<WebViewTestActivity>? = null
     private val openedLinks = CopyOnWriteArrayList<String>()
     private val linkLongPresses = CopyOnWriteArrayList<Pair<String, String>>()
-    private val imageClicks =
-        CopyOnWriteArrayList<Triple<String, String, String>>()
+    private val imageClicks = CopyOnWriteArrayList<ImageClick>()
+
+    /** One delivered image tap: the payload plus whether a snapshot rode along. */
+    private data class ImageClick(
+        val url: String,
+        val alt: String,
+        val caption: String,
+        val snapshot: ImageSnapshot?,
+    )
 
     @After
     fun tearDown() {
@@ -87,10 +94,10 @@ class RYWebViewHitTestTest {
         injectTap(center.x, center.y)
 
         assertTrue("Expected an image click callback", awaitTrue { imageClicks.isNotEmpty() })
-        val (imgUrl, alt, caption) = imageClicks.first()
-        assertEquals(SVG_BLUE_200, imgUrl)
-        assertEquals("Alt text", alt)
-        assertEquals("The caption", caption)
+        val click = imageClicks.first()
+        assertEquals(SVG_BLUE_200, click.url)
+        assertEquals("Alt text", click.alt)
+        assertEquals("The caption", click.caption)
     }
 
     /**
@@ -106,8 +113,8 @@ class RYWebViewHitTestTest {
         injectTap(center.x, center.y)
 
         assertTrue("Expected an image click callback", awaitTrue { imageClicks.isNotEmpty() })
-        assertEquals("https://retry.example.com/pic.jpg", imageClicks.first().first)
-        assertEquals("Retry caption", imageClicks.first().third)
+        assertEquals("https://retry.example.com/pic.jpg", imageClicks.first().url)
+        assertEquals("Retry caption", imageClicks.first().caption)
     }
 
     /**
@@ -129,8 +136,8 @@ class RYWebViewHitTestTest {
         injectTap(center.x, center.y)
 
         assertTrue("Expected an image click callback", awaitTrue { imageClicks.isNotEmpty() })
-        assertEquals(SVG_BLUE_200, imageClicks.first().first)
-        assertEquals("Alt text", imageClicks.first().second)
+        assertEquals(SVG_BLUE_200, imageClicks.first().url)
+        assertEquals("Alt text", imageClicks.first().alt)
     }
 
     /**
@@ -149,9 +156,9 @@ class RYWebViewHitTestTest {
         assertTrue("Expected an image click callback", awaitTrue { imageClicks.isNotEmpty() })
         assertEquals(
             "https://retry.example.com/pic.jpg?${ImageRefererRetry.MARKER}",
-            imageClicks.first().first,
+            imageClicks.first().url,
         )
-        assertEquals("Forged caption", imageClicks.first().third)
+        assertEquals("Forged caption", imageClicks.first().caption)
     }
 
     /**
@@ -168,9 +175,9 @@ class RYWebViewHitTestTest {
         injectTap(center.x, center.y)
 
         assertTrue("Expected an image click callback", awaitTrue { imageClicks.isNotEmpty() })
-        assertEquals(SVG_BLUE_200, imageClicks.first().first)
-        assertEquals("Twin two", imageClicks.first().second)
-        assertEquals("Second caption", imageClicks.first().third)
+        assertEquals(SVG_BLUE_200, imageClicks.first().url)
+        assertEquals("Twin two", imageClicks.first().alt)
+        assertEquals("Second caption", imageClicks.first().caption)
     }
 
     /**
@@ -187,9 +194,9 @@ class RYWebViewHitTestTest {
         injectTap(center.x, center.y)
 
         assertTrue("Expected an image click callback", awaitTrue { imageClicks.isNotEmpty() })
-        assertEquals(SVG_RED_200, imageClicks.first().first)
-        assertEquals("Red variant", imageClicks.first().second)
-        assertEquals("Variant caption", imageClicks.first().third)
+        assertEquals(SVG_RED_200, imageClicks.first().url)
+        assertEquals("Red variant", imageClicks.first().alt)
+        assertEquals("Variant caption", imageClicks.first().caption)
     }
 
     /** A long press that moves beyond the touch slop is a scroll, not an inspect gesture. */
@@ -283,8 +290,8 @@ class RYWebViewHitTestTest {
                     settings.javaScriptEnabled = true
                     webViewClient = client
                     onLinkLongPress = { url, text -> linkLongPresses.add(url to text) }
-                    onImageClick = { imgUrl, alt, caption ->
-                        imageClicks.add(Triple(imgUrl, alt, caption))
+                    onImageClick = { imgUrl, alt, caption, snapshot ->
+                        imageClicks.add(ImageClick(imgUrl, alt, caption, snapshot))
                     }
                 }
             activity.setContentView(webView)
