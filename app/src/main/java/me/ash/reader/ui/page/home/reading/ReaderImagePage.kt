@@ -7,6 +7,7 @@ import androidx.activity.compose.rememberLauncherForActivityResult
 import androidx.activity.result.contract.ActivityResultContracts
 import androidx.compose.animation.core.Animatable
 import androidx.compose.animation.core.FastOutSlowInEasing
+import androidx.compose.animation.core.LinearEasing
 import androidx.compose.animation.core.animateFloatAsState
 import androidx.compose.animation.core.tween
 import androidx.compose.foundation.Canvas
@@ -43,6 +44,8 @@ import androidx.compose.ui.geometry.Rect
 import androidx.compose.ui.geometry.Size
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.graphics.Shadow
+import androidx.compose.ui.graphics.drawscope.DrawScope
+import androidx.compose.ui.graphics.drawscope.translate
 import androidx.compose.ui.graphics.graphicsLayer
 import androidx.compose.ui.geometry.Offset
 import androidx.compose.ui.layout.ContentScale
@@ -138,6 +141,18 @@ fun ReaderImageViewer(
                     .build()
             )
         val painterState = painter.state
+        val loadedPainter = (painterState as? AsyncImagePainter.State.Success)?.painter
+
+        // The full image fades in over the snapshot instead of cutting to it.
+        // Usually it lands during the fly-in, so the never-on-screen remainder
+        // of a clipped image grows in while the photo is still moving; a late
+        // download fades in over the settled slice.
+        val revealAlpha = remember { Animatable(0f) }
+        LaunchedEffect(loadedPainter != null) {
+            if (loadedPainter != null) {
+                revealAlpha.animateTo(1f, tween(durationMillis = 150, easing = LinearEasing))
+            }
+        }
 
         // The full image's pixel size. The DOM reports it for any loaded <img>,
         // so it is known before the viewer's own download finishes - which is
@@ -245,43 +260,29 @@ fun ReaderImageViewer(
                                 },
                             )
                 ) {
+                    val currentSnapshot = snapshot
+                    val currentSlice = slice
+                    if (currentSnapshot != null && currentSlice != null) {
+                        // Until the full-res image has faded in, paint the captured
+                        // slice at its position inside the fitted rect; the
+                        // never-on-screen remainder stays the dark scrim.
+                        Canvas(Modifier.fillMaxSize()) {
+                            if (revealAlpha.value >= 1f) return@Canvas
+                            val fit = fittedRect(contentSize ?: return@Canvas, size)
+                            drawSlice(currentSnapshot, currentSlice.applyTo(fit))
+                        }
+                    }
                     // ContentScale.Inside + center draws the full image at the
                     // same fitted rect the fly-in computed, so the swap is
                     // pixel-aligned: sharpness changes, framing does not.
                     Image(
                         painter = painter,
                         contentDescription = imageData.altText,
-                        modifier = Modifier.fillMaxSize(),
+                        modifier =
+                            Modifier.fillMaxSize().graphicsLayer { alpha = revealAlpha.value },
                         alignment = Alignment.Center,
                         contentScale = ContentScale.Inside,
                     )
-                    val currentSnapshot = snapshot
-                    val currentSlice = slice
-                    if (painterState !is AsyncImagePainter.State.Success &&
-                            currentSnapshot != null &&
-                            currentSlice != null
-                    ) {
-                        // Until the full-res image lands, paint the captured
-                        // slice at its position inside the fitted rect; the
-                        // never-on-screen remainder stays the dark scrim.
-                        Canvas(Modifier.fillMaxSize()) {
-                            val fit = fittedRect(contentSize ?: return@Canvas, size)
-                            val dst = currentSlice.applyTo(fit)
-                            drawImage(
-                                image = currentSnapshot.image,
-                                dstOffset =
-                                    IntOffset(
-                                        dst.left.roundToInt(),
-                                        dst.top.roundToInt(),
-                                    ),
-                                dstSize =
-                                    IntSize(
-                                        dst.width.roundToInt(),
-                                        dst.height.roundToInt(),
-                                    ),
-                            )
-                        }
-                    }
                 }
             }
             if (!settled) {
@@ -300,14 +301,15 @@ fun ReaderImageViewer(
                                 fittedRect(currentSize, size),
                                 openProgress.value,
                             )
-                        val dst = currentSlice.applyTo(full)
-                        drawImage(
-                            image = currentSnapshot.image,
-                            dstOffset =
-                                IntOffset(dst.left.roundToInt(), dst.top.roundToInt()),
-                            dstSize =
-                                IntSize(dst.width.roundToInt(), dst.height.roundToInt()),
-                        )
+                        drawSlice(currentSnapshot, currentSlice.applyTo(full))
+                        // Same layering as the settled photo: the full image fades
+                        // in on top, inside the same moving rect.
+                        val reveal = revealAlpha.value
+                        if (loadedPainter != null && reveal > 0f) {
+                            translate(full.left, full.top) {
+                                with(loadedPainter) { draw(full.size, alpha = reveal) }
+                            }
+                        }
                     }
                 }
             }
@@ -417,6 +419,14 @@ fun ReaderImageViewer(
             }
         }
     }
+}
+
+private fun DrawScope.drawSlice(snapshot: ImageSnapshot, dst: Rect) {
+    drawImage(
+        image = snapshot.image,
+        dstOffset = IntOffset(dst.left.roundToInt(), dst.top.roundToInt()),
+        dstSize = IntSize(dst.width.roundToInt(), dst.height.roundToInt()),
+    )
 }
 
 /** Where the captured slice sits inside the full image, as fractions of the element rect. */
