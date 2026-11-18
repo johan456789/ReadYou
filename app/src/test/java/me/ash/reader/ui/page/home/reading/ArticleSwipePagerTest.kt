@@ -359,4 +359,155 @@ class ArticleSwipePagerTest {
             }
         }
     }
+
+    private fun release(dragOffset: Float, gestureDx: Float) =
+        resolveArticleSwipeReleaseDirection(
+            dragOffset = dragOffset,
+            gestureDx = gestureDx,
+            threshold = 96f,
+            layoutDirection = LayoutDirection.Ltr,
+            canLoadPrevious = true,
+            canLoadNext = true,
+        )
+
+    @Test
+    fun `drag from rest tracks the gesture`() {
+        assertEquals(
+            -120f,
+            articleSwipeDragOffset(caughtOffset = 0f, gestureDx = -120f, widthPx = 720f),
+            0.001f,
+        )
+    }
+
+    @Test
+    fun `drag catching a settle continues from the caught offset`() {
+        // Pages were 500px short of rest when the finger took hold.
+        assertEquals(
+            300f,
+            articleSwipeDragOffset(caughtOffset = 500f, gestureDx = -200f, widthPx = 720f),
+            0.001f,
+        )
+    }
+
+    @Test
+    fun `drag catching the tail of a settle is worth the same as one from rest`() {
+        // A late first event must not eat into the swipe distance just because
+        // the pages were still a few pixels short of rest.
+        assertEquals(
+            329f,
+            articleSwipeDragOffset(caughtOffset = 3f, gestureDx = 326f, widthPx = 720f),
+            0.001f,
+        )
+    }
+
+    @Test
+    fun `drag never moves past the neighboring page`() {
+        assertEquals(
+            720f,
+            articleSwipeDragOffset(caughtOffset = 600f, gestureDx = 400f, widthPx = 720f),
+            0.001f,
+        )
+        assertEquals(
+            -720f,
+            articleSwipeDragOffset(caughtOffset = 0f, gestureDx = -900f, widthPx = 720f),
+            0.001f,
+        )
+    }
+
+    @Test
+    fun `release from rest behaves like the settle decision`() {
+        assertEquals(ArticleSwipeDirection.Next, release(dragOffset = -120f, gestureDx = -120f))
+        assertEquals(ArticleSwipeDirection.Previous, release(dragOffset = 120f, gestureDx = 120f))
+        assertNull(release(dragOffset = -95f, gestureDx = -95f))
+    }
+
+    @Test
+    fun `swiping back while the previous swipe still settles returns to the old article`() {
+        // Just swiped to the next article: it is current and still 600px from
+        // rest, the old article showing on the previous side. Swiping back
+        // right away pulls the old article in further (the 200px drag runs
+        // into the page-width clamp at 720px) and switches to it.
+        assertEquals(ArticleSwipeDirection.Previous, release(dragOffset = 720f, gestureDx = 200f))
+    }
+
+    @Test
+    fun `second swipe in the same direction carries on to the following article`() {
+        // Caught 100px before rest, dragged 400px further the same way.
+        assertEquals(ArticleSwipeDirection.Next, release(dragOffset = -300f, gestureDx = -400f))
+    }
+
+    @Test
+    fun `leftover settle offset alone never switches article`() {
+        // The pages are still far from rest, but the finger barely moved.
+        assertNull(release(dragOffset = 600f, gestureDx = 30f))
+    }
+
+    @Test
+    fun `swipe that only slows the settle down does not send the reader back`() {
+        // Swiping on towards the next article, released while the old article
+        // is still showing on the previous side.
+        assertNull(release(dragOffset = 300f, gestureDx = -300f))
+    }
+
+    @Test
+    fun `release direction respects unavailable neighbors`() {
+        assertNull(
+            resolveArticleSwipeReleaseDirection(
+                dragOffset = -300f,
+                gestureDx = -300f,
+                threshold = 96f,
+                layoutDirection = LayoutDirection.Ltr,
+                canLoadPrevious = true,
+                canLoadNext = false,
+            )
+        )
+    }
+
+    @Test
+    fun `swipe commits once the reader state reaches its article`() {
+        assertEquals(
+            ArticleSwipeCommitStatus.Committed,
+            resolveArticleSwipeCommitStatus(
+                readerArticleId = "b",
+                pendingArticleId = "b",
+                pendingBaseArticleId = "a",
+            ),
+        )
+    }
+
+    @Test
+    fun `swipe waits while the reader state still holds the article it started from`() {
+        assertEquals(
+            ArticleSwipeCommitStatus.Waiting,
+            resolveArticleSwipeCommitStatus(
+                readerArticleId = "a",
+                pendingArticleId = "c",
+                pendingBaseArticleId = "a",
+            ),
+        )
+    }
+
+    @Test
+    fun `swipe back onto the article the reader state never left commits at once`() {
+        assertEquals(
+            ArticleSwipeCommitStatus.Committed,
+            resolveArticleSwipeCommitStatus(
+                readerArticleId = "a",
+                pendingArticleId = "a",
+                pendingBaseArticleId = "a",
+            ),
+        )
+    }
+
+    @Test
+    fun `navigation elsewhere supersedes a pending swipe`() {
+        assertEquals(
+            ArticleSwipeCommitStatus.Superseded,
+            resolveArticleSwipeCommitStatus(
+                readerArticleId = "x",
+                pendingArticleId = "b",
+                pendingBaseArticleId = "a",
+            ),
+        )
+    }
 }

@@ -187,6 +187,13 @@ fun ReadingPage(
         }
     }
 
+    // Tell the view model first: navigation only reaches it a few frames later,
+    // and until then a slower load of the article being left could still land.
+    val loadArticle: (String) -> Unit = { articleId ->
+        viewModel.initData(articleId)
+        onLoadArticle(articleId)
+    }
+
     var swipeTitleLayers by remember { mutableStateOf<List<TopBarTitleLayer>>(emptyList()) }
     val topBarTitleLayers = swipeTitleLayers
 
@@ -229,7 +236,7 @@ fun ReadingPage(
                         onRead = viewModel::updateReadStatus,
                         onStarred = viewModel::updateStarredStatus,
                         onNextArticle = {
-                            readerState.nextArticle?.let { onLoadArticle(it.articleId) }
+                            readerState.nextArticle?.let { loadArticle(it.articleId) }
                         },
                         onFullContent = {
                             if (it) viewModel.renderFullContent()
@@ -285,7 +292,7 @@ fun ReadingPage(
                                 !showFullScreenImageViewer &&
                                     !showLinkActionDialog &&
                                     !isVideoFullscreen,
-                            onLoadArticle = onLoadArticle,
+                            onLoadArticle = loadArticle,
                             loadPreview = viewModel::previewReaderState,
                             loadFullPreview = viewModel::neighborFullReaderState,
                             swipeNeighborTarget = viewModel::swipeNeighborTarget,

@@ -14,6 +14,7 @@ import kotlinx.coroutines.CoroutineDispatcher
 import kotlinx.coroutines.CoroutineScope
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.FlowPreview
+import kotlinx.coroutines.Job
 import kotlinx.coroutines.delay
 import kotlinx.coroutines.withContext
 import kotlinx.coroutines.flow.MutableStateFlow
@@ -361,8 +362,26 @@ constructor(
      */
     private val fullContentManualOverride = mutableMapOf<String, Boolean>()
 
+    private var initDataJob: Job? = null
+    private var initDataArticleId: String? = null
+
+    /**
+     * Opens [articleId] in the reader. The latest call wins: a load that is
+     * still in flight for another article is cancelled before it can publish,
+     * so quick successive opens (rapid horizontal swipes) can never leave the
+     * reader state on an article the user already moved past. Opening the
+     * article that is already open, or already on its way, is a no-op.
+     */
     fun initData(articleId: String) {
-        viewModelScope.launch {
+        if (
+            initDataArticleId == articleId &&
+                (initDataJob?.isActive == true || readerStateStateFlow.value.articleId == articleId)
+        ) {
+            return
+        }
+        initDataJob?.cancel()
+        initDataArticleId = articleId
+        initDataJob = viewModelScope.launch {
             val snapshotList = articleListUseCase.itemSnapshotList
 
             val item =
@@ -395,6 +414,8 @@ constructor(
     }
 
     fun clearReadingData() {
+        initDataJob?.cancel()
+        initDataArticleId = null
         _readingUiState.update { ReadingUiState() }
         _readerState.update { ReaderState() }
     }
@@ -543,26 +564,26 @@ constructor(
     }
 
     fun renderFullContent() {
-        currentArticle?.id?.let { fullContentManualOverride[it] = true }
+        val article = currentArticle ?: return
+        fullContentManualOverride[article.id] = true
+        // The fetch outlives the article being on screen; its result must only
+        // land on the article it was fetched for.
+        fun updateContent(content: ReaderState.ContentState) {
+            _readerState.update {
+                if (it.articleId == article.id) it.copy(content = content) else it
+            }
+        }
         val fetchJob =
             viewModelScope.launch {
                 readerCacheHelper
-                    .readOrFetchFullContent(currentArticle!!)
-                    .onSuccess { content ->
-                        _readerState.update {
-                            it.copy(content = ReaderState.FullContent(content = content))
-                        }
-                    }
-                    .onFailure { th ->
-                        _readerState.update {
-                            it.copy(content = ReaderState.Error(th.message.toString()))
-                        }
-                    }
+                    .readOrFetchFullContent(article)
+                    .onSuccess { content -> updateContent(ReaderState.FullContent(content)) }
+                    .onFailure { th -> updateContent(ReaderState.Error(th.message.toString())) }
             }
         viewModelScope.launch {
             delay(100L)
             if (fetchJob.isActive) {
-                setLoading()
+                updateContent(ReaderState.Loading)
             }
         }
     }
@@ -647,10 +668,6 @@ constructor(
                 withContext(Dispatchers.Main.immediate) { doShare(it.article.title, it.article.link) }
             }
         }
-    }
-
-    private fun setLoading() {
-        _readerState.update { it.copy(content = ReaderState.Loading) }
     }
 
     fun ReaderState.prefetchArticleId(
