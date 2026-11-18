@@ -24,6 +24,7 @@ import androidx.compose.runtime.mutableIntStateOf
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
 import androidx.compose.runtime.rememberCoroutineScope
+import androidx.compose.runtime.rememberUpdatedState
 import androidx.compose.runtime.setValue
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clipToBounds
@@ -149,6 +150,73 @@ internal fun articleSwipeSettleOffset(
 ): Float = -articleSwipePageOffset(direction, widthPx, layoutDirection)
 
 /**
+ * Where the pages sit while a finger drags them: the gesture's whole movement
+ * on top of [caughtOffset], where the pages were when the finger took hold of
+ * them (zero at rest, non-zero when the drag catches them mid-settle). The
+ * movement before the claim counts too, at rest and mid-settle alike, so a
+ * swipe is worth the same distance however late its first events arrive.
+ * Bounded to one page either way because only the direct neighbors are laid
+ * out.
+ */
+internal fun articleSwipeDragOffset(
+    caughtOffset: Float,
+    gestureDx: Float,
+    widthPx: Float,
+): Float = (caughtOffset + gestureDx).coerceIn(-widthPx, widthPx)
+
+/**
+ * Decides where a released drag lands. [dragOffset] is where the pages are,
+ * [gestureDx] how far this finger moved; they differ when the drag caught the
+ * pages mid-settle. Switching article takes a real swipe towards the neighbor
+ * that is showing: a leftover offset from the interrupted settle alone must
+ * never switch, nor may a swipe that was merely slowing that settle down.
+ */
+internal fun resolveArticleSwipeReleaseDirection(
+    dragOffset: Float,
+    gestureDx: Float,
+    threshold: Float,
+    layoutDirection: LayoutDirection,
+    canLoadPrevious: Boolean,
+    canLoadNext: Boolean,
+): ArticleSwipeDirection? {
+    if (abs(gestureDx) < threshold) return null
+    if (dragOffset * gestureDx <= 0f) return null
+    return resolveArticleSwipeSettleDirection(
+        dragOffset = dragOffset,
+        threshold = threshold,
+        layoutDirection = layoutDirection,
+        canLoadPrevious = canLoadPrevious,
+        canLoadNext = canLoadNext,
+    )
+}
+
+/**
+ * How a swipe that the pager already switched to relates to the article the
+ * reader state currently holds.
+ */
+internal enum class ArticleSwipeCommitStatus {
+    /** The reader state caught up with the swipe. */
+    Committed,
+
+    /** The reader state still holds the article the swipe started from. */
+    Waiting,
+
+    /** The reader state moved to some other article; the swipe is void. */
+    Superseded,
+}
+
+internal fun resolveArticleSwipeCommitStatus(
+    readerArticleId: String,
+    pendingArticleId: String,
+    pendingBaseArticleId: String?,
+): ArticleSwipeCommitStatus =
+    when (readerArticleId) {
+        pendingArticleId -> ArticleSwipeCommitStatus.Committed
+        pendingBaseArticleId -> ArticleSwipeCommitStatus.Waiting
+        else -> ArticleSwipeCommitStatus.Superseded
+    }
+
+/**
  * Which way a horizontal drag is heading (i.e. which page is being pulled in),
  * independent of the settle threshold. Null when the finger is at rest.
  */
@@ -239,11 +307,24 @@ fun ArticleSwipePager(
     var currentSlotIndex by remember { mutableIntStateOf(0) }
     var nextSlotIndex by remember { mutableIntStateOf(2) }
     var pendingSwipeCommitArticleId by remember { mutableStateOf<String?>(null) }
+    // The article the reader state held when the pending swipe was decided, so
+    // a reader state that has not caught up yet can be told apart from one
+    // that navigated somewhere else.
+    var pendingSwipeBaseArticleId by remember { mutableStateOf<String?>(null) }
+    // Offset of the current page from its resting position. The slots rotate
+    // the moment a swipe is decided, so this always describes "the current
+    // page plus how far it is from rest" - a state a new drag can pick up at
+    // any point of the settle animation.
     var dragOffsetPx by remember { mutableFloatStateOf(0f) }
-    var isSettling by remember { mutableStateOf(false) }
+    var isDragging by remember { mutableStateOf(false) }
     val settleOffset = remember { Animatable(0f) }
+    val settleJob = remember { arrayOfNulls<Job>(1) }
     val layoutDirection = LocalLayoutDirection.current
     val scope = rememberCoroutineScope()
+    // The gesture handler outlives recompositions, so it must not read these
+    // through the values captured when it started.
+    val latestReaderState by rememberUpdatedState(currentReaderState)
+    val latestOnLoadArticle by rememberUpdatedState(onLoadArticle)
 
     fun setSlotWebView(slotIndex: Int, webView: HorizontalScrollAwareWebView?) {
         // The pool can hand the same physical WebView to another slot, so
@@ -372,6 +453,80 @@ fun ArticleSwipePager(
         return swipeNeighborTarget(incomingId, direction == ArticleSwipeDirection.Next)
     }
 
+    // Glides the current page to rest from wherever it is. Nothing is waiting
+    // for the animation to end, so a new drag may cancel it at any frame.
+    fun settleToRest() {
+        settleJob[0]?.cancel()
+        settleJob[0] =
+            scope.launch {
+                settleOffset.snapTo(dragOffsetPx)
+                settleOffset.animateTo(
+                    targetValue = 0f,
+                    animationSpec =
+                        spring(
+                            dampingRatio = Spring.DampingRatioNoBouncy,
+                            stiffness = Spring.StiffnessMediumLow,
+                        ),
+                ) {
+                    dragOffsetPx = value
+                }
+                dragOffsetPx = 0f
+            }
+    }
+
+    // Makes the neighbor in [direction] the current page. Everything the next
+    // gesture depends on is in place when this returns - the outgoing page is
+    // the swipe-back target, the pane behind the incoming one is primed - so
+    // a swipe can be followed by another one without waiting for the settle
+    // animation or for the reader state to catch up.
+    fun switchToNeighbor(direction: ArticleSwipeDirection, widthPx: Float) {
+        val incomingSlotIndex =
+            when (direction) {
+                ArticleSwipeDirection.Next -> nextSlotIndex
+                ArticleSwipeDirection.Previous -> previousSlotIndex
+            }
+        val farSlotIndex =
+            when (direction) {
+                ArticleSwipeDirection.Next -> previousSlotIndex
+                ArticleSwipeDirection.Previous -> nextSlotIndex
+            }
+        val target = slots[incomingSlotIndex].target ?: return
+        timber.log.Timber.tag("RYSwiper").d("settle %s -> %s", direction, target.articleId)
+        val outgoingSlot = slots[currentSlotIndex]
+        // The far pane has to show the article past the incoming one. It is
+        // off-screen on the side the pages are moving away from, so its
+        // rebuild overlaps the settle animation.
+        val farTarget = resolveFarTarget(incomingSlotIndex, direction)
+        // Silence the outgoing article up front so its audio/video cannot
+        // play under the incoming page.
+        applyArticleSwipeMediaUpdate(
+            resolveArticleSwipeMediaUpdate(
+                oldCurrentSlotIndex = currentSlotIndex,
+                newCurrentSlotIndex = incomingSlotIndex,
+                slotIndices = slots.map { it.index },
+            )
+        )
+        currentSlotIndex = incomingSlotIndex
+        when (direction) {
+            ArticleSwipeDirection.Next -> {
+                previousSlotIndex = outgoingSlot.index
+                nextSlotIndex = farSlotIndex
+            }
+            ArticleSwipeDirection.Previous -> {
+                nextSlotIndex = outgoingSlot.index
+                previousSlotIndex = farSlotIndex
+            }
+        }
+        outgoingSlot.target = outgoingSlot.articleId?.let { ReaderState.PrefetchResult(it) }
+        kickSlotPreview(outgoingSlot.index)
+        loadInto(farSlotIndex, farTarget)
+        // Same pixels, now measured from the incoming page.
+        dragOffsetPx += articleSwipePageOffset(direction, widthPx, layoutDirection)
+        pendingSwipeBaseArticleId = latestReaderState.articleId
+        pendingSwipeCommitArticleId = target.articleId
+        latestOnLoadArticle(target.articleId)
+    }
+
     // Diagnostic: dump pager state on every slot/current change so blank panes
     // can be attributed to WebView pool timing from logcat alone.
     val slotStateKey =
@@ -407,30 +562,50 @@ fun ArticleSwipePager(
         }
     }
 
-    LaunchedEffect(currentReaderState.articleId, currentReaderState.content) {
+    // Swapping the incoming pane for a loading indicator while it is still
+    // sliding in would flash, so a reader state that is still loading is only
+    // adopted once the pages are at rest; the pane shows its primed content
+    // until then.
+    val isSwipeInFlight = dragOffsetPx != 0f
+    LaunchedEffect(
+        currentReaderState.articleId,
+        currentReaderState.content,
+        pendingSwipeCommitArticleId,
+        isSwipeInFlight,
+    ) {
         val articleId = currentReaderState.articleId ?: return@LaunchedEffect
-        val existingSlotIndex = slots.indexOfFirst { it.articleId == articleId }
-        if (pendingSwipeCommitArticleId == articleId && existingSlotIndex != -1) {
-            currentSlotIndex = existingSlotIndex
-            slots[existingSlotIndex].previewJob?.cancel()
-            slots[existingSlotIndex].previewJob = null
-            slots[existingSlotIndex].fullJob?.cancel()
-            slots[existingSlotIndex].fullJob = null
-            slots[existingSlotIndex].readerState = currentReaderState
-            slots[existingSlotIndex].target = null
-            pendingSwipeCommitArticleId = null
-            return@LaunchedEffect
+        pendingSwipeCommitArticleId?.let { pending ->
+            when (
+                resolveArticleSwipeCommitStatus(
+                    readerArticleId = articleId,
+                    pendingArticleId = pending,
+                    pendingBaseArticleId = pendingSwipeBaseArticleId,
+                )
+            ) {
+                ArticleSwipeCommitStatus.Waiting -> return@LaunchedEffect
+                ArticleSwipeCommitStatus.Committed,
+                ArticleSwipeCommitStatus.Superseded -> pendingSwipeCommitArticleId = null
+            }
         }
 
         val currentSlot = slots[currentSlotIndex]
         if (currentSlot.articleId == articleId) {
+            if (
+                isSwipeInFlight &&
+                    currentReaderState.content is ReaderState.Loading &&
+                    currentSlot.readerState != null
+            ) {
+                return@LaunchedEffect
+            }
             currentSlot.previewJob?.cancel()
             currentSlot.previewJob = null
             currentSlot.fullJob?.cancel()
             currentSlot.fullJob = null
             currentSlot.readerState = currentReaderState
             currentSlot.target = null
-        } else if (pendingSwipeCommitArticleId == null) {
+        } else {
+            settleJob[0]?.cancel()
+            dragOffsetPx = 0f
             previousSlotIndex = 1
             currentSlotIndex = 0
             nextSlotIndex = 2
@@ -461,9 +636,16 @@ fun ArticleSwipePager(
         visibleCurrentState.nextArticle,
         currentSlotIndex,
     ) {
-        if (visibleCurrentState.articleId == null) return@LaunchedEffect
-        val previous = visibleCurrentState.previousArticle
-        val next = visibleCurrentState.nextArticle
+        val visibleArticleId = visibleCurrentState.articleId ?: return@LaunchedEffect
+        // A pane that became current before its preview landed carries no
+        // neighbors yet. Fall back to the list snapshot so that gap neither
+        // blocks the next swipe nor wipes the page that is still sliding out.
+        val previous =
+            visibleCurrentState.previousArticle
+                ?: swipeNeighborTarget(visibleArticleId, false)
+        val next =
+            visibleCurrentState.nextArticle
+                ?: swipeNeighborTarget(visibleArticleId, true)
         val availableSlots = slots.filter { it.index != currentSlotIndex }.map { it.index }
 
         val existingPrevious =
@@ -571,14 +753,22 @@ fun ArticleSwipePager(
                 }
             }
         SideEffect { onTitleLayersChange(titleLayers) }
-        // During an active drag (including the settle animation, where
-        // dragOffsetPx is driven to its target) report the incoming slot so
-        // taps act on the article on screen, not the outgoing one.
+        // While a finger drags, report the incoming slot so taps act on the
+        // article being pulled in. Once the drag is released the pages glide
+        // towards the current slot, which by then is the article they land on.
         SideEffect {
             onVisibleArticleChange(
-                incomingSlotIndex?.let { slots[it].articleId }
+                incomingSlotIndex?.takeIf { isDragging }?.let { slots[it].articleId }
                     ?: visibleCurrentState.articleId
             )
+        }
+        // The gesture handler goes away with [enabled]; never leave the pages
+        // parked off-center behind whatever disabled it.
+        LaunchedEffect(enabled) {
+            if (!enabled && dragOffsetPx != 0f && settleJob[0]?.isActive != true) {
+                isDragging = false
+                settleToRest()
+            }
         }
 
         Box(
@@ -589,160 +779,28 @@ fun ArticleSwipePager(
                         if (enabled) {
                             Modifier.articleSwipePointerInput(
                                 layoutDirection = layoutDirection,
-                                gesturesEnabled = !isSettling,
-                                getCurrentState = { slots[currentSlotIndex].readerState },
+                                getDragOffset = { dragOffsetPx },
                                 getPreviousTarget = { slots[previousSlotIndex].target },
                                 getNextTarget = { slots[nextSlotIndex].target },
                                 onKickNeighbors = {
                                     kickSlotPreview(previousSlotIndex)
                                     kickSlotPreview(nextSlotIndex)
                                 },
-                                onSettlePrevious = {
-                                    scope.launch {
-                                        val target =
-                                            slots[previousSlotIndex].target ?: return@launch
-                                        timber.log.Timber.tag("RYSwiper")
-                                            .d("settle PREV -> %s", target.articleId)
-                                        // Mirror of the settle-NEXT kick: the pane that becomes
-                                        // "previous" after this swipe needs the article before the
-                                        // incoming one, and its rebuild should overlap the settle
-                                        // animation rather than wait for it.
-                                        resolveFarTarget(
-                                                incomingSlotIndex = previousSlotIndex,
-                                                direction = ArticleSwipeDirection.Previous,
-                                            )
-                                            ?.let { far -> loadInto(nextSlotIndex, far) }
-                                        // Silence the outgoing article up front so its
-                                        // audio/video cannot play under the incoming page.
-                                        applyArticleSwipeMediaUpdate(
-                                            resolveArticleSwipeMediaUpdate(
-                                                oldCurrentSlotIndex = currentSlotIndex,
-                                                newCurrentSlotIndex = previousSlotIndex,
-                                                slotIndices = slots.map { it.index },
-                                            )
-                                        )
-                                        isSettling = true
-                                        try {
-                                            settleOffset.snapTo(dragOffsetPx)
-                                            settleOffset.animateTo(
-                                                targetValue =
-                                                    articleSwipeSettleOffset(
-                                                        direction = ArticleSwipeDirection.Previous,
-                                                        widthPx = widthPx,
-                                                        layoutDirection = layoutDirection,
-                                                    ),
-                                                animationSpec =
-                                                    spring(
-                                                        dampingRatio = Spring.DampingRatioNoBouncy,
-                                                        stiffness = Spring.StiffnessMediumLow,
-                                                    ),
-                                            ) {
-                                                dragOffsetPx = value
-                                            }
-                                            val oldCurrent = currentSlotIndex
-                                            currentSlotIndex = previousSlotIndex
-                                            nextSlotIndex = oldCurrent
-                                            previousSlotIndex =
-                                                slots
-                                                    .first { slot ->
-                                                        slot.index != currentSlotIndex &&
-                                                            slot.index != nextSlotIndex
-                                                    }
-                                                    .index
-                                            pendingSwipeCommitArticleId = target.articleId
-                                            dragOffsetPx = 0f
-                                            settleOffset.snapTo(0f)
-                                            onLoadArticle(target.articleId)
-                                        } finally {
-                                            isSettling = false
-                                        }
-                                    }
-                                },
-                                onSettleNext = {
-                                    scope.launch {
-                                        val target = slots[nextSlotIndex].target ?: return@launch
-                                        timber.log.Timber.tag("RYSwiper")
-                                            .d("settle NEXT -> %s", target.articleId)
-                                        // The pane that becomes "next" after this swipe has to
-                                        // show a different article. Kick its rebuild NOW so the
-                                        // preview fetch + html build + paint overlap the ~0.9s
-                                        // settle animation instead of running after it; otherwise
-                                        // this pane still holds the article from three swipes ago
-                                        // when the user swipes again as soon as gestures re-enable.
-                                        resolveFarTarget(
-                                                incomingSlotIndex = nextSlotIndex,
-                                                direction = ArticleSwipeDirection.Next,
-                                            )
-                                            ?.let { far -> loadInto(previousSlotIndex, far) }
-                                        // Silence the outgoing article up front so its
-                                        // audio/video cannot play under the incoming page.
-                                        applyArticleSwipeMediaUpdate(
-                                            resolveArticleSwipeMediaUpdate(
-                                                oldCurrentSlotIndex = currentSlotIndex,
-                                                newCurrentSlotIndex = nextSlotIndex,
-                                                slotIndices = slots.map { it.index },
-                                            )
-                                        )
-                                        isSettling = true
-                                        try {
-                                            settleOffset.snapTo(dragOffsetPx)
-                                            settleOffset.animateTo(
-                                                targetValue =
-                                                    articleSwipeSettleOffset(
-                                                        direction = ArticleSwipeDirection.Next,
-                                                        widthPx = widthPx,
-                                                        layoutDirection = layoutDirection,
-                                                    ),
-                                                animationSpec =
-                                                    spring(
-                                                        dampingRatio = Spring.DampingRatioNoBouncy,
-                                                        stiffness = Spring.StiffnessMediumLow,
-                                                    ),
-                                            ) {
-                                                dragOffsetPx = value
-                                            }
-                                            val oldCurrent = currentSlotIndex
-                                            currentSlotIndex = nextSlotIndex
-                                            previousSlotIndex = oldCurrent
-                                            nextSlotIndex =
-                                                slots
-                                                    .first { slot ->
-                                                        slot.index != currentSlotIndex &&
-                                                            slot.index != previousSlotIndex
-                                                    }
-                                                    .index
-                                            pendingSwipeCommitArticleId = target.articleId
-                                            dragOffsetPx = 0f
-                                            settleOffset.snapTo(0f)
-                                            onLoadArticle(target.articleId)
-                                        } finally {
-                                            isSettling = false
-                                        }
-                                    }
-                                },
-                                onCancel = {
-                                    scope.launch {
-                                        isSettling = true
-                                        try {
-                                            settleOffset.snapTo(dragOffsetPx)
-                                            settleOffset.animateTo(
-                                                targetValue = 0f,
-                                                animationSpec =
-                                                    spring(
-                                                        dampingRatio = Spring.DampingRatioNoBouncy,
-                                                        stiffness = Spring.StiffnessMediumLow,
-                                                    ),
-                                            ) {
-                                                dragOffsetPx = value
-                                            }
-                                            dragOffsetPx = 0f
-                                            settleOffset.snapTo(0f)
-                                        } finally {
-                                            isSettling = false
-                                        }
-                                    }
+                                onDragStart = {
+                                    settleJob[0]?.cancel()
+                                    isDragging = true
                                 },
                                 onDragOffsetChange = { dragOffsetPx = it },
+                                onDragEnd = { direction, pagerWidthPx ->
+                                    isDragging = false
+                                    if (
+                                        direction != null &&
+                                            slots[currentSlotIndex].readerState?.articleId != null
+                                    ) {
+                                        switchToNeighbor(direction, pagerWidthPx)
+                                    }
+                                    settleToRest()
+                                },
                             )
                         } else {
                             Modifier
@@ -823,18 +881,15 @@ fun ArticleSwipePager(
  */
 private fun Modifier.articleSwipePointerInput(
     layoutDirection: LayoutDirection,
-    gesturesEnabled: Boolean,
-    getCurrentState: () -> ReaderState?,
+    getDragOffset: () -> Float,
     getPreviousTarget: () -> ReaderState.PrefetchResult?,
     getNextTarget: () -> ReaderState.PrefetchResult?,
-    onSettlePrevious: () -> Unit,
-    onSettleNext: () -> Unit,
-    onCancel: () -> Unit,
-    onDragOffsetChange: (Float) -> Unit,
     onKickNeighbors: () -> Unit,
+    onDragStart: () -> Unit,
+    onDragOffsetChange: (Float) -> Unit,
+    onDragEnd: (direction: ArticleSwipeDirection?, widthPx: Float) -> Unit,
 ): Modifier =
-    pointerInput(layoutDirection, gesturesEnabled) {
-        if (!gesturesEnabled) return@pointerInput
+    pointerInput(layoutDirection) {
         val thresholdPx = 96.dp.toPx()
         val touchSlop = viewConfiguration.touchSlop
         awaitEachGesture {
@@ -850,99 +905,129 @@ private fun Modifier.articleSwipePointerInput(
             var dragOffset = 0f
             var pointerId = down.id
             var claimed = false
+            var released = false
             var horizontalLockLogged = false
+            // Where the pages were when this gesture took hold of them.
+            // Non-zero when the drag catches the pages while the previous
+            // swipe is still settling.
+            var caughtOffset = 0f
 
-            while (true) {
-                val event = awaitPointerEvent()
-                val change = event.changes.firstOrNull { it.id == pointerId } ?: break
-                if (change.changedToUpIgnoreConsumed()) {
-                    // Keep dragging with a replacement finger, like the drag
-                    // gesture detectors this replaces.
-                    val replacement =
-                        event.changes.firstOrNull { it.pressed && it.id != pointerId }
-                    if (replacement == null) break
-                    pointerId = replacement.id
-                    continue
+            fun pagerWidthPx() = size.width.toFloat()
+
+            fun resolveDragOffset(): Float {
+                val offset =
+                    articleSwipeDragOffset(
+                        caughtOffset = caughtOffset,
+                        gestureDx = axisLock.totalDx,
+                        widthPx = pagerWidthPx(),
+                    )
+                return if (
+                    canDragInDirection(
+                        offset = offset,
+                        layoutDirection = layoutDirection,
+                        canLoadPrevious = getPreviousTarget() != null,
+                        canLoadNext = getNextTarget() != null,
+                    )
+                ) {
+                    offset
+                } else {
+                    0f
                 }
-                val delta = change.positionChange()
-                val axis = axisLock.feed(delta.x, delta.y)
+            }
 
-                if (!claimed) {
-                    when (axis) {
-                        null -> continue
-                        ArticleSwipeAxis.Vertical -> {
-                            timber.log.Timber
-                                .tag("RYSwiper")
-                                .d("lock vertical dx=%.0f dy=%.0f", axisLock.totalDx, axisLock.totalDy)
-                            break
-                        }
-                        ArticleSwipeAxis.Horizontal -> {
-                            if (!horizontalLockLogged) {
-                                timber.log.Timber
-                                    .tag("RYSwiper")
-                                    .d("lock horizontal dx=%.0f dy=%.0f", axisLock.totalDx, axisLock.totalDy)
-                                horizontalLockLogged = true
-                            }
-                        }
-                    }
-                    // Horizontal is locked in; claim the gesture as soon as the
-                    // drag points at an available neighbor. While it points at a
-                    // side without one, keep tracking without consuming so the
-                    // direction can still be reversed, as before.
-                    if (
-                        !canDragInDirection(
-                            offset = axisLock.totalDx,
-                            layoutDirection = layoutDirection,
-                            canLoadPrevious = getPreviousTarget() != null,
-                            canLoadNext = getNextTarget() != null,
-                        )
-                    ) {
+            try {
+                while (true) {
+                    val event = awaitPointerEvent()
+                    val change = event.changes.firstOrNull { it.id == pointerId } ?: break
+                    if (change.changedToUpIgnoreConsumed()) {
+                        // Keep dragging with a replacement finger, like the drag
+                        // gesture detectors this replaces.
+                        val replacement =
+                            event.changes.firstOrNull { it.pressed && it.id != pointerId }
+                        if (replacement == null) break
+                        pointerId = replacement.id
                         continue
                     }
-                    claimed = true
-                    dragOffset = axisLock.totalDx
+                    val delta = change.positionChange()
+                    val axis = axisLock.feed(delta.x, delta.y)
+
+                    if (!claimed) {
+                        when (axis) {
+                            null -> continue
+                            ArticleSwipeAxis.Vertical -> {
+                                timber.log.Timber
+                                    .tag("RYSwiper")
+                                    .d("lock vertical dx=%.0f dy=%.0f", axisLock.totalDx, axisLock.totalDy)
+                                break
+                            }
+                            ArticleSwipeAxis.Horizontal -> {
+                                if (!horizontalLockLogged) {
+                                    timber.log.Timber
+                                        .tag("RYSwiper")
+                                        .d("lock horizontal dx=%.0f dy=%.0f", axisLock.totalDx, axisLock.totalDy)
+                                    horizontalLockLogged = true
+                                }
+                            }
+                        }
+                        // Horizontal is locked in; claim the gesture as soon as the
+                        // drag points at an available neighbor. While it points at a
+                        // side without one, keep tracking without consuming so the
+                        // direction can still be reversed, as before. A settle that
+                        // is still running keeps running until then, and is picked
+                        // up from wherever it has brought the pages.
+                        caughtOffset = getDragOffset()
+                        if (
+                            !canDragInDirection(
+                                offset =
+                                    if (caughtOffset == 0f) axisLock.totalDx else caughtOffset,
+                                layoutDirection = layoutDirection,
+                                canLoadPrevious = getPreviousTarget() != null,
+                                canLoadNext = getNextTarget() != null,
+                            )
+                        ) {
+                            continue
+                        }
+                        claimed = true
+                        onDragStart()
+                        dragOffset = resolveDragOffset()
+                        onDragOffsetChange(dragOffset)
+                        change.consume()
+                        continue
+                    }
+
+                    dragOffset = resolveDragOffset()
                     onDragOffsetChange(dragOffset)
                     change.consume()
-                    continue
                 }
-
-                dragOffset =
-                    if (
-                        canDragInDirection(
-                            offset = axisLock.totalDx,
-                            layoutDirection = layoutDirection,
-                            canLoadPrevious = getPreviousTarget() != null,
-                            canLoadNext = getNextTarget() != null,
+                released = true
+            } finally {
+                if (claimed) {
+                    timber.log.Timber
+                        .tag("RYSwiper")
+                        .d(
+                            "up offset=%d dx=%.0f released=%b",
+                            dragOffset.roundToInt(),
+                            axisLock.totalDx,
+                            released,
                         )
-                    ) {
-                        axisLock.totalDx
-                    } else {
-                        0f
-                    }
-                onDragOffsetChange(dragOffset)
-                change.consume()
-            }
-
-            if (!claimed) return@awaitEachGesture
-            timber.log.Timber.tag("RYSwiper").d("up offset=%d", dragOffset.roundToInt())
-
-            val hasCurrent = getCurrentState()?.articleId != null
-            if (!hasCurrent || abs(dragOffset) < thresholdPx) {
-                onCancel()
-                return@awaitEachGesture
-            }
-            when (
-                resolveArticleSwipeSettleDirection(
-                    dragOffset = dragOffset,
-                    threshold = thresholdPx,
-                    layoutDirection = layoutDirection,
-                    canLoadPrevious = getPreviousTarget() != null,
-                    canLoadNext = getNextTarget() != null,
-                )
-            ) {
-                ArticleSwipeDirection.Previous -> onSettlePrevious()
-                ArticleSwipeDirection.Next -> onSettleNext()
-                null -> onCancel()
+                    // A gesture torn down mid-drag (released == false) still has
+                    // to let go of the pages; it just never switches article.
+                    onDragEnd(
+                        if (released) {
+                            resolveArticleSwipeReleaseDirection(
+                                dragOffset = dragOffset,
+                                gestureDx = axisLock.totalDx,
+                                threshold = thresholdPx,
+                                layoutDirection = layoutDirection,
+                                canLoadPrevious = getPreviousTarget() != null,
+                                canLoadNext = getNextTarget() != null,
+                            )
+                        } else {
+                            null
+                        },
+                        pagerWidthPx(),
+                    )
+                }
             }
         }
     }
