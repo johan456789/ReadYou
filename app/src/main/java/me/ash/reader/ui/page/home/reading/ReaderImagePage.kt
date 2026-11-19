@@ -3,6 +3,7 @@ package me.ash.reader.ui.page.home.reading
 import android.Manifest
 import android.content.pm.PackageManager
 import android.os.Build
+import androidx.activity.compose.BackHandler
 import androidx.activity.compose.rememberLauncherForActivityResult
 import androidx.activity.result.contract.ActivityResultContracts
 import androidx.compose.animation.core.Animatable
@@ -13,6 +14,8 @@ import androidx.compose.animation.core.tween
 import androidx.compose.foundation.Canvas
 import androidx.compose.foundation.Image
 import androidx.compose.foundation.background
+import androidx.compose.foundation.clickable
+import androidx.compose.foundation.interaction.MutableInteractionSource
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.Spacer
@@ -22,6 +25,8 @@ import androidx.compose.foundation.layout.navigationBarsPadding
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.safeDrawingPadding
 import androidx.compose.foundation.layout.wrapContentSize
+import androidx.compose.foundation.rememberScrollState
+import androidx.compose.foundation.verticalScroll
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.outlined.Close
 import androidx.compose.material.icons.outlined.MoreHoriz
@@ -210,11 +215,26 @@ fun ReaderImageViewer(
         // Tapping the photo hides the top bar and caption instead of dismissing
         // the viewer; tapping again brings them back.
         var chromeVisible by remember { mutableStateOf(true) }
+        // Tapping a truncated caption expands the full text in a translucent
+        // scrim over the image; tapping the scrim collapses it back.
+        var captionExpanded by remember { mutableStateOf(false) }
+        // Tracked as a plain boolean instead of the TextLayoutResult, whose
+        // per-layout callbacks (with no structural equality) would otherwise
+        // recompose the whole dialog on every text layout.
+        var captionTruncated by remember { mutableStateOf(false) }
+        // A new image (with a different caption) can replace the current one
+        // while the dialog is up; never stay expanded across captions.
+        LaunchedEffect(imageData.caption) { captionExpanded = false }
+        val captionInteraction = remember { MutableInteractionSource() }
         val chromeAlpha by
             animateFloatAsState(
-                targetValue = if (chromeVisible) 1f else 0f,
+                targetValue = if (chromeVisible && !captionExpanded) 1f else 0f,
                 label = "chromeAlpha",
             )
+
+        // System back collapses the expanded caption first; with the trimmed
+        // caption showing, back dismisses the viewer as before.
+        BackHandler(enabled = captionExpanded) { captionExpanded = false }
 
         // Surface the failure once; the snapshot (if any) stays visible.
         var loadErrorToasted by remember { mutableStateOf(false) }
@@ -252,7 +272,10 @@ fun ReaderImageViewer(
                                 clipToBounds = true,
                                 onClick = {
                                     chromeVisible = !chromeVisible
-                                    if (!chromeVisible) expanded = false
+                                    if (!chromeVisible) {
+                                        expanded = false
+                                        captionExpanded = false
+                                    }
                                 },
                                 onLongClick = {
                                     chromeVisible = true
@@ -341,7 +364,9 @@ fun ReaderImageViewer(
                         view.performHapticFeedback(HapticFeedbackConstantsCompat.KEYBOARD_TAP)
                         onDismissRequest()
                     },
-                    enabled = chromeVisible,
+                    // Invisible while the caption is expanded; keep TalkBack
+                    // from activating (and dismissing the viewer through) them.
+                    enabled = chromeVisible && !captionExpanded,
                     colors =
                         IconButtonDefaults.iconButtonColors(
                             containerColor = Color.Black.copy(alpha = 0.5f),
@@ -379,7 +404,7 @@ fun ReaderImageViewer(
                     }
                     IconButton(
                         onClick = { expanded = true },
-                        enabled = chromeVisible,
+                        enabled = chromeVisible && !captionExpanded,
                         colors =
                             IconButtonDefaults.iconButtonColors(
                                 containerColor = Color.Black.copy(alpha = 0.5f),
@@ -403,6 +428,21 @@ fun ReaderImageViewer(
                             .fillMaxWidth()
                             .graphicsLayer { alpha = backgroundAlpha * chromeAlpha }
                             .navigationBarsPadding()
+                            // Composed only while the caption is actually
+                            // tappable: a permanently attached clickable with
+                            // enabled = false swallowed touches in this dialog.
+                            .then(
+                                if (captionTruncated && chromeVisible) {
+                                    Modifier.clickable(
+                                        onClickLabel =
+                                            stringResource(id = R.string.image_caption_show_full),
+                                        interactionSource = captionInteraction,
+                                        indication = null,
+                                    ) { captionExpanded = true }
+                                } else {
+                                    Modifier
+                                }
+                            )
                             .padding(horizontal = 24.dp, vertical = 16.dp),
                     color = Color.White,
                     style =
@@ -417,7 +457,41 @@ fun ReaderImageViewer(
                     textAlign = TextAlign.Center,
                     maxLines = 3,
                     overflow = TextOverflow.Ellipsis,
+                    onTextLayout = { captionTruncated = it.hasVisualOverflow },
                 )
+
+                // Full caption over a translucent scrim. Covers the image so
+                // the long text stays readable; tap anywhere on the scrim to
+                // collapse back to the trimmed caption.
+                if (captionExpanded) {
+                    Box(
+                        modifier =
+                            Modifier.fillMaxSize()
+                                .background(Color.Black.copy(alpha = 0.65f))
+                                .clickable(
+                                    onClickLabel =
+                                        stringResource(id = R.string.image_caption_hide_full),
+                                    interactionSource = remember { MutableInteractionSource() },
+                                    indication = null,
+                                ) { captionExpanded = false }
+                    ) {
+                        Text(
+                            text = imageData.caption,
+                            modifier =
+                                Modifier.align(Alignment.BottomCenter)
+                                    .fillMaxWidth()
+                                    // The scrim extends edge-to-edge (decorFitsSystemWindows
+                                    // is off); safe drawing keeps a long scrolling caption
+                                    // clear of the status bar and cutouts.
+                                    .safeDrawingPadding()
+                                    .padding(horizontal = 24.dp, vertical = 16.dp)
+                                    .verticalScroll(rememberScrollState()),
+                            color = Color.White,
+                            style = MaterialTheme.typography.bodyMedium,
+                            textAlign = TextAlign.Center,
+                        )
+                    }
+                }
             }
         }
     }
