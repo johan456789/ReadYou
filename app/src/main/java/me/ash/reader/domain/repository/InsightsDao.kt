@@ -13,6 +13,7 @@ import me.ash.reader.domain.model.insights.ArticleRank
 import me.ash.reader.domain.model.insights.FeedPrior
 import me.ash.reader.domain.model.insights.RankerModel
 import me.ash.reader.domain.model.insights.ReadingEvent
+import me.ash.reader.domain.model.insights.InsightsExportArticle
 import me.ash.reader.domain.model.insights.ReadingSession
 import me.ash.reader.domain.model.insights.UnreadArticleShallow
 import java.util.Date
@@ -191,6 +192,37 @@ interface InsightsDao {
         """
     )
     suspend fun queryArticleContent(ids: List<String>): List<ArticleContent>
+
+    //endregion
+
+    //region Insights export
+
+    @Query("SELECT * FROM reading_event WHERE accountId = :accountId ORDER BY createdAt")
+    suspend fun queryAllEventsForExport(accountId: Int): List<ReadingEvent>
+
+    @Query("SELECT * FROM reading_session WHERE accountId = :accountId ORDER BY startedAt")
+    suspend fun queryAllSessionsForExport(accountId: Int): List<ReadingSession>
+
+    @Query("SELECT * FROM article_rank WHERE accountId = :accountId")
+    suspend fun queryAllRanksForExport(accountId: Int): List<ArticleRank>
+
+    /**
+     * Articles referenced by events or ranks — the minimum the offline replay
+     * evaluation needs to recompute features (includes rawDescription for
+     * content-based expected-read-time).
+     */
+    @Query(
+        """
+        SELECT DISTINCT a.id, a.feedId, a.date, a.title, a.rawDescription
+        FROM article AS a
+        WHERE a.accountId = :accountId
+        AND (
+            a.id IN (SELECT DISTINCT articleId FROM reading_event WHERE accountId = :accountId)
+            OR a.id IN (SELECT DISTINCT articleId FROM article_rank WHERE accountId = :accountId)
+        )
+        """
+    )
+    suspend fun queryArticlesForInsightsExport(accountId: Int): List<InsightsExportArticle>
 
     //endregion
 

@@ -95,6 +95,18 @@ fun TroubleshootingPage(onBack: () -> Unit, viewModel: TroubleshootingViewModel 
             }
         }
 
+    val insightsExportLauncher =
+        rememberLauncherForActivityResult(ActivityResultContracts.CreateDocument(MimeType.JSON)) {
+            result ->
+            viewModel.exportInsightsAsJSON { json ->
+                result?.let { uri ->
+                    context.contentResolver.openOutputStream(uri)?.use { outputStream ->
+                        outputStream.write(json.toByteArray())
+                    }
+                }
+            }
+        }
+
     val importLauncher =
         rememberLauncherForActivityResult(ActivityResultContracts.OpenDocument()) {
             it?.let { uri ->
@@ -161,6 +173,18 @@ fun TroubleshootingPage(onBack: () -> Unit, viewModel: TroubleshootingViewModel 
                     SettingItem(
                         title = stringResource(R.string.export_as_json),
                         onClick = { preferenceFileLauncher(context, exportLauncher) },
+                    ) {}
+                    Spacer(modifier = Modifier.height(24.dp))
+                }
+                item {
+                    Subtitle(
+                        modifier = Modifier.padding(horizontal = 24.dp),
+                        text = stringResource(R.string.reading_insights),
+                    )
+                    SettingItem(
+                        title = stringResource(R.string.export_insights_data),
+                        desc = stringResource(R.string.export_insights_data_desc),
+                        onClick = { insightsFileLauncher(context, insightsExportLauncher) },
                     ) {}
                     Spacer(modifier = Modifier.height(24.dp))
                 }
@@ -250,6 +274,17 @@ private fun preferenceFileLauncher(
     launcher.launch(
         "Read-You-" +
             "${context.getCurrentVersion()}-settings-" +
+            "${Date().toString(DateFormat.YYYY_MM_DD_DASH_HH_MM_SS_DASH)}.json"
+    )
+}
+
+private fun insightsFileLauncher(
+    context: Context,
+    launcher: ManagedActivityResultLauncher<String, Uri?>,
+) {
+    launcher.launch(
+        "Read-You-" +
+            "${context.getCurrentVersion()}-insights-" +
             "${Date().toString(DateFormat.YYYY_MM_DD_DASH_HH_MM_SS_DASH)}.json"
     )
 }

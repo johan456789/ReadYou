@@ -73,3 +73,12 @@ data class ArticleDateRef(
     val id: String,
     val date: Date,
 )
+
+/** Projection for the insights export: articles the eval needs features for. */
+data class InsightsExportArticle(
+    val id: String,
+    val feedId: String,
+    val date: Date,
+    val title: String,
+    val rawDescription: String,
+)
