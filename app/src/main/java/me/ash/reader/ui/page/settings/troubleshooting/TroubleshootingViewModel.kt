@@ -16,6 +16,7 @@ import kotlinx.coroutines.launch
 import me.ash.reader.domain.data.Log
 import me.ash.reader.domain.data.SyncLogger
 import me.ash.reader.domain.service.AccountService
+import me.ash.reader.domain.service.InsightsExportService
 import me.ash.reader.domain.service.OpmlService
 import me.ash.reader.domain.service.RssService
 import me.ash.reader.infrastructure.di.ApplicationScope
@@ -32,6 +33,7 @@ constructor(
     private val accountService: AccountService,
     private val rssService: RssService,
     private val opmlService: OpmlService,
+    private val insightsExportService: InsightsExportService,
     @param:IODispatcher private val ioDispatcher: CoroutineDispatcher,
     @param:DefaultDispatcher private val defaultDispatcher: CoroutineDispatcher,
     @param:MainDispatcher private val mainDispatcher: CoroutineDispatcher,
@@ -68,6 +70,11 @@ constructor(
         viewModelScope.launch(ioDispatcher) {
             callback(context.fromDataStoreToJSONString().toByteArray())
         }
+    }
+
+    /** Full insights export (events, sessions, ranks, related articles) for offline evaluation. */
+    fun exportInsightsAsJSON(callback: (String) -> Unit = {}) {
+        viewModelScope.launch(ioDispatcher) { callback(insightsExportService.buildExportJson()) }
     }
 
     suspend fun getSyncLogs(): List<Log> = syncLogger.list()

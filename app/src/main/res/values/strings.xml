@@ -335,6 +335,9 @@
     <string name="invalid_protobuf_file_warning">This file may not be a valid protobuf file. Importing it could potentially corrupt the app and result in the loss of current preferences. Are you sure you want to proceed?</string>
     <string name="import_from_json">Import from JSON</string>
     <string name="export_as_json">Export as JSON</string>
+    <string name="reading_insights">Reading insights</string>
+    <string name="export_insights_data">Export insights data</string>
+    <string name="export_insights_data_desc">Save a JSON of everything collected about your reading — stays on this device until you share it</string>
     <string name="invalid_json_file_warning">This file may not be a valid JSON file. Importing it could potentially corrupt the app and result in the loss of current preferences. Are you sure you want to proceed?</string>
     <string name="webview" translatable="false">WebView</string>
     <string name="read_aloud">Read aloud</string>
