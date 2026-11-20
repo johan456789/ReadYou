@@ -98,10 +98,27 @@
             android:exported="false"
             android:theme="@style/Theme.Reader"></activity>
 
+        <!-- The startup provider is removed (upstream: keep WorkManager on-demand
+             initialization, the app provides its own Configuration.Provider).
+             Re-added selectively because lifecycle-process 2.9+ initializes
+             ProcessLifecycleOwner through an App Startup initializer — without
+             it, ProcessLifecycleOwner silently never dispatches onStart/onStop,
+             which broke reading-insights sessions and impressions entirely.
+             WorkManagerInitializer stays removed; anything else that merges
+             back from library manifests must be audited before relying on it. -->
         <provider
             android:name="androidx.startup.InitializationProvider"
             android:authorities="${applicationId}.androidx-startup"
-            tools:node="remove" />
+            android:exported="false"
+            tools:node="merge">
+            <meta-data
+                android:name="androidx.lifecycle.ProcessLifecycleInitializer"
+                android:value="androidx.startup" />
+            <meta-data
+                android:name="androidx.work.WorkManagerInitializer"
+                android:value="androidx.startup"
+                tools:node="remove" />
+        </provider>
 
         <service
             android:name="androidx.appcompat.app.AppLocalesMetadataHolderService"
