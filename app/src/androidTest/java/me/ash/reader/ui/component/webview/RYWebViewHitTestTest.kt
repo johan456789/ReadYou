@@ -17,6 +17,7 @@ import java.util.concurrent.TimeUnit
 import org.junit.After
 import org.junit.Assert.assertEquals
 import org.junit.Assert.assertNotEquals
+import org.junit.Assert.assertNull
 import org.junit.Assert.assertTrue
 import org.junit.Test
 import org.junit.runner.RunWith
@@ -32,8 +33,11 @@ class RYWebViewHitTestTest {
     private var webView: HorizontalScrollAwareWebView? = null
     private var scenario: ActivityScenario<WebViewTestActivity>? = null
     private val openedLinks = CopyOnWriteArrayList<String>()
-    private val linkLongPresses = CopyOnWriteArrayList<Pair<String, String>>()
+    private val linkLongPresses = CopyOnWriteArrayList<LinkLongPress>()
     private val imageClicks = CopyOnWriteArrayList<ImageClick>()
+
+    /** One delivered link long-press. */
+    private data class LinkLongPress(val url: String, val text: String, val imageUrl: String?)
 
     /** One delivered image tap: the payload plus whether a snapshot rode along. */
     private data class ImageClick(
@@ -64,8 +68,9 @@ class RYWebViewHitTestTest {
         injectLongPress(center.x, center.y)
 
         assertTrue("Expected a long-press callback", awaitTrue { linkLongPresses.isNotEmpty() })
-        assertEquals("https://other.example.com/page", linkLongPresses.first().first)
-        assertEquals("Anchor Text Here", linkLongPresses.first().second)
+        assertEquals("https://other.example.com/page", linkLongPresses.first().url)
+        assertEquals("Anchor Text Here", linkLongPresses.first().text)
+        assertNull(linkLongPresses.first().imageUrl)
     }
 
     /**
@@ -80,9 +85,60 @@ class RYWebViewHitTestTest {
         injectLongPress(center.x, center.y)
 
         assertTrue("Expected a long-press callback", awaitTrue { linkLongPresses.isNotEmpty() })
-        val url = linkLongPresses.first().first
+        val url = linkLongPresses.first().url
         assertEquals("https://other.example.com/wrapped", url)
         assertNotEquals(SVG_RED_200, url)
+        // The dialog still offers the image itself.
+        assertEquals(SVG_RED_200, linkLongPresses.first().imageUrl)
+    }
+
+    /** Long-pressing a "click to enlarge" link offers the linked full-size file. */
+    @Test
+    fun longPressOnImageLinkedToImageOffersLinkedFile() {
+        loadArticle()
+
+        val center = awaitElementCenter("#lz")
+        injectLongPress(center.x, center.y)
+
+        assertTrue("Expected a long-press callback", awaitTrue { linkLongPresses.isNotEmpty() })
+        assertEquals(LINKED_FULL_SIZE, linkLongPresses.first().url)
+        assertEquals(LINKED_FULL_SIZE, linkLongPresses.first().imageUrl)
+    }
+
+    /**
+     * A tap on an image linked to an image file (blogs' "click to enlarge")
+     * opens the viewer with the linked copy instead of the browser.
+     */
+    @Test
+    fun tapOnImageLinkedToImageOpensViewer() {
+        loadArticle()
+        settleBeforeGesture()
+
+        val center = awaitElementCenter("#imz")
+        injectTap(center.x, center.y)
+
+        assertTrue("Expected an image click callback", awaitTrue { imageClicks.isNotEmpty() })
+        val click = imageClicks.first()
+        assertEquals(LINKED_FULL_SIZE, click.url)
+        assertEquals("Zoomable", click.alt)
+        assertEquals("Linked caption", click.caption)
+        // The tapped element's pixels may not match the linked file's shape.
+        assertNull("Expected no snapshot for a different file", click.snapshot)
+        assertTrue("Expected no browser open", awaitTimeout { openedLinks.isEmpty() })
+    }
+
+    /** A tap on an image linked to a web page is a link and still navigates. */
+    @Test
+    fun tapOnImageLinkedToPageStillNavigates() {
+        loadArticle()
+        settleBeforeGesture()
+
+        val center = awaitElementCenter("#ima")
+        injectTap(center.x, center.y)
+
+        assertTrue("Expected the link to be handed to the app", awaitTrue { openedLinks.isNotEmpty() })
+        assertEquals("https://other.example.com/wrapped", openedLinks.first())
+        assertTrue("Expected no image click callback", awaitTimeout { imageClicks.isEmpty() })
     }
 
     @Test
@@ -233,6 +289,7 @@ class RYWebViewHitTestTest {
         val content = """
         <p>Intro paragraph with <a id="l1" href="https://other.example.com/page">Anchor Text Here</a> in it.</p>
         <p><a id="la" href="https://other.example.com/wrapped"><img id="ima" alt="Wrapped" src="$SVG_RED_200"></a></p>
+        <figure><a id="lz" href="$LINKED_FULL_SIZE"><img id="imz" alt="Zoomable" src="$SVG_GREEN_200"></a><figcaption>Linked caption</figcaption></figure>
         <figure><img id="im1" alt="Alt text" src="$SVG_BLUE_200"><figcaption>The caption</figcaption></figure>
         <figure><img id="tw1" alt="Twin one" src="$SVG_BLUE_200"><figcaption>First caption</figcaption></figure>
         <figure><img id="tw2" alt="Twin two" src="$SVG_BLUE_200"><figcaption>Second caption</figcaption></figure>
@@ -289,7 +346,7 @@ class RYWebViewHitTestTest {
                 HorizontalScrollAwareWebView(activity).apply {
                     settings.javaScriptEnabled = true
                     webViewClient = client
-                    onLinkLongPress = { url, text -> linkLongPresses.add(url to text) }
+                    onLinkLongPress = { url, text, imageUrl -> linkLongPresses.add(LinkLongPress(url, text, imageUrl)) }
                     onImageClick = { imgUrl, alt, caption, snapshot ->
                         imageClicks.add(ImageClick(imgUrl, alt, caption, snapshot))
                     }
@@ -447,6 +504,13 @@ class RYWebViewHitTestTest {
          */
         const val SVG_RED_200 =
             "data:image/svg+xml;base64,PHN2ZyB4bWxucz0naHR0cDovL3d3dy53My5vcmcvMjAwMC9zdmcnIHdpZHRoPScyMDAnIGhlaWdodD0nMjAwJz48cmVjdCB3aWR0aD0nMjAwJyBoZWlnaHQ9JzIwMCcgZmlsbD0ncmVkJy8+PC9zdmc+"
+
+        /** A 200x200 green SVG, distinct from the red and blue ones. */
+        const val SVG_GREEN_200 =
+            "data:image/svg+xml;base64,PHN2ZyB4bWxucz0naHR0cDovL3d3dy53My5vcmcvMjAwMC9zdmcnIHdpZHRoPScyMDAnIGhlaWdodD0nMjAwJz48cmVjdCB3aWR0aD0nMjAwJyBoZWlnaHQ9JzIwMCcgZmlsbD0nZ3JlZW4nLz48L3N2Zz4="
+
+        /** Full-size file a "click to enlarge" link points at; never fetched. */
+        const val LINKED_FULL_SIZE = "https://images.example.com/uploads/photo-full.jpg"
 
         /** A 200x200 blue SVG, distinct from [SVG_RED_200]. */
         const val SVG_BLUE_200 =

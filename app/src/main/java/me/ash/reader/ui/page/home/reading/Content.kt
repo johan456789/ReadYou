@@ -38,7 +38,7 @@ fun Content(
     scrollToTopRequest: Int = 0,
     onHeadlineMeasured: ((Int) -> Unit)? = null,
     onImageClick: ((imgUrl: String, altText: String, caption: String, snapshot: ImageSnapshot?) -> Unit)? = null,
-    onLinkLongPress: ((url: String, text: String) -> Unit)? = null,
+    onLinkLongPress: ((url: String, text: String, imageUrl: String?) -> Unit)? = null,
     onScrollSnapshotChange: ((WebViewScrollSnapshot) -> Unit)? = null,
     onShowCustomView: ((View, WebChromeClient.CustomViewCallback) -> Unit)? = null,
     onHideCustomView: (() -> Unit)? = null,

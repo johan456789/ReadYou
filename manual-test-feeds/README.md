@@ -1,6 +1,6 @@
 # Manual test feeds
 
-Local fixture feed for manually testing the reader on the emulator. Eight articles:
+Local fixture feed for manually testing the reader on the emulator. Nine articles:
 
 | Article | File | Exercises |
 |---|---|---|
@@ -12,6 +12,7 @@ Local fixture feed for manually testing the reader on the emulator. Eight articl
 | YouTube embed article | `articles/youtube.html` | Iframe embeds, player gestures vs. article scroll |
 | Footnote article | `articles/footnotes.html` | Footnote ref/back-link taps (anchor scroll) |
 | Wide table and code | `articles/table-code.html` | Horizontal table/code scroll must keep working |
+| Image links article | `articles/image-links.html` | Tap and long-press on plain / linked-to-image / linked-to-page images |
 
 ## Use it
 
