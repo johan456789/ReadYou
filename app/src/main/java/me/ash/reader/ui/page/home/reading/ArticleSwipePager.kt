@@ -295,7 +295,7 @@ fun ArticleSwipePager(
     onTitleLayersChange: (List<TopBarTitleLayer>) -> Unit,
     onVisibleArticleChange: (String?) -> Unit,
     onImageClick: (String, String, String, ImageSnapshot?) -> Unit,
-    onLinkLongPress: (String, String) -> Unit,
+    onLinkLongPress: (String, String, String?) -> Unit,
     onShowCustomView: (View, WebChromeClient.CustomViewCallback) -> Unit,
     onHideCustomView: () -> Unit,
 ) {
@@ -1062,7 +1062,7 @@ private fun ArticleSwipePageContent(
     onHeadlineMeasured: (Int) -> Unit,
     onScrollSnapshotChange: (WebViewScrollSnapshot) -> Unit,
     onImageClick: (String, String, String, ImageSnapshot?) -> Unit,
-    onLinkLongPress: (String, String) -> Unit,
+    onLinkLongPress: (String, String, String?) -> Unit,
     onShowCustomView: (View, WebChromeClient.CustomViewCallback) -> Unit,
     onHideCustomView: () -> Unit,
 ) {

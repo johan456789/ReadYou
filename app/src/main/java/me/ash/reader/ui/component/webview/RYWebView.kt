@@ -96,7 +96,7 @@ class HorizontalScrollAwareWebView(context: Context) : WebView(context) {
                 snapshot: ImageSnapshot?,
             ) -> Unit
         )? = null
-    var onLinkLongPress: ((url: String, text: String) -> Unit)? = null
+    var onLinkLongPress: ((url: String, text: String, imageUrl: String?) -> Unit)? = null
     var handledScrollToTopRequest: Int = 0
     private val touchStartsInHorizontalScrollableContent = AtomicBoolean(false)
     private val touchStartsInMediaContent = AtomicBoolean(false)
@@ -129,9 +129,10 @@ class HorizontalScrollAwareWebView(context: Context) : WebView(context) {
 
     /**
      * Asks the engine for the focused node's anchor URL and text. The reply
-     * bundle carries "url" (the anchor href) and "title" (the anchor's visible
-     * text). Must be called while the long-pressed node is still focused, i.e.
-     * for the current touch sequence.
+     * bundle carries "url" (the anchor href), "title" (the anchor's visible
+     * text) and, for a link-wrapped image, "src" (the image URL). Must be
+     * called while the long-pressed node is still focused, i.e. for the
+     * current touch sequence.
      *
      * Replies are deduplicated per touch sequence, so the fast path, the retry
      * and the gesture-end query can all be issued without double-firing.
@@ -145,7 +146,12 @@ class HorizontalScrollAwareWebView(context: Context) : WebView(context) {
                 if (linkGestureTouch != touchSequence || linkGestureHandled) return
                 if (!url.isNullOrEmpty()) {
                     linkGestureHandled = true
-                    onLinkLongPress?.invoke(url, bundle.getString("title").orEmpty().trim())
+                    // A link-wrapped image offers the viewer too; when the link
+                    // points at the image file, that is the copy to show.
+                    val imageUrl = bundle.getString("src")?.takeIf { it.isNotEmpty() }?.let { src ->
+                        if (LinkedImage.targetsImage(url, src)) url else src
+                    }
+                    onLinkLongPress?.invoke(url, bundle.getString("title").orEmpty().trim(), imageUrl)
                 }
             }
         }
@@ -818,7 +824,7 @@ fun RYWebView(
     publishedDate: java.util.Date? = null,
     scrollToTopRequest: Int = 0,
     onImageClick: ((imgUrl: String, altText: String, caption: String, snapshot: ImageSnapshot?) -> Unit)? = null,
-    onLinkLongPress: ((url: String, text: String) -> Unit)? = null,
+    onLinkLongPress: ((url: String, text: String, imageUrl: String?) -> Unit)? = null,
     onHeadlineMeasured: ((Int) -> Unit)? = null,
     onShowCustomView: ((View, WebChromeClient.CustomViewCallback) -> Unit)? = null,
     onHideCustomView: (() -> Unit)? = null,

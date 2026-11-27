@@ -40,7 +40,7 @@ object WebViewLayout {
         webViewClient: WebViewClient,
         webChromeClient: RYWebChromeClient? = null,
         onImageClick: ((imgUrl: String, altText: String, caption: String, snapshot: ImageSnapshot?) -> Unit)? = null,
-        onLinkLongPress: ((url: String, text: String) -> Unit)? = null,
+        onLinkLongPress: ((url: String, text: String, imageUrl: String?) -> Unit)? = null,
     ): HorizontalScrollAwareWebView {
         val retained = retainedWebView
         val webView =
@@ -103,7 +103,7 @@ object WebViewLayout {
         webViewClient: WebViewClient,
         webChromeClient: RYWebChromeClient? = null,
         onImageClick: ((imgUrl: String, altText: String, caption: String, snapshot: ImageSnapshot?) -> Unit)? = null,
-        onLinkLongPress: ((url: String, text: String) -> Unit)? = null,
+        onLinkLongPress: ((url: String, text: String, imageUrl: String?) -> Unit)? = null,
     ): HorizontalScrollAwareWebView =
         obtain(
             context = context,
@@ -142,7 +142,7 @@ object WebViewLayout {
         webViewClient: android.webkit.WebViewClient,
         webChromeClient: RYWebChromeClient?,
         onImageClick: ((imgUrl: String, altText: String, caption: String, snapshot: ImageSnapshot?) -> Unit)?,
-        onLinkLongPress: ((url: String, text: String) -> Unit)?,
+        onLinkLongPress: ((url: String, text: String, imageUrl: String?) -> Unit)?,
     ): HorizontalScrollAwareWebView =
         HorizontalScrollAwareWebView(context).apply {
             isHorizontalScrollBarEnabled = false
@@ -180,7 +180,7 @@ object WebViewLayout {
         webViewClient: android.webkit.WebViewClient,
         webChromeClient: RYWebChromeClient?,
         onImageClick: ((imgUrl: String, altText: String, caption: String, snapshot: ImageSnapshot?) -> Unit)?,
-        onLinkLongPress: ((url: String, text: String) -> Unit)?,
+        onLinkLongPress: ((url: String, text: String, imageUrl: String?) -> Unit)?,
     ) {
         webView.onImageClick = onImageClick
         webView.onLinkLongPress = onLinkLongPress

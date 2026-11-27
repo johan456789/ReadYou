@@ -17,6 +17,7 @@ import java.util.concurrent.TimeUnit
 import org.junit.After
 import org.junit.Assert.assertEquals
 import org.junit.Assert.assertNotEquals
+import org.junit.Assert.assertNull
 import org.junit.Assert.assertTrue
 import org.junit.Test
 import org.junit.runner.RunWith
@@ -32,8 +33,11 @@ class RYWebViewHitTestTest {
     private var webView: HorizontalScrollAwareWebView? = null
     private var scenario: ActivityScenario<WebViewTestActivity>? = null
     private val openedLinks = CopyOnWriteArrayList<String>()
-    private val linkLongPresses = CopyOnWriteArrayList<Pair<String, String>>()
+    private val linkLongPresses = CopyOnWriteArrayList<LinkLongPress>()
     private val imageClicks = CopyOnWriteArrayList<ImageClick>()
+
+    /** One delivered link long-press. */
+    private data class LinkLongPress(val url: String, val text: String, val imageUrl: String?)
 
     /** One delivered image tap: the payload plus whether a snapshot rode along. */
     private data class ImageClick(
@@ -64,8 +68,9 @@ class RYWebViewHitTestTest {
         injectLongPress(center.x, center.y)
 
         assertTrue("Expected a long-press callback", awaitTrue { linkLongPresses.isNotEmpty() })
-        assertEquals("https://other.example.com/page", linkLongPresses.first().first)
-        assertEquals("Anchor Text Here", linkLongPresses.first().second)
+        assertEquals("https://other.example.com/page", linkLongPresses.first().url)
+        assertEquals("Anchor Text Here", linkLongPresses.first().text)
+        assertNull(linkLongPresses.first().imageUrl)
     }
 
     /**
@@ -80,9 +85,24 @@ class RYWebViewHitTestTest {
         injectLongPress(center.x, center.y)
 
         assertTrue("Expected a long-press callback", awaitTrue { linkLongPresses.isNotEmpty() })
-        val url = linkLongPresses.first().first
+        val url = linkLongPresses.first().url
         assertEquals("https://other.example.com/wrapped", url)
         assertNotEquals(SVG_RED_200, url)
+        // The dialog still offers the image itself.
+        assertEquals(SVG_RED_200, linkLongPresses.first().imageUrl)
+    }
+
+    /** Long-pressing a "click to enlarge" link offers the linked full-size file. */
+    @Test
+    fun longPressOnImageLinkedToImageOffersLinkedFile() {
+        loadArticle()
+
+        val center = awaitElementCenter("#lz")
+        injectLongPress(center.x, center.y)
+
+        assertTrue("Expected a long-press callback", awaitTrue { linkLongPresses.isNotEmpty() })
+        assertEquals(LINKED_FULL_SIZE, linkLongPresses.first().url)
+        assertEquals(LINKED_FULL_SIZE, linkLongPresses.first().imageUrl)
     }
 
     /**
@@ -324,7 +344,7 @@ class RYWebViewHitTestTest {
                 HorizontalScrollAwareWebView(activity).apply {
                     settings.javaScriptEnabled = true
                     webViewClient = client
-                    onLinkLongPress = { url, text -> linkLongPresses.add(url to text) }
+                    onLinkLongPress = { url, text, imageUrl -> linkLongPresses.add(LinkLongPress(url, text, imageUrl)) }
                     onImageClick = { imgUrl, alt, caption, snapshot ->
                         imageClicks.add(ImageClick(imgUrl, alt, caption, snapshot))
                     }

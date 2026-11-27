@@ -201,6 +201,11 @@ fun ReadingPage(
         visible = showLinkActionDialog,
         linkData = linkActionData,
         onDismissRequest = { showLinkActionDialog = false },
+        onViewImage = { imageUrl ->
+            currentImageData = ImageData(imageUrl)
+            currentImageSnapshot = null
+            showFullScreenImageViewer = true
+        },
     )
 
     Box(modifier = Modifier.fillMaxSize()) {
@@ -315,11 +320,12 @@ fun ReadingPage(
                                 currentImageSnapshot = snapshot
                                 showFullScreenImageViewer = true
                             },
-                            onLinkLongPress = { url, text ->
+                            onLinkLongPress = { url, text, imageUrl ->
                                 linkActionData =
                                     LinkActionData(
                                         url = url,
                                         linkText = text.ifEmpty { null },
+                                        imageUrl = imageUrl,
                                     )
                                 showLinkActionDialog = true
                             },

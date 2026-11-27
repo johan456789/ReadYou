@@ -15,6 +15,7 @@ import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.layout.width
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.outlined.ContentCopy
+import androidx.compose.material.icons.outlined.Image
 import androidx.compose.material.icons.outlined.Link
 import androidx.compose.material.icons.outlined.OpenInBrowser
 import androidx.compose.material.icons.outlined.Share
@@ -41,6 +42,7 @@ fun LinkActionDialog(
     visible: Boolean,
     linkData: LinkActionData?,
     onDismissRequest: () -> Unit,
+    onViewImage: (imageUrl: String) -> Unit = {},
 ) {
     val context = LocalContext.current
     val openLink = LocalOpenLink.current
@@ -76,6 +78,17 @@ fun LinkActionDialog(
                     overflow = TextOverflow.Ellipsis,
                     modifier = Modifier.padding(bottom = 16.dp),
                 )
+
+                linkData?.imageUrl?.let { imageUrl ->
+                    LinkActionItem(
+                        icon = Icons.Outlined.Image,
+                        label = stringResource(R.string.view_image),
+                        onClick = {
+                            onDismissRequest()
+                            onViewImage(imageUrl)
+                        },
+                    )
+                }
 
                 LinkActionItem(
                     icon = Icons.Outlined.OpenInBrowser,

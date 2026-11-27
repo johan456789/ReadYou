@@ -5,6 +5,8 @@ import java.net.URI
 data class LinkActionData(
     val url: String,
     val linkText: String? = null,
+    /** The image inside the link, when the link wraps one: offered in the viewer. */
+    val imageUrl: String? = null,
 ) {
     fun fallbackTitle(): String {
         return runCatching {
