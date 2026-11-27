@@ -180,5 +180,28 @@
 <p>End. Inline <code>code spans</code> should render in the code colour, and this paragraph in the normal reading colour.</p>
 ]]></content:encoded>
 </item>
+<item>
+<title>Image links article</title>
+<link>http://10.0.2.2:8901/articles/image-links.html</link>
+<guid>test-image-links</guid>
+<pubDate>Wed, 10 Sep 2026 10:00:00 GMT</pubDate>
+<description>Plain, linked-to-image and linked-to-page images; tap vs. long-press behavior.</description>
+<content:encoded><![CDATA[
+<p>Each image below is wrapped differently. Tap each one and check the result described above it. Long-press an image for the link menu.</p>
+<h2>1. Plain image</h2>
+<p>No link. Tap opens the image viewer.</p>
+<p><img src="https://picsum.photos/id/10/600/400.jpg" alt="Plain image"></p>
+<h2>2. Linked to a larger copy of itself</h2>
+<p>The "click to enlarge" pattern blogs use. Tap opens the image viewer with the 1600px copy, not the browser.</p>
+<figure><a href="https://picsum.photos/id/20/1600/1067.jpg"><img src="https://picsum.photos/id/20/600/400.jpg" alt="Linked to large copy"></a><figcaption>Caption on a linked image</figcaption></figure>
+<h2>3. Linked to the same image file</h2>
+<p>Tap opens the image viewer.</p>
+<p><a href="https://picsum.photos/id/30/600/400.jpg"><img src="https://picsum.photos/id/30/600/400.jpg" alt="Linked to same file"></a></p>
+<h2>4. Linked to a web page</h2>
+<p>Like a video thumbnail. Tap opens the link in the browser. Long-press shows the link menu with "View image".</p>
+<p><a href="https://example.com/some-article"><img src="https://picsum.photos/id/40/600/400.jpg" alt="Linked to a page"></a></p>
+<p>End of article.</p>
+]]></content:encoded>
+</item>
 </channel>
 </rss>
