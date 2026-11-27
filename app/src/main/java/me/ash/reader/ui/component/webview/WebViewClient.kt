@@ -160,6 +160,14 @@ class WebViewClient(
             return true
         }
 
+        // A tap on a "click to enlarge" image link shows the image in the
+        // viewer instead of handing the image file to the browser.
+        if (request.hasGesture() &&
+            (view as? HorizontalScrollAwareWebView)?.openLinkedImageTap(url) == true
+        ) {
+            return true
+        }
+
         if (url.isNotEmpty()) onOpenLink(url)
         return true
     }

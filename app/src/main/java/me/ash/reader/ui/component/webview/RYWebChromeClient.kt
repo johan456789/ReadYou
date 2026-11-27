@@ -108,6 +108,11 @@ class RYWebChromeClient(
             if (url.isNullOrBlank() || url.startsWith("about:")) return false
             if (openedExternally) return true
             openedExternally = true
+            // A "click to enlarge" image link with target="_blank" still
+            // belongs in the viewer, same as a same-tab one (WebViewClient).
+            if ((host as? HorizontalScrollAwareWebView)?.openLinkedImageTap(url) == true) {
+                return true
+            }
             Timber.tag("RYWebChromeClient").i("new-window URL -> opening externally: %s", url)
             onOpenLink(url)
             return true

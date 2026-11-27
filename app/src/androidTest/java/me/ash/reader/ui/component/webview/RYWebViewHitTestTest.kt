@@ -85,6 +85,40 @@ class RYWebViewHitTestTest {
         assertNotEquals(SVG_RED_200, url)
     }
 
+    /**
+     * A tap on an image linked to an image file (blogs' "click to enlarge")
+     * opens the viewer with the linked copy instead of the browser.
+     */
+    @Test
+    fun tapOnImageLinkedToImageOpensViewer() {
+        loadArticle()
+        settleBeforeGesture()
+
+        val center = awaitElementCenter("#imz")
+        injectTap(center.x, center.y)
+
+        assertTrue("Expected an image click callback", awaitTrue { imageClicks.isNotEmpty() })
+        val click = imageClicks.first()
+        assertEquals(LINKED_FULL_SIZE, click.url)
+        assertEquals("Zoomable", click.alt)
+        assertEquals("Linked caption", click.caption)
+        assertTrue("Expected no browser open", awaitTimeout { openedLinks.isEmpty() })
+    }
+
+    /** A tap on an image linked to a web page is a link and still navigates. */
+    @Test
+    fun tapOnImageLinkedToPageStillNavigates() {
+        loadArticle()
+        settleBeforeGesture()
+
+        val center = awaitElementCenter("#ima")
+        injectTap(center.x, center.y)
+
+        assertTrue("Expected the link to be handed to the app", awaitTrue { openedLinks.isNotEmpty() })
+        assertEquals("https://other.example.com/wrapped", openedLinks.first())
+        assertTrue("Expected no image click callback", awaitTimeout { imageClicks.isEmpty() })
+    }
+
     @Test
     fun tapOnBareImageOpensViewerWithMetadata() {
         loadArticle()
@@ -233,6 +267,7 @@ class RYWebViewHitTestTest {
         val content = """
         <p>Intro paragraph with <a id="l1" href="https://other.example.com/page">Anchor Text Here</a> in it.</p>
         <p><a id="la" href="https://other.example.com/wrapped"><img id="ima" alt="Wrapped" src="$SVG_RED_200"></a></p>
+        <figure><a id="lz" href="$LINKED_FULL_SIZE"><img id="imz" alt="Zoomable" src="$SVG_GREEN_200"></a><figcaption>Linked caption</figcaption></figure>
         <figure><img id="im1" alt="Alt text" src="$SVG_BLUE_200"><figcaption>The caption</figcaption></figure>
         <figure><img id="tw1" alt="Twin one" src="$SVG_BLUE_200"><figcaption>First caption</figcaption></figure>
         <figure><img id="tw2" alt="Twin two" src="$SVG_BLUE_200"><figcaption>Second caption</figcaption></figure>
@@ -447,6 +482,13 @@ class RYWebViewHitTestTest {
          */
         const val SVG_RED_200 =
             "data:image/svg+xml;base64,PHN2ZyB4bWxucz0naHR0cDovL3d3dy53My5vcmcvMjAwMC9zdmcnIHdpZHRoPScyMDAnIGhlaWdodD0nMjAwJz48cmVjdCB3aWR0aD0nMjAwJyBoZWlnaHQ9JzIwMCcgZmlsbD0ncmVkJy8+PC9zdmc+"
+
+        /** A 200x200 green SVG, distinct from the red and blue ones. */
+        const val SVG_GREEN_200 =
+            "data:image/svg+xml;base64,PHN2ZyB4bWxucz0naHR0cDovL3d3dy53My5vcmcvMjAwMC9zdmcnIHdpZHRoPScyMDAnIGhlaWdodD0nMjAwJz48cmVjdCB3aWR0aD0nMjAwJyBoZWlnaHQ9JzIwMCcgZmlsbD0nZ3JlZW4nLz48L3N2Zz4="
+
+        /** Full-size file a "click to enlarge" link points at; never fetched. */
+        const val LINKED_FULL_SIZE = "https://images.example.com/uploads/photo-full.jpg"
 
         /** A 200x200 blue SVG, distinct from [SVG_RED_200]. */
         const val SVG_BLUE_200 =

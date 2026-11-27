@@ -171,12 +171,15 @@ class HorizontalScrollAwareWebView(context: Context) : WebView(context) {
     private var gestureEndHitExtra: String? = null
     private var downHitType = 0
     private var downHitExtra: String? = null
+    private var lastTapSequence = -1
+    private var lastTapTime = 0L
 
     /**
      * Tap detection for bare images. Tap is any gesture that stays within the
      * touch slop and ends before a long press would fire. Only
-     * [WebView.HitTestResult.IMAGE_TYPE] opens the viewer; a link-wrapped image
-     * is a link and navigates as usual.
+     * [WebView.HitTestResult.IMAGE_TYPE] opens the viewer here; a link-wrapped
+     * image navigates, and the navigation is routed to the viewer by
+     * [openLinkedImageTap] when the link points at the image.
      */
     @SuppressLint("ClickableViewAccessibility")
     override fun onTouchEvent(event: MotionEvent): Boolean {
@@ -202,6 +205,10 @@ class HorizontalScrollAwareWebView(context: Context) : WebView(context) {
                     abs(event.y - tapDownY) <= touchSlop &&
                     event.eventTime - tapDownEventTime < ViewConfiguration.getLongPressTimeout()
                 tapCandidate = false
+                if (isTap) {
+                    lastTapSequence = touchSequence
+                    lastTapTime = event.eventTime
+                }
                 if (isTap && !resolveImageTap()) {
                     // One more read a frame later: the hit test data may land
                     // just after the gesture ends.
@@ -241,6 +248,40 @@ class HorizontalScrollAwareWebView(context: Context) : WebView(context) {
     }
 
     /**
+     * Called with the URL of a link navigation. When the navigation comes from
+     * a tap on a link-wrapped image and the link points at the image itself
+     * (the "click to enlarge" pattern), opens the viewer with the linked copy
+     * instead and returns true; otherwise returns false and the link opens as
+     * usual. The image is identified by the engine's hit test for the tap, and
+     * the URL is the engine's navigation target - neither comes from the page.
+     */
+    fun openLinkedImageTap(url: String): Boolean {
+        if (lastTapSequence != touchSequence) return false
+        if (SystemClock.uptimeMillis() - lastTapTime > LINKED_IMAGE_TAP_WINDOW_MS) return false
+        val imgSrc = tappedLinkedImageSrc() ?: return false
+        if (!LinkedImage.targetsImage(url, imgSrc)) return false
+        // One navigation per tap.
+        lastTapSequence = -1
+        resolveImageMetadata(imgSrc, tapDownX, tapDownY, viewerUrl = url)
+        return true
+    }
+
+    /** The image URL of a link-wrapped image under the latest tap, if the engine saw one. */
+    private fun tappedLinkedImageSrc(): String? {
+        val reads =
+            listOf(
+                gestureEndHitType to gestureEndHitExtra,
+                downHitType to downHitExtra,
+                runCatching { hitTestResult.let { it.type to it.extra } }.getOrNull(),
+            )
+        return reads.firstNotNullOfOrNull { read ->
+            read?.takeIf { it.first == WebView.HitTestResult.SRC_IMAGE_ANCHOR_TYPE }
+                ?.second
+                ?.takeIf { it.isNotEmpty() }
+        }
+    }
+
+    /**
      * Fills in what hit testing cannot know: which element among same-URL
      * twins was tapped, the un-rewritten image URL (images retried with a
      * referer marker keep the original in `dataset.rySrc`, see
@@ -254,8 +295,16 @@ class HorizontalScrollAwareWebView(context: Context) : WebView(context) {
      * the engine URL is exactly its referer-retry-marked form - a shape only
      * our retry flow can produce, so a page-writable attribute can never
      * override the engine's answer.
+     *
+     * [viewerUrl], when given, is the copy the viewer shows in place of the
+     * tapped element's own URL (the full-size file a linked image points at).
      */
-    private fun resolveImageMetadata(imgUrl: String, tapViewX: Float, tapViewY: Float) {
+    private fun resolveImageMetadata(
+        imgUrl: String,
+        tapViewX: Float,
+        tapViewY: Float,
+        viewerUrl: String? = null,
+    ) {
         val density = resources.displayMetrics.density
         val cssX = tapViewX / density
         val cssY = tapViewY / density
@@ -298,7 +347,14 @@ class HorizontalScrollAwareWebView(context: Context) : WebView(context) {
                 val metadata = parseImageMetadata(result)
                 val rySrc = metadata.rySrc
                     ?.takeIf { ImageRefererRetry.unmark(imgUrl) == it }
-                deliverImageTap(rySrc ?: imgUrl, metadata)
+                val src = rySrc ?: imgUrl
+                val target = viewerUrl ?: src
+                // A different (linked) file may not share the thumbnail's
+                // aspect ratio; let the viewer size it from its own download.
+                deliverImageTap(
+                    target,
+                    if (target == src) metadata else metadata.copy(naturalWidth = 0, naturalHeight = 0),
+                )
             }
         }
     }
@@ -480,6 +536,9 @@ class HorizontalScrollAwareWebView(context: Context) : WebView(context) {
 
         /** Delay before the post-gesture retry of the image tap hit test. */
         private const val TAP_HIT_RETRY_MS = 150L
+
+        /** How long after a tap its link navigation still counts as that tap's. */
+        private const val LINKED_IMAGE_TAP_WINDOW_MS = 1_500L
 
         /**
          * Silences every audible source in the page: pauses inline
