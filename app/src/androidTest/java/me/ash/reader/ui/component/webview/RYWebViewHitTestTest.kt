@@ -122,6 +122,8 @@ class RYWebViewHitTestTest {
         assertEquals(LINKED_FULL_SIZE, click.url)
         assertEquals("Zoomable", click.alt)
         assertEquals("Linked caption", click.caption)
+        // The tapped element's pixels may not match the linked file's shape.
+        assertNull("Expected no snapshot for a different file", click.snapshot)
         assertTrue("Expected no browser open", awaitTimeout { openedLinks.isEmpty() })
     }
 

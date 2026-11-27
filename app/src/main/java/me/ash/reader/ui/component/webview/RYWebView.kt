@@ -355,12 +355,14 @@ class HorizontalScrollAwareWebView(context: Context) : WebView(context) {
                     ?.takeIf { ImageRefererRetry.unmark(imgUrl) == it }
                 val src = rySrc ?: imgUrl
                 val target = viewerUrl ?: src
-                // A different (linked) file may not share the thumbnail's
-                // aspect ratio; let the viewer size it from its own download.
-                deliverImageTap(
-                    target,
-                    if (target == src) metadata else metadata.copy(naturalWidth = 0, naturalHeight = 0),
-                )
+                if (target != src) {
+                    // A different (linked) file may not share the tapped
+                    // element's aspect ratio, so its pixels would paint
+                    // stretched under the download; open without a snapshot.
+                    onImageClick?.invoke(target, metadata.altText, metadata.caption, null)
+                    return@evaluateJavascript
+                }
+                deliverImageTap(target, metadata)
             }
         }
     }
