@@ -83,6 +83,7 @@ compose-material3 = { group = "androidx.compose.material3", name = "material3" }
 coil-base = { group = "io.coil-kt", name = "coil-base", version.ref = "coil" }
 coil-compose = { group = "io.coil-kt", name = "coil-compose", version.ref = "coil" }
 coil-svg = { group = "io.coil-kt", name = "coil-svg", version.ref = "coil" }
+onnxruntime-android = { group = "com.microsoft.onnxruntime", name = "onnxruntime-android", version = "1.20.0" }
 coil-gif = { group = "io.coil-kt", name = "coil-gif", version.ref = "coil" }
 
 # Hilt

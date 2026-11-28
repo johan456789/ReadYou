@@ -11,11 +11,16 @@ import javax.inject.Inject
 import kotlinx.coroutines.CoroutineDispatcher
 import kotlinx.coroutines.CoroutineScope
 import kotlinx.coroutines.Dispatchers
+import kotlinx.coroutines.flow.distinctUntilChanged
+import kotlinx.coroutines.flow.first
+import kotlinx.coroutines.flow.map
 import kotlinx.coroutines.launch
 import kotlinx.coroutines.withContext
 import me.ash.reader.BuildConfig
 import me.ash.reader.domain.data.DiffMapHolder
+import me.ash.reader.domain.model.insights.EmbeddingModelCatalog
 import me.ash.reader.domain.service.AccountService
+import me.ash.reader.domain.service.EmbeddingsDownloadWorker
 import me.ash.reader.domain.service.LocalRssService
 import me.ash.reader.domain.service.OpmlService
 import me.ash.reader.domain.service.RssService
@@ -26,6 +31,8 @@ import me.ash.reader.infrastructure.preference.SettingsProvider
 import me.ash.reader.infrastructure.rss.OPMLDataSource
 import me.ash.reader.infrastructure.rss.ReaderCacheHelper
 import me.ash.reader.infrastructure.rss.RssHelper
+import me.ash.reader.ui.ext.PreferencesKey
+import me.ash.reader.ui.ext.dataStore
 import okhttp3.OkHttpClient
 import timber.log.Timber
 
@@ -97,6 +104,23 @@ class AndroidApp : Application(), Configuration.Provider {
             accountInit()
             repairCurrentAccountData()
             workerInit()
+            // Embeddings (M3): the download worker fires when the user enables
+            // the tier (or switches models) — WiFi-only, hash-checked, and a
+            // no-op while the selected model file is already verified on disk.
+            dataStore.data
+                .map { prefs ->
+                    (prefs[PreferencesKey.booleanKey(PreferencesKey.embeddingsEnabled)] ?: false) to
+                        prefs[PreferencesKey.stringKey(PreferencesKey.embeddingsModelId)]
+                }
+                .distinctUntilChanged()
+                .collect { (enabled, modelId) ->
+                    if (enabled) {
+                        EmbeddingsDownloadWorker.enqueue(
+                            workManager,
+                            modelId ?: EmbeddingModelCatalog.preset().id,
+                        )
+                    }
+                }
         }
         Coil.setImageLoader(imageLoader)
     }

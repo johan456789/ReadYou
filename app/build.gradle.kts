@@ -164,6 +164,7 @@ dependencies {
     implementation(libs.coil.base)
     implementation(libs.coil.compose)
     implementation(libs.coil.svg)
+    implementation(libs.onnxruntime.android)
     implementation(libs.coil.gif)
 
     // Hilt
