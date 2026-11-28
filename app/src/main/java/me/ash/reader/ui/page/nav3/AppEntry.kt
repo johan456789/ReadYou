@@ -31,6 +31,7 @@ import me.ash.reader.ui.page.adaptive.ArticleListReaderPage
 import me.ash.reader.ui.page.adaptive.ArticleListReaderViewModel
 import me.ash.reader.ui.page.home.feeds.FeedsPage
 import me.ash.reader.ui.page.home.feeds.subscribe.SubscribeViewModel
+import me.ash.reader.ui.page.home.foryou.ForYouPage
 import me.ash.reader.ui.page.nav3.key.Route
 import me.ash.reader.ui.page.settings.SettingsPage
 import me.ash.reader.ui.page.settings.accounts.AccountDetailsPage
@@ -138,10 +139,19 @@ fun AppEntry(
                                 animatedVisibilityScope = LocalNavAnimatedContentScope.current,
                                 navigateToSettings = { backStack.add(Route.Settings) },
                                 navigationToFlow = { backStack.add(Route.Reading(null)) },
+                                navigateToForYou = { backStack.add(Route.ForYou) },
                                 navigateToAccountList = { backStack.add(Route.Accounts) },
                                 navigateToAccountDetail = {
                                     backStack.add(Route.AccountDetails(it))
                                 },
+                            )
+                        }
+                    }
+                    Route.ForYou -> {
+                        NavEntry(key) {
+                            ForYouPage(
+                                onBack = onBack,
+                                navigateToArticle = { backStack.add(Route.Reading(it)) },
                             )
                         }
                     }

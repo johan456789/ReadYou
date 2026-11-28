@@ -12,6 +12,8 @@ sealed interface Route : NavKey {
     // Home
     @Serializable data object Feeds : Route
 
+    @Serializable data object ForYou : Route
+
     //    @Serializable data object Flow : Route
 
     @Serializable
