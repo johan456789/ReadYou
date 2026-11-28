@@ -10,6 +10,7 @@ import me.ash.reader.domain.model.insights.ArticleContent
 import me.ash.reader.domain.model.insights.ArticleDateRef
 import me.ash.reader.domain.model.insights.ArticleFeedRef
 import me.ash.reader.domain.model.insights.ArticleRank
+import me.ash.reader.domain.model.insights.ArticleVector
 import me.ash.reader.domain.model.insights.FeedPrior
 import me.ash.reader.domain.model.insights.RankerModel
 import me.ash.reader.domain.model.insights.ReadingEvent
@@ -54,6 +55,21 @@ interface InsightsDao {
         since: Date,
         types: List<Int>,
     ): List<ReadingEvent>
+
+    /** New-engagement-event count since [since]: gates burst retraining. */
+    @Query(
+        """
+        SELECT COUNT(*) FROM reading_event
+        WHERE accountId = :accountId
+        AND createdAt > :since
+        AND type IN (:types)
+        """
+    )
+    suspend fun countEngagementEventsSince(
+        accountId: Int,
+        since: Date,
+        types: List<Int>,
+    ): Int
 
     @Query("DELETE FROM reading_event WHERE createdAt < :cutoff")
     suspend fun deleteEventsBefore(cutoff: Date): Int
@@ -205,6 +221,42 @@ interface InsightsDao {
 
     @Query("SELECT * FROM article_rank WHERE accountId = :accountId")
     suspend fun queryAllRanksForExport(accountId: Int): List<ArticleRank>
+
+    /** Vectors for the given articles under one model — scoring + centroid input. */
+    @Query(
+        """
+        SELECT * FROM article_vector
+        WHERE accountId = :accountId
+        AND modelId = :modelId
+        AND articleId IN (:ids)
+        """
+    )
+    suspend fun queryVectorsForArticles(
+        accountId: Int,
+        modelId: String,
+        ids: List<String>,
+    ): List<ArticleVector>
+
+    @Upsert
+    suspend fun upsertVectors(vectors: List<ArticleVector>)
+
+    /**
+     * Vectors of articles the user engaged with (opened or meaningfully dwelled)
+     * under one model — the engagement centroid source for content similarity.
+     */
+    @Query(
+        """
+        SELECT av.* FROM article_vector AS av
+        JOIN reading_event AS re ON re.articleId = av.articleId
+        WHERE av.accountId = :accountId
+        AND av.modelId = :modelId
+        AND re.accountId = :accountId
+        AND re.type IN (1, 2)
+        AND re.type = CASE WHEN re.type = 2 THEN CASE WHEN re.censored = 1 THEN 99 ELSE 2 END ELSE 1 END
+        GROUP BY av.articleId
+        """
+    )
+    suspend fun queryEngagedVectors(accountId: Int, modelId: String): List<ArticleVector>
 
     /**
      * Articles referenced by events or ranks — the minimum the offline replay

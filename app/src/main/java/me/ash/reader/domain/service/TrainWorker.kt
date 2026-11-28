@@ -92,6 +92,34 @@ constructor(
 
     private suspend fun train(accountId: Int): Boolean {
         val now = System.currentTimeMillis()
+
+        // Burst-friendliness: with frequent short charging windows, only refit
+        // when enough new engagement data accumulated since the last fit — a
+        // sub-second run over unchanged data would be pure waste.
+        val lastTrainedAt =
+            maxOf(
+                insightsDao.queryLatestModel(accountId, RankerStage.STAGE_OPEN)?.trainedAt?.time ?: 0L,
+                insightsDao.queryLatestModel(accountId, RankerStage.STAGE_DWELL)?.trainedAt?.time ?: 0L,
+            )
+        if (lastTrainedAt > 0) {
+            val newEvents =
+                insightsDao.countEngagementEventsSince(
+                    accountId = accountId,
+                    since = Date(lastTrainedAt),
+                    types =
+                        listOf(
+                            ReadingEventType.IMPRESSION,
+                            ReadingEventType.OPEN,
+                            ReadingEventType.DWELL,
+                            ReadingEventType.MARK_READ_BULK,
+                        ),
+                )
+            if (newEvents < MIN_NEW_EVENTS) {
+                Timber.tag(TAG).i("Training skipped for account %d: only %d new events", accountId, newEvents)
+                return false
+            }
+        }
+
         // Engagement events only: SCROLL/LINK_OUT rows (the bulk of the log)
         // never participate in training and must not be dragged into memory.
         val events =
@@ -415,23 +443,35 @@ constructor(
         private const val MIN_DWELL_SAMPLES = 50
         private const val MAX_DWELL_SAMPLES = 500
 
+        /** New engagement events required before a burst retrain is worthwhile. */
+        private const val MIN_NEW_EVENTS = 100
+
         /** An open credits the impression it followed only within this window. */
         private const val OPEN_ATTRIBUTION_MS = 30L * 60_000L
 
-        fun enqueuePeriodicWork(workManager: WorkManager) {
-            val constraints =
-                Constraints.Builder()
-                    .setRequiresCharging(true)
-                    .setRequiresDeviceIdle(true)
-                    .build()
-            workManager.enqueueUniquePeriodicWork(
-                TRAIN_WORK_NAME,
-                ExistingPeriodicWorkPolicy.UPDATE,
-                PeriodicWorkRequestBuilder<TrainWorker>(24, TimeUnit.HOURS)
-                    .setConstraints(constraints)
-                    .addTag(RankWorker.INSIGHTS_WORK_TAG)
-                    .build(),
-            )
-        }
+    /**
+     * Charging-gated, burst-friendly scheduling. The old nightly pair
+     * (charging + device-idle) was self-contradicting: entering Doze deep idle
+     * requires the device to be UNPLUGGED, so a job requiring both never ran.
+     * Charging alone is the predictable window; the training itself is
+     * sub-second and retrains from the full event log, so daytime wireless
+     * charging bursts work as extra catch-up runs — gated on enough new
+     * events having accumulated since the last successful fit.
+     */
+    fun enqueuePeriodicWork(workManager: WorkManager) {
+        val constraints =
+            Constraints.Builder()
+                .setRequiresCharging(true)
+                .setRequiresBatteryNotLow(true)
+                .build()
+        workManager.enqueueUniquePeriodicWork(
+            TRAIN_WORK_NAME,
+            ExistingPeriodicWorkPolicy.UPDATE,
+            PeriodicWorkRequestBuilder<TrainWorker>(6, TimeUnit.HOURS)
+                .setConstraints(constraints)
+                .addTag(RankWorker.INSIGHTS_WORK_TAG)
+                .build(),
+        )
+    }
     }
 }

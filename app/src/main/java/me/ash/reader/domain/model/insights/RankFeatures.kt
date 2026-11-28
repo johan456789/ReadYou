@@ -131,6 +131,13 @@ fun FloatArray.toModelBytes(): ByteArray {
     return buffer.array()
 }
 
+fun FloatArray.toFloatBytes(): ByteArray {
+    val buffer = java.nio.ByteBuffer.allocate(size * 4)
+    buffer.order(java.nio.ByteOrder.LITTLE_ENDIAN)
+    for (f in this) buffer.putFloat(f)
+    return buffer.array()
+}
+
 fun ByteArray.toModelFloats(): FloatArray {
     require(size % 4 == 0) { "Model weights must be float32-packed" }
     val buffer = java.nio.ByteBuffer.wrap(this)
