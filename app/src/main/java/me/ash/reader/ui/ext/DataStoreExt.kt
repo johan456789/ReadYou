@@ -197,6 +197,11 @@ sealed interface PreferencesKey {
         // Reading insights (local recommender): silent on-device collection kill switch
         const val insightsCollectionEnabled = "insightsCollectionEnabled"
 
+        // Reading insights (local recommender): embeddings tier (M3)
+        const val embeddingsEnabled = "embeddingsEnabled"
+        const val embeddingsModelId = "embeddingsModelId"
+        const val embeddingsDownloadedModelId = "embeddingsDownloadedModelId"
+
         // Transient browsing state (persisted to survive process death for reading resume)
         const val currentFilterFeedId = "currentFilterFeedId"
         const val currentFilterGroupId = "currentFilterGroupId"
@@ -271,6 +276,9 @@ sealed interface PreferencesKey {
                 StringKey(openLinkAppSpecificBrowser),
                 IntKey(sharedContent),
                 BooleanKey(insightsCollectionEnabled),
+                BooleanKey(embeddingsEnabled),
+                StringKey(embeddingsModelId),
+                StringKey(embeddingsDownloadedModelId),
                 StringKey(currentFilterFeedId),
                 StringKey(currentFilterGroupId),
                 IntKey(currentFilterStatus),
@@ -295,6 +303,10 @@ val ignorePreferencesOnExportAndImport =
         // Device-local consent: importing another device's backup must not
         // silently flip this device's collection setting.
         PreferencesKey.insightsCollectionEnabled,
+        // Same rationale: embedding consent + which model file exists locally
+        // are device-local state, not portable preferences.
+        PreferencesKey.embeddingsEnabled,
+        PreferencesKey.embeddingsDownloadedModelId,
     )
 
 suspend fun Context.fromDataStoreToJSONString(): String {
