@@ -167,7 +167,17 @@ constructor(
             // Admission draws ONLY from the refined candidates: the unrefined tail
             // carries length-based pre-estimates that are not comparable with
             // content-based ones and would let markup-heavy rows outrank real ones.
-            val decision = admit(refined, priorByFeed)
+            // Use sim-blended scores for admission: similarity can reorder the
+            // refined set, so admission must see the final ranking, not pre-blend.
+            val decision =
+                if (simByArticle != null) {
+                    admit(refined.map { c ->
+                        val sim = simByArticle[c.meta.id]
+                        if (sim != null) c.copy(rank = c.rank.copy(score = c.rank.score * (0.5f + 0.5f * sim))) else c
+                    }, priorByFeed)
+                } else {
+                    admit(refined, priorByFeed)
+                }
 
             insightsDao.replaceRanks(
                 accountId,
