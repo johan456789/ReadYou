@@ -11,6 +11,7 @@ import androidx.work.workDataOf
 import dagger.assisted.Assisted
 import dagger.assisted.AssistedInject
 import me.ash.reader.domain.model.insights.ArticleRank
+import me.ash.reader.domain.model.insights.EmbeddingModelCatalog
 import me.ash.reader.domain.model.insights.ExpectedReadTime
 import me.ash.reader.domain.model.insights.FeedPrior
 import me.ash.reader.domain.model.insights.RankFeatures
@@ -18,13 +19,18 @@ import me.ash.reader.domain.model.insights.RankerStage
 import me.ash.reader.domain.model.insights.UnreadArticleShallow
 import me.ash.reader.domain.model.insights.toModelFloats
 import me.ash.reader.domain.repository.InsightsDao
+import me.ash.reader.domain.service.EmbeddingsDownloadWorker
+import me.ash.reader.ui.ext.PreferencesKey
+import me.ash.reader.ui.ext.dataStore
 import timber.log.Timber
+import java.io.File
 import java.util.Date
 import kotlin.math.exp
 import kotlin.math.ln
 import kotlin.math.sqrt
 import kotlin.random.Random
 import kotlinx.coroutines.CancellationException
+import kotlinx.coroutines.flow.first
 
 /**
  * Materializes the For You set: recomputes decayed feed priors from the event
@@ -92,7 +98,70 @@ constructor(
                 ?.takeIf { it.size == RankFeatures.DWELL_FEATURE_COUNT }
 
         val (refined, rest) = scanCandidates(accountId, now, priorByFeed, openWeights, dwellWeights)
-        val all = refined + rest
+
+        // Embeddings tier (M3): when the model is enabled, downloaded, and the
+        // user has engagement history, blend content similarity into the
+        // ranking — multiplicative on the two-stage score, mirroring the
+        // validated hybrid experiment (Recall@5 +12% over Tier 0). Without
+        // vectors this is a no-op and the two-stage scores stand.
+        val activeModelId =
+            applicationContext.dataStore.data.first().let { prefs ->
+                val enabled = prefs[PreferencesKey.booleanKey(PreferencesKey.embeddingsEnabled)] ?: false
+                val modelId = prefs[PreferencesKey.stringKey(PreferencesKey.embeddingsModelId)]
+                    ?: EmbeddingModelCatalog.preset().id
+                if (enabled) modelId else null
+            }?.takeIf { modelId ->
+                File(applicationContext.filesDir, "models/$modelId/${EmbeddingsDownloadWorker.MODEL_FILE}").exists()
+            }
+        val simByArticle: Map<String, Float>? =
+            activeModelId?.let { modelId ->
+                runCatching {
+                    val candidateIds = (refined + rest).map { it.meta.id }
+                    if (candidateIds.isEmpty()) return@runCatching null
+                    val candVecs =
+                        insightsDao.queryVectorsForArticles(accountId, modelId, candidateIds)
+                            .associateBy { it.articleId }
+                    if (candVecs.isEmpty()) return@runCatching null
+                    val engagedVecs =
+                        insightsDao.queryEngagedVectors(accountId, modelId)
+                    if (engagedVecs.isEmpty()) return@runCatching null
+                    val dim = engagedVecs.first().vector.toModelFloats().size
+                    val centroid = FloatArray(dim)
+                    for (v in engagedVecs) {
+                        val unpacked = v.vector.toModelFloats()
+                        for (i in 0 until dim.coerceAtMost(unpacked.size)) centroid[i] += unpacked[i]
+                    }
+                    var norm = 0.0
+                    for (c in centroid) norm += c.toDouble() * c
+                    norm = kotlin.math.sqrt(norm)
+                    if (norm <= 0) return@runCatching null
+                    for (i in centroid.indices) centroid[i] = (centroid[i] / norm).toFloat()
+
+                    candidateIds.mapNotNull { id ->
+                        val vector = candVecs[id] ?: return@mapNotNull null
+                        val unpacked = vector.vector.toModelFloats()
+                        var dotP = 0.0
+                        for (i in 0 until dim.coerceAtMost(unpacked.size)) dotP += centroid[i] * unpacked[i]
+                        id to dotP.toFloat().coerceIn(0f, 1f)
+                    }.toMap()
+                }.getOrNull()
+            }
+
+        val all =
+            (refined + rest).map { candidate ->
+                val sim = simByArticle?.get(candidate.meta.id)
+                if (sim == null) {
+                    candidate
+                } else {
+                    val blend = 0.5f + 0.5f * sim
+                    candidate.copy(
+                        rank = candidate.rank.copy(
+                            score = candidate.rank.score * blend,
+                            sim = sim,
+                        )
+                    )
+                }
+            }
 
         if (all.isNotEmpty()) {
             // Admission draws ONLY from the refined candidates: the unrefined tail

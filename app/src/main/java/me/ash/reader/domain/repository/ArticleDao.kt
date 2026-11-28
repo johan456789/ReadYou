@@ -684,6 +684,10 @@ interface ArticleDao {
     )
     suspend fun queryById(id: String): ArticleWithFeed?
 
+    /** Bulk article fetch for the embeddings pass (rawDescription drives vectors). */
+    @Query("SELECT * FROM article WHERE id IN (:ids)")
+    suspend fun queryByIds(ids: List<String>): List<Article>
+
 
     @Transaction
     @Query(
