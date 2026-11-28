@@ -55,6 +55,21 @@ interface InsightsDao {
         types: List<Int>,
     ): List<ReadingEvent>
 
+    /** New-engagement-event count since [since]: gates burst retraining. */
+    @Query(
+        """
+        SELECT COUNT(*) FROM reading_event
+        WHERE accountId = :accountId
+        AND createdAt > :since
+        AND type IN (:types)
+        """
+    )
+    suspend fun countEngagementEventsSince(
+        accountId: Int,
+        since: Date,
+        types: List<Int>,
+    ): Int
+
     @Query("DELETE FROM reading_event WHERE createdAt < :cutoff")
     suspend fun deleteEventsBefore(cutoff: Date): Int
 
