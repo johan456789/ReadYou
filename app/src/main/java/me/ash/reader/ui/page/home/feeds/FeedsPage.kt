@@ -95,15 +95,16 @@ import me.ash.reader.ui.page.home.feeds.subscribe.SubscribeViewModel
 import me.ash.reader.ui.page.settings.accounts.AccountViewModel
 
 private const val FeedsStaticAccountKey = "feeds-static-account"
+private const val FeedsStaticForYouKey = "feeds-static-for-you"
 private const val FeedsStaticBannerKey = "feeds-static-banner"
 private const val FeedsStaticSectionKey = "feeds-static-section"
 private const val FeedsStaticBottomKey = "feeds-static-bottom"
 
 // Measured item heights (emulator, 2.625x): group headers pitch 221px,
-// feed rows pitch 127px. Statics lump account/banner/section/bottom-spacer.
+// feed rows pitch 127px. Statics lump account/for-you/banner/section/bottom-spacer.
 private val GroupCardHeight = 84.dp
 private val FeedRowHeight = 48.dp
-private val FeedsStaticHeight = 330.dp
+private val FeedsStaticHeight = 418.dp
 
 @OptIn(
     ExperimentalMaterial3Api::class,
@@ -120,6 +121,7 @@ fun FeedsPage(
     subscribeViewModel: SubscribeViewModel = hiltViewModel(),
     navigateToSettings: () -> Unit,
     navigationToFlow: () -> Unit,
+    navigateToForYou: () -> Unit,
     navigateToAccountList: () -> Unit,
     navigateToAccountDetail: (Int) -> Unit,
 ) {
@@ -281,6 +283,13 @@ fun FeedsPage(
                             hapticFeedback.performHapticFeedback(HapticFeedbackType.ContextClick)
                             accountTabVisible = true
                         }
+                    }
+                    item(key = FeedsStaticForYouKey) {
+                        ForYouBanner(
+                            desc = feedsUiState.forYouDesc.ifEmpty { stringResource(R.string.loading) },
+                            onClick = navigateToForYou,
+                        )
+                        Spacer(modifier = Modifier.height(8.dp))
                     }
                     item(key = FeedsStaticBannerKey) {
                         FeedsBanner(

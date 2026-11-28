@@ -171,6 +171,28 @@ class FeedsViewModel @Inject constructor(
                 }
         }
 
+        // "N picks ready" count for the For You banner
+        viewModelScope.launch {
+            diffMapHolder.diffMapSnapshotFlow
+                .combine(rssService.get().pullImportant(isStarred = false, isUnread = true)) {
+                    diffMap,
+                    unreadCountMap,
+                    ->
+                    val sum = unreadCountMap.values.sum()
+                    val combinedSum = sum + diffMap.values.sumOf { if (it.isRead) -1 else 1 }
+                    androidStringsHelper.getQuantityString(
+                        R.plurals.for_you_picks,
+                        combinedSum,
+                        combinedSum
+                    )
+                }
+                .debounce(200L)
+                .flowOn(defaultDispatcher)
+                .collect { text ->
+                    _feedsUiState.update { it.copy(forYouDesc = text) }
+                }
+        }
+
         // Persisted collapse state: init / prune / default handling
         // Pruning uses the displayed list; when filter hides groups (Unread+hideEmptyGroups)
         // we must not delete their persisted state.
@@ -335,6 +357,7 @@ class FeedsViewModel @Inject constructor(
 data class FeedsUiState(
     val account: Account? = null,
     val importantSum: String = "",
+    val forYouDesc: String = "",
     val listState: LazyListState = LazyListState(),
     val groupsVisible: SnapshotStateMap<String, Boolean> = mutableStateMapOf(),
 )

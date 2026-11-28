@@ -518,6 +518,27 @@ interface ArticleDao {
         accountId: Int, isRead: Boolean, sortAscending: Boolean = false
     ): PagingSource<Int, ArticleWithFeed>
 
+    /**
+     * For You picks. Placeholder ranking (SQL only, no model): feeds with the most
+     * read articles first (read affinity), then freshest. Replace the ORDER BY with
+     * the on-device model's scoring once it exists.
+     */
+    @Transaction
+    @Query(
+        """
+        SELECT * FROM article
+        WHERE accountId = :accountId
+        AND (:includeRead = 1 OR isRead = 0)
+        ORDER BY
+            (SELECT COUNT(*) FROM article AS peer
+             WHERE peer.feedId = article.feedId
+             AND peer.accountId = :accountId
+             AND peer.isRead = 1) DESC,
+            date DESC
+        """
+    )
+    fun queryForYouPicks(accountId: Int, includeRead: Boolean): Flow<List<ArticleWithFeed>>
+
     @Transaction
     @RewriteQueriesToDropUnusedColumns
     @Query(

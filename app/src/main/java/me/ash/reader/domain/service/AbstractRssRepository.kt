@@ -332,6 +332,11 @@ abstract class AbstractRssRepository(
             .queryAllGroupWithFeedAsFlow(accountService.getCurrentAccountId())
             .flowOn(dispatcherIO)
 
+    fun pullForYouArticles(includeRead: Boolean): Flow<List<ArticleWithFeed>> =
+        articleDao
+            .queryForYouPicks(accountService.getCurrentAccountId(), includeRead)
+            .flowOn(dispatcherIO)
+
     fun pullArticles(
         groupId: String?,
         feedId: String?,

@@ -16,6 +16,13 @@
         <item quantity="one">%1$d starred item</item>
         <item quantity="other">%1$d starred items</item>
     </plurals>
+    <string name="for_you">For You</string>
+    <plurals name="for_you_picks">
+        <item quantity="one">%1$d pick ready</item>
+        <item quantity="other">%1$d picks ready</item>
+    </plurals>
+    <string name="for_you_caught_up">You\'re all caught up</string>
+    <string name="for_you_show_older_picks">Show older picks</string>
     <string name="feeds">Feeds</string>
     <string name="syncing">Syncing…</string>
     <string name="loading">Loading…</string>
